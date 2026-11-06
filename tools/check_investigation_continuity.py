@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 import secrets
+import sqlite3
 import sys
 import time
 from urllib.parse import urlencode
@@ -598,7 +599,8 @@ def run_round_evidence_check(command, root, checks=None, observations=None):
         return f"基础金额初值为10，金额按基础金额乘以二得到20。[{main['evidence_id']}]", "stop"
 
     with CompletionProvider(root / "provider", respond) as provider:
-        environment = write_profile(profile, provider, {"max_model_requests": 9, "max_answer_revisions": 0})
+        environment = write_profile(profile, provider, {"max_model_requests": 9, "max_answer_revisions": 0,
+            "context_compaction_enabled": False})
         with NativeWorkbench(command, profile, environment, root) as workbench:
             indexed = workbench.analyze(source, output)
             require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Round-memory index failed")
@@ -615,6 +617,216 @@ def run_round_evidence_check(command, root, checks=None, observations=None):
                 "model_requests": len(provider.requests), "elapsed_seconds": result["elapsed_seconds"]})
     return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
         "fixture_sha256": {"round_evidence/" + name: sha256(source / name) for name in files}}
+
+
+def run_analysis_compaction_check(command, root, checks=None, observations=None):
+    """Drive multiple source-bound summary generations through the real HTTP path."""
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+    files = {"root.cbl": SOURCE}
+    marker = "IF DUE-AMOUNT > 0\nPERFORM APPLY-ADVANCE\nEND-IF.\nPERFORM APPLY-RECEIPTS."
+    for number in range(1, 15):
+        body = [f'DISPLAY "CONTEXT-{number}-MARKER".', marker]
+        body.extend("*> neutral descriptive context " + str(line) + " " + "detail " * 8
+                    for line in range(110))
+        body.extend(["GOBACK.", "APPLY-ADVANCE.\nSUBTRACT ADVANCE-AMOUNT FROM DUE-AMOUNT.\nEXIT.",
+            "APPLY-RECEIPTS.\nSUBTRACT RECEIPT-AMOUNT FROM DUE-AMOUNT.\nEXIT."])
+        files[f"context-{number}.cbl"] = (
+            f"IDENTIFICATION DIVISION.\nPROGRAM-ID. CONTEXT-{number}.\nDATA DIVISION.\n"
+            "WORKING-STORAGE SECTION.\n01 DUE-AMOUNT PIC 9(6).\n01 ADVANCE-AMOUNT PIC 9(6).\n"
+            "01 RECEIPT-AMOUNT PIC 9(6).\nPROCEDURE DIVISION.\nMAIN.\n" + "\n".join(body) + "\n")
+    for name, body in files.items():
+        (source / name).write_text(body, encoding="utf-8")
+    question = "root.cbl 的金额如何计算？"
+    ordinary_turns, compactions, originals = [], [], {}
+    early = {}
+    followup_question = "刚才这个流程里，预收款的适用条件和后续顺序是什么？"
+    followup_phase = {"active": False, "payloads": []}
+
+    def respond(envelope, payload, index):
+        if followup_phase["active"]:
+            require(payload.get("question") == followup_question,
+                    "Ordinary follow-up lost its own question")
+            require(payload.get("schema") != "business-analysis-compaction/v1",
+                    "Unchanged inherited material was compacted again")
+            followup_phase["payloads"].append(payload)
+            ledger = payload.get("analysis_ledger", {})
+            require(ledger.get("generation") == len(compactions)
+                and early["evidence_id"] in ledger.get("historical_source_references", [])
+                and all(any(row.get("kind") == kind and early["evidence_id"] in row.get("evidence_ids", [])
+                    for row in ledger.get("entries", [])) for kind in ("conditions", "handoffs", "open_questions")),
+                "Ordinary follow-up dropped the cumulative business conditions or their original source")
+            return ("此前源码中的条件是欠款大于零时才进入预收款扣减，条件分支结束后继续执行收款扣减。"
+                f"该辅助流程与主程序的连接仍待查证。[{early['evidence_id']}]"), "stop"
+        require(index < 32 and payload.get("question") == question,
+                "Cumulative-analysis request changed or exceeded its shared budget")
+        pages = supplied_pages(payload)
+        for page in pages:
+            verify_pages(source, payload, page["source_text"])
+            originals[page["evidence_id"]] = page
+            if page["relative_path"] == "context-1.cbl" and marker in page["source_text"]:
+                early.update(page)
+        if payload.get("schema") == "business-analysis-compaction/v1":
+            task = payload["analysis_compaction"]
+            require(set(task["source_ids"]) == {page["evidence_id"] for page in pages},
+                    "Compaction did not supply precisely its declared originals")
+            require(task["base_generation"] == len(compactions), "Compaction generation was skipped or replayed")
+            entries = [{"kind": row["kind"], "text": row["text"],
+                "evidence_ids": list(row["evidence_ids"]), "covers_entry_ids": [row["entry_id"]]}
+                for row in task["previous_entries"]]
+            represented = {identifier for row in entries for identifier in row["evidence_ids"]}
+            for identifier in task["source_ids"]:
+                if identifier not in represented:
+                    page = originals[identifier]
+                    text = ("基础金额初值为10，金额按基础金额乘以二计算。" if page["relative_path"] == "root.cbl"
+                            else "该辅助流程先检查欠款为正的条件，符合时扣减预收款，随后进入收款扣减步骤。")
+                    entries.append({"kind": "rules", "text": text,
+                        "evidence_ids": [identifier], "covers_entry_ids": []})
+            if early.get("evidence_id") in task["source_ids"] and not any(
+                    row["kind"] == "conditions" for row in entries):
+                for kind, text in (("conditions", "仅当前欠款为正时执行预收款扣减。"),
+                        ("handoffs", "预收款条件分支结束后继续执行收款扣减。"),
+                        ("open_questions", "该辅助流程如何接入主程序仍须查证；不能把独立片段当作完整调用链。")):
+                    entries.append({"kind": kind, "text": text,
+                        "evidence_ids": [early["evidence_id"]], "covers_entry_ids": []})
+            value = {"schema": "analysis-ledger-result/v1", "task_id": task["task_id"],
+                "entries": entries, "deferred_source_ids": []}
+            require(len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode())
+                    <= task["max_output_bytes"], "Scripted cumulative analysis exceeded output allowance")
+            compactions.append({"task": task, "response": value, "request_index": index})
+            # Allow the public job endpoint to observe a real in-flight update.
+            time.sleep(0.12)
+            return json.dumps(value, ensure_ascii=False), "stop"
+        ordinary_turns.append(payload)
+        number = len(ordinary_turns)
+        if number <= 14:
+            path = f"context-{number}.cbl"
+            return json.dumps({"read": [{"relative_path": path, "start_line": 1,
+                "end_line": len(files[path].splitlines())}]}), "stop"
+        require(number == 15 and early and len(compactions) >= 2,
+                "Investigation did not reach multiple cumulative generations")
+        ledger = payload.get("analysis_ledger", {})
+        early_id = early["evidence_id"]
+        checks["compaction_carries_early_condition_handoff_and_open_branch_in_actual_late_request"] = (
+            ledger.get("generation", 0) >= 2 and ledger.get("semantic_verification") is False
+            and ledger.get("summary_is_original_source") is False
+            and ledger.get("citation_permission") is False
+            and ledger.get("historical_sources_citation_permission") is True
+            and early_id in ledger.get("historical_source_references", [])
+            and all(any(row.get("kind") == kind and early_id in row.get("evidence_ids", [])
+                for row in ledger.get("entries", [])) for kind in ("conditions", "handoffs", "open_questions")))
+        checks["compaction_early_original_leaves_current_window_without_losing_its_citation"] = (
+            not any(marker in page["source_text"] and page["relative_path"] == "context-1.cbl" for page in pages)
+            and early_id in ledger.get("historical_source_references", []))
+        main = verify_pages(source, payload)
+        return (f"主程序把初值为10的基础金额乘以二，得到金额20。[{main['evidence_id']}] "
+            f"此前读到的辅助流程只在欠款为正时扣减预收款，之后执行收款扣减；"
+            f"辅助流程接入主程序的调用关系尚未查证。[{early_id}]"), "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 32, "max_answer_revisions": 0})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests,
+                    "Cumulative-analysis index failed")
+            result = workbench.analyze(source, output, question, answer_detail="detailed")
+            require(result["result"] and not provider.errors,
+                    "Cumulative-analysis answer failed: " + "; ".join(provider.errors))
+            agent = result["result"]["agent_result"]
+            journal = read_journal(output)["requests"]
+            trace = json.loads(Path(agent["metrics"]["quality_trace_path"]).read_text(encoding="utf-8"))
+            policy = agent["metrics"]["policy"]
+            checks["compaction_uses_shared_budget_and_exact_unique_wire_requests"] = (
+                2 <= len(compactions) and len(ordinary_turns) == 15
+                and len(provider.requests) == len(journal) == agent["metrics"]["model_requests"] <= 32
+                and len([row for row in trace["rounds"] if row["stage"] == "context_compact"]) == len(compactions)
+                and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests}
+                and policy["max_source_characters"] == 36000 and policy["context_compaction_enabled"] is True
+                and all((provider.root / f"request-{row['index'] + 1:03d}.json").stat().st_size
+                    <= policy["max_request_bytes"] for row in provider.requests))
+            snapshots = [sample["progress"]["analysis_state"] for sample in result["progress_samples"]
+                if sample.get("progress", {}).get("analysis_state")]
+            checks["compaction_actual_http_progress_exposes_candidates_and_running_and_completed_states"] = (
+                any(row.get("compaction", {}).get("status") == "running" for row in snapshots)
+                and any(row.get("compaction", {}).get("status") == "completed"
+                    and row["compaction"]["cycle"] >= 2 and row["findings"] for row in snapshots)
+                and all(row["schema_version"] == "business-investigation-progress/v1" for row in snapshots)
+                and [row["revision"] for row in snapshots] == sorted(row["revision"] for row in snapshots)
+                and all("analysis-ledger-result/v1" not in json.dumps(sample.get("progress", {}))
+                    for sample in result["progress_samples"]))
+            checks["compaction_progress_distinguishes_global_pending_work_from_summary_questions"] = (
+                any(row["counts"]["open"] > 0 and type(row.get("has_pending_work")) is bool
+                    and type(row["counts"].get("global_pending")) is int for row in snapshots)
+                and all(not row["counts"].get("global_pending", 0) or row.get("has_pending_work") is True
+                    for row in snapshots))
+            with sqlite3.connect(output / "investigation-runs.sqlite") as db:
+                row = db.execute("SELECT checkpoint_json FROM investigation_runs WHERE run_id=?",
+                    (agent["run_id"],)).fetchone()
+                checkpoint = json.loads(row[0])
+            ledger = checkpoint.get("prior_source_memory", {}).get("analysis_ledger", {})
+            generations = ledger.get("generations", [])
+            checks["compaction_persists_every_generation_and_unfinished_interpretation"] = (
+                len(generations) == len(compactions) >= 2
+                and all(row["semantic_verification"] is False and row["structural_preservation_verified"] is True
+                    for row in generations)
+                and all(any(entry["kind"] == "open_questions" and early["evidence_id"] in entry["evidence_ids"]
+                    for entry in row["entries"]) for row in generations)
+                and ledger.get("pending_task") is None)
+            with sqlite3.connect(output / "versioned-evidence.sqlite") as db:
+                archived = db.execute("SELECT relative_path,start_line,end_line,source_sha256,text FROM excerpts "
+                    "WHERE evidence_id=?", (early["evidence_id"],)).fetchone()
+            checks["compaction_final_historical_citation_is_backed_by_exact_archived_original"] = (
+                archived == tuple(early[key] for key in
+                    ("relative_path", "start_line", "end_line", "source_sha256", "source_text"))
+                and f"[{early['evidence_id']}]" in agent["answer"]
+                and any(row.get("evidence_id") == early["evidence_id"]
+                    and row.get("source_sha256") == early["source_sha256"] for row in agent["evidence_refs"])
+                and agent["metrics"].get("prior_memory_source_pages", 0) > 0)
+            observations.append({"phase": "cumulative_analysis_compaction", "run_id": agent["run_id"],
+                "model_requests": len(provider.requests), "compaction_generations": len(generations),
+                "elapsed_seconds": result["elapsed_seconds"]})
+            first_run, first_count = agent["run_id"], len(provider.requests)
+            conversation_id = result["state"]["conversation"]["id"]
+            workbench.stop()
+            restored = workbench.start()
+            require(restored.get("conversation", {}).get("id") == conversation_id,
+                    "Compacted conversation did not reopen")
+            followup_phase["active"] = True
+            followup = workbench.analyze(source, output, followup_question,
+                conversation_id=conversation_id, answer_detail="brief")
+            require(followup["result"] and not provider.errors,
+                    "Ordinary cumulative-analysis follow-up failed: " + "; ".join(provider.errors))
+            next_agent = followup["result"]["agent_result"]
+            checks["ordinary_followup_after_restart_inherits_cumulative_conditions_without_continue_action"] = (
+                bool(followup_phase["payloads"]) and next_agent["run_id"] != first_run
+                and next_agent["metrics"]["model_requests"] == len(provider.requests) - first_count
+                and f"[{early['evidence_id']}]" in next_agent["answer"]
+                and any(ref.get("evidence_id") == early["evidence_id"]
+                    and ref.get("source_sha256") == early["source_sha256"] for ref in next_agent["evidence_refs"])
+                and [row["content"] for row in followup["state"]["conversation"]["messages"]
+                    if row["role"] == "user"] == [question, followup_question])
+            with sqlite3.connect(output / "investigation-runs.sqlite") as db:
+                followup_checkpoint = json.loads(db.execute(
+                    "SELECT checkpoint_json FROM investigation_runs WHERE run_id=?", (next_agent["run_id"],)).fetchone()[0])
+            inherited = followup_checkpoint.get("prior_source_memory", {}).get("analysis_ledger", {})
+            checks["ordinary_followup_preserves_original_generations_and_uses_a_new_question_budget"] = (
+                inherited.get("generations") == generations
+                and followup_checkpoint.get("conversation_analysis_handoff", {}).get("from_run_id") == first_run
+                and next_agent["metrics"]["model_requests"] < first_count)
+            journal = read_journal(output)["requests"]
+            checks["ordinary_followup_and_compaction_have_no_duplicate_remote_requests"] = (
+                len(provider.requests) == len(journal) and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+            observations.append({"phase": "ordinary_cumulative_analysis_followup", "run_id": next_agent["run_id"],
+                "previous_run_id": first_run, "model_requests": next_agent["metrics"]["model_requests"],
+                "compaction_generations": len(inherited.get("generations", [])),
+                "elapsed_seconds": followup["elapsed_seconds"]})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "injected_wait_seconds": len(compactions) * 0.12,
+        "fixture_sha256": {"analysis_compaction/" + name: sha256(source / name) for name in files}}
 
 
 def run_sequence_selection_check(command, root, checks=None, observations=None):
@@ -927,14 +1139,15 @@ def run_checks(command, root, report=None):
     followup = run_followup_context_check(command, root / "followup-context", checks, observations)
     depth = run_business_depth_check(command, root / "business-depth", checks, observations)
     memory = run_round_evidence_check(command, root / "round-evidence", checks, observations)
+    compaction = run_analysis_compaction_check(command, root / "analysis-compaction", checks, observations)
     sequence = run_sequence_selection_check(command, root / "sequence-selection", checks, observations)
     return {"checks": checks, "observations": observations,
         "synthetic_model_requests": len(provider.requests) + sum(result["synthetic_model_requests"]
-            for result in (independent, identity, followup, depth, memory, sequence)),
+            for result in (independent, identity, followup, depth, memory, compaction, sequence)),
         "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
             **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"], **depth["fixture_sha256"],
-            **memory["fixture_sha256"], **sequence["fixture_sha256"]},
-        "injected_wait_seconds": 20,
+            **memory["fixture_sha256"], **compaction["fixture_sha256"], **sequence["fixture_sha256"]},
+        "injected_wait_seconds": 20 + compaction["injected_wait_seconds"],
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 
 

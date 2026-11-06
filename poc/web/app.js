@@ -33,7 +33,15 @@ const preview = {catalog:null,selectedCase:null};
 const state = {mode:'real',page:'workbench',tab:'answer',connected:false,token:null,apiConfigured:false,apiConfigurationError:null,frameworkKnowledge:null,captureApiResponses:false,answerInstructions:'',defaultAnswerInstructions:'',answerInstructionsSaving:false,
   conversationSupported:false,submissionProtocol:null,unconfirmedSubmission:null,conversation:null,conversations:[],recentConversations:null,recentConversationsTruncated:false,conversationFilter:'',conversationVisible:8,conversationCollapsed:{},pendingMessage:null,conversationEvidence:null,conversationLoading:false,impactPages:{},
   sourceWorkspaces:[],sourceNotice:'',sourceJobFeedback:null,remoteSourceIntent:'connect',remoteSourceWorkspaceId:null,project:null,question:'',entry:'',readingStrategy:'focused',answerDetail:'detailed',maxSourcePages:4,selectedEvidence:null,
-  evidence:null,demoLoading:false,demoError:'',demoRestore:null,realWorkspace:null,sourcePreferences:null,sourceJobBackup:null,sourceJobTarget:null,sourceIntent:'connect',remoteSourceJob:false,sourceJobReusing:false,busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null,deletingConversationWorkspaceId:null};
+  evidence:null,demoLoading:false,demoError:'',demoRestore:null,realWorkspace:null,sourcePreferences:null,sourceJobBackup:null,sourceJobTarget:null,sourceIntent:'connect',remoteSourceJob:false,sourceJobReusing:false,busy:false,jobId:null,jobKind:null,error:'',errorDiagnostic:null,history:[],filter:'',sourcePage:0,entryFilter:'',progress:null,progressReceived:0,progressTimer:null,analysisDisplay:savedAnalysisDisplay(),pollError:'',cancelRequested:false,evidenceTicket:0,modelChecking:false,modelCheckStatus:null,modelCheckFeedback:'',folderPicking:false,deletingConversationId:null,deletingConversationWorkspaceId:null};
+
+function savedAnalysisDisplay(){try{return localStorage.getItem('cobol-workbench-analysis-display')==='progress'?'progress':'summary';}catch{return 'summary';}}
+function setAnalysisDisplay(value){
+  if(!['summary','progress'].includes(value))return;
+  state.analysisDisplay=value;
+  try{localStorage.setItem('cobol-workbench-analysis-display',value);}catch{}
+  updateLiveAnalysis();
+}
 
 function demoText(value){return frameworkDemoText(value ?? '');}
 function demoCase(){return preview.catalog?.cases?.find(item=>item.id===preview.selectedCase) || null;}
@@ -470,7 +478,7 @@ function safeApiDiagnostic(value){
 }
 const SAFE_FAILURE_REQUEST_STAGES={answer:'生成回答',discover:'定位資料',investigate:'補查源碼',
   synthesis_review:'完善業務解釋',continuation:'續寫回答',semantic_review:'業務復核',semantic_revise:'依復核結果修訂',
-  empty_length_recovery:'補回因長度限制而缺失的正文',empty_stop_recovery:'補回空白回答'};
+  empty_length_recovery:'補回因長度限制而缺失的正文',empty_stop_recovery:'補回空白回答',context_compact:'整理調查上下文'};
 const SAFE_FAILURE_REQUEST_OUTCOMES={not_sent:'尚未發出請求',response_received:'已收到接口回應',unknown:'請求結果尚未確認'};
 function safeFailureRequestContext(value){
   if(!value || typeof value!=='object' || Array.isArray(value))return null;
@@ -491,7 +499,7 @@ function safeFailureDiagnostics(subject=null){
   for(const item of candidates.slice(0,128)){
     const diagnostic=safeApiDiagnostic(item?.diagnostic || item);if(!diagnostic || seen.has(diagnostic.request_id))continue;
     seen.add(diagnostic.request_id);
-    const stage=['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','unknown','capability_probe','provider_request','context_assembly','response_parse','response_validation','configuration','direct','map','reduce','model_request','repository_search','page','program','synthesis'].includes(item.stage)?item.stage:'unknown';
+    const stage=['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','context_compact','unknown','capability_probe','provider_request','context_assembly','response_parse','response_validation','configuration','direct','map','reduce','model_request','repository_search','page','program','synthesis'].includes(item.stage)?item.stage:'unknown';
     const requestContext=safeFailureRequestContext(item.request_context);
     found.push({stage,...diagnostic,...(requestContext?{request_context:requestContext}:{})});if(found.length>=64)break;
   }
@@ -816,7 +824,7 @@ function phaseLabel(phase){
     using_index:t('使用已建立的代碼庫索引'),retrieving:t('查找與問題相關的依據'),answering:t('整理業務回答'),
     locating_sources:t('定位與問題相關的程序'),reading_relevant_sources:t('讀取相關段落'),
     supplementing_evidence:t('補充相關分析依據'),waiting_for_model:t('模型正在生成回答'),verifying_answer:t('核驗回答與源碼依據'),
-    writing_answer:t('正在撰寫業務回答'),reviewing_answer:t('正在核對回答與問題'),
+    writing_answer:t('正在撰寫業務回答'),reviewing_answer:t('正在核對回答與問題'),compacting:t('正在整理上下文'),
     reading_sources:t('逐頁讀取源碼'),analyzing_pages:t('解讀已讀源碼'),synthesizing:t('整合業務解讀'),
     framework:t('檢索相關框架資料'),framework_reference:t('載入框架資料'),framework_semantics:t('整理框架與源碼的對應'),source_version:t('記錄源碼版本'),
     preparing:t('準備中'),preparing_index:t('準備索引結構'),queued:t('等待開始'),backup:t('備份現有索引'),backing_up:t('正在保留舊版本'),
@@ -907,7 +915,55 @@ function answerPreview(value){
   if(objectStart>=0 && /"(?:search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate.slice(objectStart)))return null;
   return {text:value.text,round:progressCount(value.round),stage:['draft','drafting','answer','answering','writing','revision','revise','revising','continuation','continuing','verifying'].includes(value.stage)?value.stage:'drafting'};
 }
+function analysisState(value){
+  if(!value || typeof value!=='object' || Array.isArray(value) || value.schema_version!=='business-investigation-progress/v1')return null;
+  const number=item=>Number.isSafeInteger(item)&&item>=0;
+  const boundedText=item=>item.length<=2000?item:item.slice(0,1999)+'…';
+  const prose=item=>typeof item==='string'&&!/<(?:think|analysis)(?:\s|>)|["'](?:reasoning_content|reasoning|chain_of_thought|tool_calls|search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect)["']\s*:/i.test(item);
+  if(!number(value.revision)||!number(value.round)||value.round<1||!['investigate','compacting','answer','review'].includes(value.phase)||!prose(value.summary)||!number(value.omitted_findings))return null;
+  const counts=value.counts,keys=['candidate','open','conflicts','total_sources'];
+  if(!counts || typeof counts!=='object' || Array.isArray(counts) || keys.some(key=>!number(counts[key])) || !Array.isArray(value.findings))return null;
+  const findings=[];
+  for(const row of value.findings.slice(0,64)){
+    if(!row || typeof row!=='object'||Array.isArray(row)||typeof row.id!=='string'||!row.id.length||row.id.length>180||!['rules','conditions','handoffs','conflicts','open_questions'].includes(row.kind)||!prose(row.text)||!number(row.evidence_count))return null;
+    findings.push({id:row.id,kind:row.kind,text:boundedText(row.text),evidence_count:row.evidence_count});
+  }
+  const safe={schema_version:value.schema_version,revision:value.revision,round:value.round,phase:value.phase,summary:boundedText(value.summary),counts:Object.fromEntries(keys.map(key=>[key,counts[key]])),findings,
+    omitted_findings:Math.min(Number.MAX_SAFE_INTEGER,value.omitted_findings+Math.max(0,value.findings.length-64))};
+  if(Object.hasOwn(counts,'global_pending')||Object.hasOwn(value,'has_pending_work')){
+    if(!number(counts.global_pending)||typeof value.has_pending_work!=='boolean'||counts.global_pending>0&&!value.has_pending_work)return null;
+    safe.counts.global_pending=counts.global_pending;safe.has_pending_work=value.has_pending_work;
+  }
+  if(Object.hasOwn(value,'compaction')){
+    const compact=value.compaction,fields=['cycle','before_bytes','after_bytes','retained_entries','deferred_sources'];
+    if(!compact||typeof compact!=='object'||Array.isArray(compact)||!['not_needed','running','completed','failed'].includes(compact.status)||fields.some(key=>!number(compact[key]))||typeof compact.structural_preservation_verified!=='boolean')return null;
+    safe.compaction={status:compact.status,...Object.fromEntries(fields.map(key=>[key,compact[key]])),structural_preservation_verified:compact.structural_preservation_verified};
+  }
+  return safe;
+}
+function investigationStateView(snapshot){
+  const current=analysisState(snapshot);if(!current)return '';
+  const labels={rules:'業務規則',conditions:'適用條件',handoffs:'交接關係',conflicts:'待核對衝突',open_questions:'待查事項'};
+  const stages={investigate:'補查源碼',compacting:'正在整理上下文',answer:'生成回答',review:'業務復核'};
+  const counts=[ui`調查輪次 ${formatNumber(current.round)}`,t('階段發現（待核）')+' '+formatNumber(current.counts.candidate),
+    t('摘要中的待查事項')+' '+formatNumber(current.counts.open),t('待核對衝突')+' '+formatNumber(current.counts.conflicts),t('累計來源')+' '+formatNumber(current.counts.total_sources)];
+  const pending=Object.hasOwn(current,'has_pending_work')?(current.has_pending_work?
+    (current.counts.global_pending>0?t('全局待查記錄')+' '+formatNumber(current.counts.global_pending)+' · '+t('同一鏈路可能對應多項記錄。'):t('仍有全局待查內容，數量尚未確定。')):
+    t('目前沒有已登記的全局待查項；不代表所有未知路徑均已證實。')):t('全局待查狀態尚未同步。');
+  const compact=current.compaction;
+  const compactLabels={not_needed:'目前無需壓縮',running:'正在整理上下文',completed:'上下文整理完成',failed:'上下文整理未完成'};
+  const compaction=compact?`<section class="analysis-compaction"><strong>${escapeHTML(t(compactLabels[compact.status]))}</strong><p>${escapeHTML(t('整理次數'))}：${formatNumber(compact.cycle)} · ${escapeHTML(t('整理前'))}：${formatBytes(compact.before_bytes)} · ${escapeHTML(t('整理後'))}：${formatBytes(compact.after_bytes)}</p><p>${escapeHTML(t('本次保留記錄'))}：${formatNumber(compact.retained_entries)} · ${escapeHTML(t('仍待整理的來源'))}：${formatNumber(compact.deferred_sources)}</p><p>${escapeHTML(t(compact.structural_preservation_verified?'結構關聯校驗通過；不代表完整語義已確認。':'結構關聯尚未確認；不能據此判定語義完整。'))}</p></section>`:'';
+  const groups=Object.entries(labels).map(([kind,label])=>{
+    const rows=current.findings.filter(row=>row.kind===kind);if(!rows.length)return '';
+    return `<section class="analysis-finding-group"><h4>${escapeHTML(t(label))}</h4><ul>${rows.map(row=>`<li><span>${escapeHTML(row.text)}</span><small>${escapeHTML(t('待核'))} · ${escapeHTML(t('關聯依據'))} ${formatNumber(row.evidence_count)}</small></li>`).join('')}</ul></section>`;
+  }).join('');
+  return `<section class="analysis-state" aria-label="${escapeHTML(t('調查進展'))}"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div><p class="analysis-global-pending">${escapeHTML(pending)}</p><strong>${escapeHTML(t(stages[current.phase]))}</strong>${current.summary?`<p role="status" aria-live="polite">${escapeHTML(current.summary)}</p>`:''}<details class="analysis-state-details"><summary>${escapeHTML(t('查看階段發現與上下文整理'))}</summary><p>${escapeHTML(t('以下是調查中的候選記錄，仍須核對；不等於已確認的業務結論。'))}</p>${groups}${current.omitted_findings?`<p>${escapeHTML(t('此處未顯示的記錄'))}：${formatNumber(current.omitted_findings)}</p>`:''}${compaction}</details></section>`;
+}
+function analysisDisplayControls(){
+  return ui`<label class="analysis-display-control" for="analysis-display-mode">進展顯示<select id="analysis-display-mode"><option value="summary" ${state.analysisDisplay==='summary'?'selected':''}>即時摘要</option><option value="progress" ${state.analysisDisplay==='progress'?'selected':''}>僅進度</option></select><span>只調整顯示，不影響後台調查。</span></label>`;
+}
 function liveAnalysisView(progress=state.progress){
+  if(state.analysisDisplay==='progress')return '';
   const update=analysisUpdate(progress?.analysis_update),preview=answerPreview(progress?.answer_preview);
   const counts=[];
   if(update?.round>0)counts.push(ui`調查輪次 ${formatNumber(update.round)}`);
@@ -918,7 +974,8 @@ function liveAnalysisView(progress=state.progress){
   const stage=['reviewing_answer','verifying_answer'].includes(progress?.phase) || preview?.stage==='verifying'?t('核對中'):['revision','revise','revising'].includes(preview?.stage)?t('修訂中'):t('撰寫中');
   const history=Array.isArray(progress?._activityHistory)?progress._activityHistory:[];
   const activity=history.length?ui`<details class="analysis-activity-history"><summary>查看處理進展 · ${formatNumber(history.length)}</summary><ol>${history.map(item=>`<li>${item.phase?`<strong>${escapeHTML(phaseLabel(item.phase))}</strong>`:''}${item.summary?`<span>${escapeHTML(item.summary)}</span>`:''}</li>`).join('')}</ol></details>`:'';
-  return activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:'')+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
+  const investigation=investigationStateView(progress?.analysis_state);
+  return (investigation || activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:''))+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
 }
 function rememberProgress(progress){
   if(!progress || typeof progress!=='object')return;
@@ -928,8 +985,14 @@ function rememberProgress(progress){
     const value=Object.hasOwn(progress,key)?normalize(progress[key]):previous[key];
     if(value)state.progress[key]=value;else delete state.progress[key];
   }
+  const snapshot=analysisState(progress.analysis_state),priorState=previous._analysisJobId===state.jobId?analysisState(previous.analysis_state):null;
+  if(snapshot && (!priorState || snapshot.revision>=priorState.revision))state.progress.analysis_state=snapshot;
+  else if(priorState)state.progress.analysis_state=priorState;
+  else delete state.progress.analysis_state;
+  if(state.progress.analysis_state)state.progress._analysisJobId=state.jobId;
+  else delete state.progress._analysisJobId;
   const history=[...(previous._activityHistory || [])];
-  const phase=['using_index','retrieving','answering','locating_sources','reading_relevant_sources','supplementing_evidence','waiting_for_model','verifying_answer','writing_answer','reviewing_answer','reading_sources','analyzing_pages','synthesizing','framework','framework_reference','framework_semantics','source_version','discovering_business','searching_repository','planning_search','model','investigation','investigating','finalizing'].includes(progress.phase)?progress.phase:null;
+  const phase=['using_index','retrieving','answering','compacting','locating_sources','reading_relevant_sources','supplementing_evidence','waiting_for_model','verifying_answer','writing_answer','reviewing_answer','reading_sources','analyzing_pages','synthesizing','framework','framework_reference','framework_semantics','source_version','discovering_business','searching_repository','planning_search','model','investigation','investigating','finalizing'].includes(progress.phase)?progress.phase:null;
   const summary=analysisUpdate(progress.analysis_update)?.summary;
   const changedSummary=summary && summary!==previous.analysis_update?.summary;
   if(phase && phase!==previous.phase || changedSummary)history.push({phase,summary:changedSummary?summary:''});
@@ -943,12 +1006,14 @@ function updateLiveAnalysis(){
   if(region.innerHTML!==markup){
     const detailsOpen=region.querySelector?.('.analysis-open-items')?.open;
     const historyOpen=region.querySelector?.('.analysis-activity-history')?.open;
+    const stateOpen=region.querySelector?.('.analysis-state-details')?.open;
     const previousBody=region.querySelector?.('.answer-live-preview .narrative-body');
     const scrollTop=previousBody?.scrollTop;
     const followTail=previousBody && previousBody.scrollHeight-previousBody.clientHeight-previousBody.scrollTop<=32;
     region.innerHTML=markup;
     const details=region.querySelector?.('.analysis-open-items');if(details && detailsOpen)details.open=true;
     const history=region.querySelector?.('.analysis-activity-history');if(history && historyOpen)history.open=true;
+    const detailsState=region.querySelector?.('.analysis-state-details');if(detailsState && stateOpen)detailsState.open=true;
     const body=region.querySelector?.('.answer-live-preview .narrative-body');if(body && Number.isFinite(scrollTop))body.scrollTop=followTail?body.scrollHeight:scrollTop;
   }
 }
@@ -1043,7 +1108,7 @@ function conversationMessage(message,revision=null){
 }
 function conversationProgress(){
   const v=progressViewModel();
-  return ui`<div class="conversation-progress" id="conversation-progress"><div class="conversation-progress-status" role="status"><span class="working-dot"></span><div><strong id="conversation-phase">${escapeHTML(phaseLabel(v.p.phase))}</strong><small id="conversation-elapsed">${formatDuration(v.elapsed)}</small><small id="conversation-activity">${escapeHTML(questionActivity(v))}</small><small id="conversation-budget">${escapeHTML(questionBudgetLabel(v))}</small><small id="conversation-health">${escapeHTML(state.pollError || '')}</small></div><button id="cancel-job" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止')}</button></div><div id="conversation-analysis-live">${liveAnalysisView()}</div></div>`;
+  return ui`<div class="conversation-progress" id="conversation-progress"><div class="conversation-progress-status" role="status"><span class="working-dot"></span><div><strong id="conversation-phase">${escapeHTML(phaseLabel(v.p.phase))}</strong><small id="conversation-elapsed">${formatDuration(v.elapsed)}</small><small id="conversation-activity">${escapeHTML(questionActivity(v))}</small><small id="conversation-budget">${escapeHTML(questionBudgetLabel(v))}</small><small id="conversation-health">${escapeHTML(state.pollError || '')}</small></div><button id="cancel-job" ${state.cancelRequested || !state.jobId?'disabled':''}>${state.cancelRequested?t('正在停止，等待目前步驟結束'):t('停止')}</button></div>${analysisDisplayControls()}<div id="conversation-analysis-live">${liveAnalysisView()}</div></div>`;
 }
 function conversationEvidenceView(){
   const item=state.conversationEvidence;if(!item)return '';
@@ -1859,7 +1924,7 @@ document.addEventListener('input',event=>{
   if(event.target.id==='program-filter'){state.filter=event.target.value;state.sourcePage=0;$('program-rows').innerHTML=sourceRows();$('source-pagination').innerHTML=sourcePagination();}
   if(event.target.id==='entry-filter'){state.entryFilter=event.target.value;$('entry-select').innerHTML=entryOptions();}
 });
-document.addEventListener('change',event=>{if(event.target.id==='entry-select'){state.entry=event.target.value;render();}if(event.target.id==='answer-detail' && ['brief','detailed'].includes(event.target.value)){state.answerDetail=event.target.value;render();}if(event.target.id==='reading-depth'){state.maxSourcePages=Number(event.target.value);render();}if(event.target.id==='reading-strategy' || event.target.id==='conversation-strategy'){state.readingStrategy=event.target.value;render();}});
+document.addEventListener('change',event=>{if(event.target.id==='analysis-display-mode'){setAnalysisDisplay(event.target.value);return;}if(event.target.id==='entry-select'){state.entry=event.target.value;render();}if(event.target.id==='answer-detail' && ['brief','detailed'].includes(event.target.value)){state.answerDetail=event.target.value;render();}if(event.target.id==='reading-depth'){state.maxSourcePages=Number(event.target.value);render();}if(event.target.id==='reading-strategy' || event.target.id==='conversation-strategy'){state.readingStrategy=event.target.value;render();}});
 document.addEventListener('keydown',event=>{if(event.target.id==='question-input' && conversationMode() && event.key==='Enter' && !event.shiftKey && !event.isComposing){event.preventDefault();if(!state.busy && !state.conversationLoading)$('question-form')?.requestSubmit?.();}});
 document.addEventListener('submit',async event=>{
   if(event.target.id==='demo-question-form'){

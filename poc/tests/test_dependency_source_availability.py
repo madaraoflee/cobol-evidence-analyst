@@ -345,7 +345,11 @@ class DependencySourceAvailabilityTests(unittest.TestCase):
         self.assertEqual(set(pages), {'z-main.cbl', *(f'step-{number}.cbl' for number in range(1, 9))})
         working = payload['source_context'][0]['working_set']
         self.assertEqual(len(working['dynamic_target_candidates']), 8)
-        self.assertLess(len(json.dumps(working, ensure_ascii=False).encode()), 40000)
+        # The saved expansion cursor adds only bounded progress metadata; the
+        # shared provenance catalog must still avoid per-call source copies.
+        self.assertLess(len(json.dumps(working, ensure_ascii=False).encode()), 41024)
+        self.assertGreater(working["pending_expansion_count"], 0)
+        self.assertFalse(working["traversal_complete"])
         self.assertLess(len(json.dumps(payload, ensure_ascii=False).encode()), AgentPolicy().max_request_bytes)
         candidates = {row['candidate_id'] for row in working['dynamic_target_candidates']}
         gaps = [row for row in working['frontier'] if row['reason'] == 'runtime_target_unresolved']

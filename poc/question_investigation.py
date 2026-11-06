@@ -22,6 +22,7 @@ from question_intent import calculation_intent
 from repository_identity import identity_blocks_analysis
 from question_planner import QuestionPlanner, EvidencePlanner, question_references, select_accumulations
 from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, lex_cobol, data_references
+from source_frontier import frontier_scope, prepare_investigation_frontier
 
 
 _BUSINESS_DETAIL = re.compile(r"流程|(?:逻辑|邏輯)(?!\s*(?:标志|標誌|字段|欄位|栏位|变量|變量|类型|類型))|"
@@ -564,7 +565,8 @@ def _parsed_controlled_rules(db, headers, tokens, rules_table, occurrence_table)
 
 
 def _indexed_candidates(database_path, paths, question, *, business_steps=False, root_paths=None,
-                        file_impact=False, source_scopes=(), discovery_terms=(), nondata_entities=()):
+                        file_impact=False, source_scopes=(), discovery_terms=(), nondata_entities=(),
+                        processed_rule_ids=()):
     """Select exact field obligations before applying bounded source budgets."""
     candidates, frontier, hashes = [], [], {}
     primary_kind = "business_steps" if business_steps else "formula"
@@ -583,6 +585,14 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name='business_rules'").fetchone():
             return [], [{"kind": primary_kind, "reason": "indexed_rules_unavailable"}], hashes
         rules_table, occurrence_table = _scope_tables(db, scoped_paths, source_scopes)
+        primary_table = rules_table
+        if processed_rule_ids:
+            db.execute("CREATE TEMP TABLE completed_primary_rules(rule_id TEXT PRIMARY KEY)")
+            db.executemany("INSERT OR IGNORE INTO completed_primary_rules VALUES (?)",
+                           ((identifier,) for identifier in processed_rule_ids))
+            db.execute(f"CREATE TEMP VIEW pending_primary_rules AS SELECT b.* FROM {rules_table} b "
+                       "WHERE NOT EXISTS (SELECT 1 FROM completed_primary_rules p WHERE p.rule_id=b.rule_id)")
+            primary_table = "pending_primary_rules"
         requested_fields = set()
         if tokens:
             field_slots = ",".join("?" for _ in tokens)
@@ -688,7 +698,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             # expressions for one result remain separate obligations.
             targeted = db.execute(
                 "SELECT b.*,SUM(f.field_role='write') AS matched_writes,"
-                f"SUM(f.field_role='read') AS matched_reads FROM {rules_table} b "
+                f"SUM(f.field_role='read') AS matched_reads FROM {primary_table} b "
                 "CROSS JOIN business_rule_fields f ON f.rule_id=b.rule_id "
                 f"WHERE f.field_name IN ({field_slots}) AND b.relative_path IN ({slots}) "
                 "AND f.field_role IN ('read','write','condition') "
@@ -713,12 +723,12 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
                         for guard in json.loads(encoded_scopes or "[]")
                         if guard.get("kind") in {"IF", "EVALUATE", "WHEN"})
                 db.create_function("question_guard_matches", 1, matching_guard)
-                controlled = db.execute(f"SELECT b.* FROM {rules_table} b WHERE b.relative_path IN ({slots}) "
+                controlled = db.execute(f"SELECT b.* FROM {primary_table} b WHERE b.relative_path IN ({slots}) "
                     f"AND b.rule_kind IN ({kinds}) AND EXISTS (SELECT 1 FROM {occurrence_table} o "
                     "WHERE o.rule_id=b.rule_id AND question_guard_matches(o.scope_json)) "
                     "ORDER BY b.first_line,b.rule_id LIMIT ?", (*scoped_paths, _MAX_FORMULAS + 1)).fetchall()
                 if not controlled:
-                    controlled, control_frontier = _parsed_controlled_rules(db, targeted, tokens, rules_table, occurrence_table)
+                    controlled, control_frontier = _parsed_controlled_rules(db, targeted, tokens, primary_table, occurrence_table)
                     frontier.extend(control_frontier)
                 targeted = list({(row["rule_id"], row["first_line"], row["last_line"]): row
                                  for row in [*targeted, *controlled]}.values())
@@ -736,7 +746,7 @@ def _indexed_candidates(database_path, paths, question, *, business_steps=False,
             grouping = "paragraph_name,writes_json,rule_kind" if business_steps else "paragraph_name,writes_json"
             rows = db.execute(
                 f"WITH grouped AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY {grouping} "
-                f"ORDER BY first_line,rule_id) AS group_rank FROM {rules_table} WHERE relative_path=? "
+                f"ORDER BY first_line,rule_id) AS group_rank FROM {primary_table} WHERE relative_path=? "
                 f"AND rule_kind IN ({kinds})) "
                 "SELECT * FROM grouped WHERE group_rank=1 ORDER BY first_line,rule_id LIMIT ?",
                 (path, _MAX_FORMULAS + 1)).fetchall()
@@ -1598,6 +1608,11 @@ def _business_source_reads(database_path, business_map, working_set, source_page
         with closing(sqlite3.connect(Path(database_path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
             db.row_factory = sqlite3.Row
             has_units = db.execute("SELECT 1 FROM sqlite_master WHERE name='code_units'").fetchone()
+            has_metadata = db.execute("SELECT 1 FROM sqlite_master WHERE name='metadata'").fetchone()
+            file_boundaries = {row[0]: json.loads(row[1]) for row in db.execute(
+                "SELECT b.key,b.value FROM metadata m,json_each(m.value) b "
+                "WHERE m.key='business_file_boundaries' AND b.key IN (" +
+                ",".join("?" for _ in paths) + ")", paths)} if paths and has_metadata else {}
             for path in paths:
                 source = db.execute("SELECT sha256,line_count FROM source_files WHERE relative_path=?", (path,)).fetchone()
                 if not source or not source["line_count"]:
@@ -1632,6 +1647,16 @@ def _business_source_reads(database_path, business_map, working_set, source_page
                         merged.append((first, last))
                 candidates.extend({"relative_path": path, "start_line": first, "end_line": last,
                                    "source_sha256": source["sha256"]} for first, last in merged)
+                if not scopes and (len(units) >= 65 or len(handoffs) >= 65 or any(
+                        file_boundaries.get(path, {}).get(reason) for reason in
+                        ("source_line_exceeds_fact_budget", "bounded_fact_fragment"))):
+                    # A proven navigation/parser cutoff requires a physical
+                    # continuation. Indexed rule and path batches cover the
+                    # ordinary case without treating padding comments as
+                    # missing business evidence.
+                    candidates.append({"relative_path": path, "start_line": 1,
+                        "end_line": source["line_count"], "source_sha256": source["sha256"],
+                        "coverage_role": "remaining_physical_source"})
         if isinstance(cache, dict):
             cache["business_source_navigation"] = (key, candidates)
     seen = {(args.get("relative_path"), args.get("start_line")) for action in completed_actions
@@ -1656,8 +1681,30 @@ def _business_source_reads(database_path, business_map, working_set, source_page
         missing.append(row)
         if len(actions) >= max_actions or (row["relative_path"], cursor) in seen:
             continue
+        if row.get("coverage_role") == "remaining_physical_source" and any(
+                action["arguments"]["relative_path"] == row["relative_path"] for action in actions):
+            # Finish the useful entry/handoff windows first. The durable
+            # physical gap remains pending for the following ordinary read.
+            continue
+        if row.get("coverage_role") == "remaining_physical_source":
+            # Previously requested ranges are navigation history, not current
+            # evidence. Leave them missing, but spend this read on unseen lines.
+            previous = [action["read"] for action in completed_actions
+                if isinstance(action.get("read"), Mapping)
+                and action["read"].get("relative_path") == row["relative_path"]
+                and type(action["read"].get("start_line")) is int
+                and type(action["read"].get("end_line")) is int]
+            for span in sorted(previous, key=lambda item: item["start_line"]):
+                if span["end_line"] < cursor:
+                    continue
+                if span["start_line"] > cursor:
+                    gap_end = min(gap_end, span["start_line"] - 1)
+                    break
+                cursor = max(cursor, span["end_line"] + 1)
+            if cursor > gap_end:
+                continue
         actions.append({"tool": "read", "arguments": {"relative_path": row["relative_path"],
-                        "start_line": cursor, "end_line": gap_end},
+                        "start_line": cursor, "end_line": min(gap_end, cursor + 95)},
                         "reason": "available_business_source_not_supplied"})
     return actions, missing
 
@@ -1665,7 +1712,9 @@ def _business_source_reads(database_path, business_map, working_set, source_page
 def build_question_investigation(question, business_map, *, database_path=None,
                                 source_pages=(), evidence_groups=(), completed_actions=(), max_actions=4,
                                 candidate_cache=None, framework_facts=(), history=(),
-                                working_set=None, max_semantic_files=32, answer_instructions=""):
+                                working_set=None, max_semantic_files=32, answer_instructions="",
+                                investigation_frontier_state=None, advance_frontier=False,
+                                source_frontier_state=None):
     """Return material obligations and bounded actions for a located calculation."""
     identity = business_map.get("source_identity", {})
     paths = list(dict.fromkeys(business_map.get("selected_paths", [])))
@@ -1859,13 +1908,35 @@ def build_question_investigation(question, business_map, *, database_path=None,
                    "scope_paths": paths, "scope_roots": root_paths,
                    "visible_pages": candidate_cache.get("visible_pages", {})
                        if scope_hit else {}}
+    rule_frontier = None
+    if business_overview:
+        expected_scope = frontier_scope(business_map,
+            identity.get("direct_paths") or business_map.get("direct_paths", []), business_overview)
+        if source_frontier_state and source_frontier_state.get("scope_key") != expected_scope:
+            source_frontier_state = None
+            base["source_frontier_reset_reason"] = "source_frontier_scope_changed"
+        accepted = (source_frontier_state or {}).get("read_candidate_paths", [])
+        paths = list(dict.fromkeys([*paths, *accepted]))
+        rule_frontier = prepare_investigation_frontier(business_map, question, root_paths, paths, source_scopes,
+            investigation_frontier_state, advance=advance_frontier, batch_size=_MAX_PATHS)
+        paths = rule_frontier["active_paths"]
+        base["investigation_frontier_state"] = rule_frontier
+        base["obligation_batch_key"] = rule_frontier["batch_key"]
     candidates, frontier, hashes = [], [], {}
+    nondata_entities = [entity["file_name"] for entity in file_entities]
+    if rule_frontier is not None:
+        # Advancing to a callee batch must not reinterpret the already bound
+        # root program's name as a missing field in that callee.
+        nondata_entities.extend(name for program in business_map.get("programs", [])
+            if program.get("relative_path") in root_paths for name in program.get("program_names", [])
+            if name not in plan.entities)
     impact_frontier = [{"kind": "dependencies", **gap}
                        for gap in business_map.get("outgoing_dependency_frontier", [])] if file_impact else []
     cache_hit = False
     if database_path is not None:
         key = (str(Path(database_path).resolve()), business_map.get("snapshot_id"), tuple(paths),
-               tuple(root_paths), candidate_question, tuple(business_map.get("search_terms", ())), tuple(plan.intents))
+               tuple(root_paths), candidate_question, tuple(business_map.get("search_terms", ())), tuple(plan.intents),
+               tuple((rule_frontier or {}).get("processed_rule_ids", [])))
         cache_hit = isinstance(candidate_cache, dict) and candidate_cache.get("key") == key
         if cache_hit:
             candidates, frontier, hashes = candidate_cache["value"]
@@ -1876,14 +1947,16 @@ def build_question_investigation(question, business_map, *, database_path=None,
             else:
                 candidates, frontier, hashes = _indexed_candidates(database_path, paths, candidate_question,
                 business_steps=business_steps, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
-                discovery_terms=business_map.get("search_terms", ()), nondata_entities=[entity["file_name"] for entity in file_entities])
+                discovery_terms=business_map.get("search_terms", ()), nondata_entities=nondata_entities,
+                processed_rule_ids=(rule_frontier or {}).get("processed_rule_ids", []))
             if calculation and not file_only and not any(row["kind"] == "formula" for row in candidates):
                 # Some calculations select or transfer values through branches.
                 # Reuse the existing bounded step selection without asserting a
                 # formula, complete value flow, or any actual runtime result.
                 steps, step_frontier, step_hashes = _indexed_candidates(database_path, paths, candidate_question,
                     business_steps=True, root_paths=root_paths, file_impact=file_impact, source_scopes=source_scopes,
-                    discovery_terms=business_map.get("search_terms", ()), nondata_entities=[entity["file_name"] for entity in file_entities])
+                    discovery_terms=business_map.get("search_terms", ()), nondata_entities=nondata_entities,
+                    processed_rule_ids=(rule_frontier or {}).get("processed_rule_ids", []))
                 if any(row["kind"] == "business_steps" for row in steps):
                     business_steps = True
                     candidates, frontier, hashes = steps, step_frontier, step_hashes
@@ -2203,8 +2276,11 @@ def build_question_investigation(question, business_map, *, database_path=None,
                 ("relative_path", "start_line", "end_line")}, "reason": "located_copy_source_not_supplied"})
     pending_business_sources = []
     if business_overview:
+        reading_set = ({**working_set, "candidate_paths": list(dict.fromkeys([
+                           *working_set.get("candidate_paths", []), *rule_frontier["active_paths"]]))}
+                       if working_set and rule_frontier is not None else working_set)
         source_actions, pending_business_sources = _business_source_reads(
-            database_path, business_map, working_set, source_pages, source_scopes, completed_actions,
+            database_path, business_map, reading_set, source_pages, source_scopes, completed_actions,
             max_files=max(0, int(max_semantic_files)), max_actions=max(0, min(int(max_actions), 4)),
             cache=candidate_cache)
         if pending_business_sources:
@@ -2279,7 +2355,24 @@ def build_question_investigation(question, business_map, *, database_path=None,
         and item["evidence_ids"] for item in items) if file_only else any(row["kind"] in
         {"io_operation", "field_assignment", "file_declaration", "record_binding"}
         for row in file_observations.get("file_impact", {}).get("observations", [])))
+    local_can_answer = (formula_supplied or boundary_supplied or known_file_supplied) and not plans
+    pending_work = {}
+    if rule_frontier is not None:
+        rule_frontier["active_rule_ids"] = list(dict.fromkeys(row["rule_id"] for row in candidates
+            if row["kind"] in {"formula", "business_steps"} and row.get("rule_id")))
+        rule_frontier["primary_rules_remaining"] = bool(rule_frontier["active_rule_ids"] and any(
+            gap.get("reason") in {"formula_candidate_budget", "formula_group_budget"} for gap in frontier))
+        rule_frontier["batch_complete"] = not missing and not plans and not pending_business_sources
+        pending_work = {"rule_path_count": len(rule_frontier["remaining_paths"]),
+            "primary_rule_batch_count": int(rule_frontier["primary_rules_remaining"]),
+            "source_window_count": len(pending_business_sources),
+            "source_path_count": len((source_frontier_state or {}).get("pending_paths", [])),
+            "source_expansion_count": len((source_frontier_state or {}).get("pending_expansions", []))}
+        base.update(pending_work=pending_work, can_answer_locally=local_can_answer,
+            investigation_complete=rule_frontier["batch_complete"] and not any(pending_work.values()) and not gaps,
+            unprojected_open_gaps=gaps)
     return include_activation({**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
-            "state": state, "can_answer": (formula_supplied or boundary_supplied or known_file_supplied) and not plans,
+            "state": "needs_evidence" if any(pending_work.values()) else state,
+            "can_answer": local_can_answer and not any(pending_work.values()),
             "candidate_paths": paths[:_MAX_PATHS],
             "candidate_cache": {"hit": cache_hit, "candidate_count": len(candidates)}})

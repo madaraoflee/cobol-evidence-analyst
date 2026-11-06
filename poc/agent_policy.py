@@ -51,6 +51,7 @@ class AgentPolicy:
     delivery_target_seconds: int | None = None
     investigation_mode: str = "adaptive"
     source_memory_enabled: bool = True
+    context_compaction_enabled: bool = True
     max_investigation_rounds: int | None = None
     max_no_evidence_revisions: int = 2
     finalization_reserve_seconds: int = 45
@@ -104,6 +105,8 @@ class AgentPolicy:
             raise ValueError("Agent policy investigation_mode must be adaptive or single_pass.")
         if type(self.source_memory_enabled) is not bool:
             raise ValueError("Agent policy source_memory_enabled must be a boolean.")
+        if type(self.context_compaction_enabled) is not bool:
+            raise ValueError("Agent policy context_compaction_enabled must be a boolean.")
         # Missing/null count limits leave source-bound progress in control.
         # Explicit legacy targets retain their existing hard-deadline meaning.
         deadlines = [value for value in (self.max_question_seconds, self.hard_question_seconds)

@@ -188,7 +188,9 @@ class AnalysisContinuation:
         # Evidence identities and their order may change while the underlying
         # supplied source remains identical. Material changes are tracked above;
         # only newly satisfied obligation identities count separately here.
-        obligations = {_digest({key: item.get(key) for key in ("id", "kind")})
+        obligations = {_digest({**{key: item.get(key) for key in ("id", "kind")},
+                                **({"batch": investigation["obligation_batch_key"]}
+                                   if investigation.get("obligation_batch_key") else {})})
                        for item in investigation.get("required_items", [])
                        if item.get("status") == "SATISFIED"}
         progressed = bool(material - self.known_material or obligations - self.known_obligations

@@ -126,6 +126,8 @@ class ReadCatalogTests(unittest.TestCase):
 
 
 class ReadCatalogRequestTests(unittest.TestCase):
+    # These exact-round scenarios verify source restoration independently of
+    # cumulative model compaction, whose default-on path has separate coverage.
     def setUp(self):
         self.fixture = chat_fixtures.CompletionDrivenChatTests()
         self.fixture.setUp()
@@ -159,7 +161,7 @@ class ReadCatalogRequestTests(unittest.TestCase):
             self.assertIn(self.order_source, self.raw(payload))
             return fixture.cited_answer(payload)
         result = fixture.ask(respond, request_guard=9,
-            policy=AgentPolicy(max_model_requests=9, max_answer_revisions=0))
+            policy=AgentPolicy(context_compaction_enabled=False, max_model_requests=9, max_answer_revisions=0))
         self.assertEqual(len(fixture.requests), 9)
         self.assertTrue(result["answer_available"])
         for payload in fixture.requests:
@@ -192,7 +194,8 @@ class ReadCatalogRequestTests(unittest.TestCase):
                 return fixture.read_helper(1)
             self.assertIn(self.order_source, self.raw(payload))
             return fixture.cited_answer(payload)
-        result = fixture.ask(respond, request_guard=10, policy=AgentPolicy(max_answer_revisions=0))
+        result = fixture.ask(respond, request_guard=10,
+            policy=AgentPolicy(context_compaction_enabled=False, max_answer_revisions=0))
         self.assertEqual(len(fixture.requests), 10)
         self.assertEqual(result["metrics"]["convergence_stop_reason"], "no_evidence_progress")
         saved = RunStore(fixture.root / "investigation-runs.sqlite").load(result["run_id"])
@@ -216,7 +219,8 @@ class ReadCatalogRequestTests(unittest.TestCase):
                 return fixture.read_helper(number - 1)
             self.assertIn(self.order_source, self.raw(payload))
             return fixture.cited_answer(payload)
-        result = fixture.ask(respond, request_guard=14, policy=AgentPolicy(max_answer_revisions=0))
+        result = fixture.ask(respond, request_guard=14,
+            policy=AgentPolicy(context_compaction_enabled=False, max_answer_revisions=0))
         self.assertEqual(len(fixture.requests), 14)
         self.assertTrue(result["answer_available"])
         saved = RunStore(fixture.root / "investigation-runs.sqlite").load(result["run_id"])
@@ -230,7 +234,7 @@ class ReadCatalogRequestTests(unittest.TestCase):
         fixture = self.fixture
         prior = fixture.ask(lambda payload, number: fixture.read_helper(number) if number <= 7
                             else fixture.cited_answer(payload), request_guard=8,
-            policy=AgentPolicy(max_model_requests=8, max_answer_revisions=0))
+            policy=AgentPolicy(context_compaction_enabled=False, max_model_requests=8, max_answer_revisions=0))
         store = RunStore(fixture.root / "investigation-runs.sqlite")
         old_memory = store.load(prior["run_id"])["checkpoint"]["prior_source_memory"]
         old_ids = {page["evidence_id"] for page in old_memory["pages"] if page["relative_path"] == "helper-1.cbl"}
@@ -243,7 +247,8 @@ class ReadCatalogRequestTests(unittest.TestCase):
             self.assertIn(self.order_source, self.raw(payload))
             return fixture.cited_answer(payload)
         continued = fixture.ask(supplement, request_guard=10, resume_run_id=prior["run_id"],
-            continue_investigation=True, policy=AgentPolicy(max_model_requests=8, max_answer_revisions=0))
+            continue_investigation=True,
+            policy=AgentPolicy(context_compaction_enabled=False, max_model_requests=8, max_answer_revisions=0))
         self.assertTrue(continued["answer_available"])
         new_memory = store.load(continued["run_id"])["checkpoint"]["prior_source_memory"]
         for identifier in old_ids:

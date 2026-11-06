@@ -149,7 +149,9 @@ class PendingSourceReadTests(unittest.TestCase):
 
     def test_transmission_omissions_do_not_spend_all_remaining_requests(self):
         self.build()
-        policy = replace(self.policy, max_source_characters=4096)
+        # Exercise the explicit no-compaction transmission fallback. Cumulative
+        # compaction and its shared budget have separate actual-wire tests.
+        policy = replace(self.policy, max_source_characters=4096, context_compaction_enabled=False)
         result = self.ask(policy=policy)
         self.assertEqual(len(self.requests), 2)
         self.assertTrue(self.requests[-1]["question_investigation"]["planned_actions"])

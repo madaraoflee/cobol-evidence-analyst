@@ -13,6 +13,7 @@ import re
 
 from source_reading import _identify_page
 from source_session import archive_evidence, read_archived_evidence
+from prior_analysis_ledger import PriorAnalysisLedger
 
 
 SCHEMA = "prior-source-memory/v1"
@@ -65,6 +66,7 @@ class PriorSourceMemory:
         self.declared_blocks = {}
         self.retracted_blocks = {}
         self.pending_reread_ids = set()
+        self.analysis_ledger = PriorAnalysisLedger(self.scope)
 
     def _archived_page(self, identifier):
         saved = self.pages[identifier]
@@ -105,7 +107,8 @@ class PriorSourceMemory:
                 "origins": deepcopy(self.origins), "blocks": deepcopy(list(self.blocks.values())),
                 "declared_blocks": deepcopy(list(self.declared_blocks.values())),
                 "retracted_blocks": deepcopy(self.retracted_blocks),
-                "pending_reread_ids": sorted(self.pending_reread_ids)}
+                "pending_reread_ids": sorted(self.pending_reread_ids),
+                "analysis_ledger": self.analysis_ledger.checkpoint()}
 
     def restore(self, saved, round_records):
         if not saved:
@@ -147,10 +150,76 @@ class PriorSourceMemory:
                 raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
             self.retracted_blocks = deepcopy(retracted)
             self.pending_reread_ids = set(pending)
+            self.analysis_ledger.restore(saved.get("analysis_ledger"), origins=self.origins)
+            for generation in self.analysis_ledger.generations:
+                origin = generation["response_origin"]
+                record = next((row for row in round_records if row.get("round_id") == origin.get("round_id")
+                    and row.get("request_body_sha256") == origin.get("request_body_sha256")), None)
+                if record is None:
+                    raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
+                for identifier in generation["source_ids"]:
+                    page = self.pages[identifier]
+                    proof = {**origin, "binding": _binding(page),
+                             "binding_sha256": source_binding_sha256(page), "excerpt_sha256": _excerpt_hash(page)}
+                    if not self._origin_matches(page, proof, [record]):
+                        raise ValueError("PRIOR_SOURCE_MEMORY_INVALID")
         except (KeyError, TypeError, ValueError, OSError) as exc:
             self.pages, self.origins, self.blocks, self.declared_blocks = {}, {}, {}, {}
             self.retracted_blocks, self.pending_reread_ids = {}, set()
+            self.analysis_ledger = PriorAnalysisLedger(self.scope)
             raise ValueError("PRIOR_SOURCE_MEMORY_INVALID") from exc
+
+    def prepare_analysis_compaction(self, *, evidence_ids=None, frontier=(), coverage=None,
+                                    max_output_bytes=12000, retry_token=None):
+        """Prepare a source-bound task; the orchestrator owns budgets and calls."""
+        identifiers = list(dict.fromkeys(self.pages if evidence_ids is None else evidence_ids))
+        if not identifiers:
+            return None
+        pages = self.archived_pages(identifiers)
+        return self.analysis_ledger.prepare(source_ids=identifiers, origins=self.origins,
+            frontier=frontier, coverage=coverage, max_output_bytes=max_output_bytes,
+            source_bytes=len(json.dumps(pages, ensure_ascii=False, separators=(",", ":")).encode("utf-8")),
+            retry_token=retry_token)
+
+    def accept_analysis_compaction(self, value, *, task_id, payload, round_record):
+        """Only an exact, actually supplied compression task can update state."""
+        task = self.analysis_ledger.pending_task
+        if task is None or task.get("task_id") != task_id:
+            return False
+        try:
+            if payload.get("analysis_compaction") != task or not round_record:
+                raise ValueError("ANALYSIS_LEDGER_REQUEST_INVALID")
+            pages = [page for bundle in payload.get("source_context", []) for page in bundle.get("pages", [])]
+            current = {page["evidence_id"]: page for page in pages}
+            if len(current) != len(pages) or set(current) != set(task["source_ids"]):
+                raise ValueError("ANALYSIS_LEDGER_REQUEST_INVALID")
+            for identifier in task["source_ids"]:
+                page = current[identifier]
+                archived = self._archived_page(identifier)
+                if _binding(page) != _binding(archived) or _excerpt_hash(page) != _excerpt_hash(archived):
+                    raise ValueError("ANALYSIS_LEDGER_REQUEST_INVALID")
+                origin = {"round_id": round_record.get("round_id"),
+                          "request_body_sha256": round_record.get("request_body_sha256"),
+                          "binding": _binding(page), "binding_sha256": source_binding_sha256(page),
+                          "excerpt_sha256": _excerpt_hash(page)}
+                if not self._origin_matches(page, origin, [round_record]):
+                    raise ValueError("ANALYSIS_LEDGER_REQUEST_INVALID")
+            for entry in task["previous_entries"]:
+                self.archived_pages(entry["evidence_ids"])
+            return self.analysis_ledger.accept(value, task_id=task_id, origins=self.origins,
+                response_origin={key: round_record[key] for key in ("round_id", "request_body_sha256")})
+        except (KeyError, TypeError, ValueError, OSError):
+            self.mark_analysis_compaction_failed(task_id, "compression_source_proof_invalid")
+            return False
+
+    def mark_analysis_compaction_failed(self, task_id, reason="compression_unavailable"):
+        return self.analysis_ledger.fail(task_id, reason)
+
+    def analysis_ledger_prompt(self, *, max_bytes=16000):
+        return self.analysis_ledger.prompt(max_bytes=max_bytes)
+
+    def analysis_state(self):
+        return self.analysis_ledger.analysis_state()
 
     def remember_supplied_sources(self, *, payload, round_record):
         """Record received-request source without inventing a model finding.
@@ -226,14 +295,26 @@ class PriorSourceMemory:
 
     def visible_ids(self, payload):
         memory = payload.get("prior_source_memory") or {}
-        if memory.get("schema") != SCHEMA or memory.get("draft_is_evidence") is not False:
-            return set()
         identifiers = set()
-        for block in memory.get("blocks", []):
+        blocks = memory.get("blocks", []) if memory.get("schema") == SCHEMA and memory.get("draft_is_evidence") is False else []
+        for block in blocks:
             # Retraction changes future candidate text, not which original
             # sources an already-sent request was authorized to cite.
             if isinstance(block, dict) and block == self.declared_blocks.get(block.get("memory_id")):
                 identifiers.update(block["evidence_ids"])
+        ledger = payload.get("analysis_ledger")
+        if isinstance(ledger, dict):
+            declared = self.analysis_ledger.declared_prompt(ledger.get("generation"))
+            if declared is not None and ledger == declared:
+                historical = ledger["historical_source_references"]
+                try:
+                    # The declaration permits original-source attribution, not
+                    # model-summary facts. Corrupt or mismatched source proof
+                    # revokes this entire atomic historical declaration.
+                    self.archived_pages(historical)
+                    identifiers.update(historical)
+                except (KeyError, TypeError, ValueError, OSError):
+                    pass
         return identifiers
 
     def effective_pages(self, payload, *, verify_archive=False):

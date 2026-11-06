@@ -12,6 +12,7 @@ from agent_policy import resolve_agent_policy
 from dependency_sources import dynamic_target_source_candidates
 from repository_discovery import _connect, _fast_snapshot
 from source_reading import _identify_page, _persist_page, _safe_file, _verified_lines
+from source_frontier import source_frontier_state
 
 
 _DEPTH_LIMIT = 4
@@ -19,7 +20,7 @@ _FRONTIER_LIMIT = 32
 _ROOT_KINDS = {"program", "relative_path", "basename", "stem"}
 
 
-def _file_definition_candidates(db, relative):
+def _file_definition_candidates(db, relative, *, after_name=""):
     """Follow explicit object spellings, keeping filename binding provisional.
 
     Search text nominates reads only. Full source pages below are independently
@@ -51,9 +52,9 @@ def _file_definition_candidates(db, relative):
     else:
         _, names = _definitions(relative, lines, item["sha256"],
             item["artifact_kind"] in {"copybook", "cobol_fragment_or_copybook"}, gaps)
-    names = list(dict.fromkeys(names))
+    names = sorted(set(name for name in names if name > after_name))
     if len(names) > 16:
-        gaps.append({"reason": "file_definition_name_budget"})
+        gaps.append({"reason": "file_definition_names_pending", "after_name": names[15]})
     paths = []
     for name in names[:16]:
         if not re.fullmatch(_NAME, name):
@@ -71,14 +72,14 @@ def _file_definition_candidates(db, relative):
 
 
 def build_complete_working_set(database_path, source_session, business_map, policy,
-                              *, check_cancel=None, business_overview=False):
+                              *, check_cancel=None, business_overview=False, frontier_state=None):
     """Prefer the complete root, then dependencies under the ordinary allowance.
 
     Physical completeness describes only candidate_paths. Static dependencies
     and original text do not prove execution, parameter binding or value flow.
     """
     policy = resolve_agent_policy(policy)
-    depth_limit = policy.max_semantic_files if business_overview else _DEPTH_LIMIT
+    depth_limit = None if business_overview else _DEPTH_LIMIT
     identity = business_map.get("source_identity", {})
     roots = list(dict.fromkeys(identity.get("direct_paths", [])
                               or business_map.get("direct_paths", [])))
@@ -99,6 +100,9 @@ def build_complete_working_set(database_path, source_session, business_map, poli
     concept_roots = bool(business_overview and identity.get("status") == "none" and roots)
     if source_session is None or not (explicit_root or concept_roots):
         return result
+    state, fresh_frontier = source_frontier_state(business_map, roots, business_overview, frontier_state)
+    result["source_frontier_state"] = state
+    durable_boundaries = {json.dumps(row, sort_keys=True) for row in state["unresolved_boundaries"]}
     metadata.update(status="fallback", reason="source_set_unavailable", closure_complete=True)
     fatal = False
     budget_limited = False
@@ -110,6 +114,13 @@ def build_complete_working_set(database_path, source_session, business_map, poli
         item = {"reason": reason, **details}
         if relative_path:
             item["relative_path"] = relative_path
+        if reason not in {"dependency_file_budget", "concept_root_budget", "source_byte_budget",
+                "source_characters", "complete_source_characters", "dependency_navigation_pending",
+                "unresolved_targets_limited", "file_definition_names_pending"}:
+            key = json.dumps(item, sort_keys=True)
+            if key not in durable_boundaries:
+                state["unresolved_boundaries"].append(item)
+                durable_boundaries.add(key)
         if details.get("needs_refresh"):
             # Use the same recovery contract as indexed search and range reads.
             result["needs_refresh"] = True
@@ -177,7 +188,7 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             if business_map.get("snapshot_id") != snapshot:
                 frontier("snapshot_changed", blocking=True, reason_code="SNAPSHOT_CHANGED")
                 return result
-            if concept_roots:
+            if concept_roots and fresh_frontier:
                 # A concept match nominates a reading root, never an exact
                 # program identity. Keep the map's relevance/diversity order;
                 # a filename sort here would crowd out later matching callers.
@@ -197,13 +208,26 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                         accepted.append(relative)
                     else:
                         budget_frontier("concept_root_budget", relative)
+                        state["pending_paths"].append({"relative_path": relative, "depth": 0})
                 roots = accepted
                 metadata.update(root_paths=roots, root_selection="business_concept_candidates",
                                 source_identity_resolved=False)
                 if not roots:
                     metadata.update(status="not_applicable", reason="concept_program_roots_not_located")
                     return result
-            pending, queued = deque((path, 0) for path in roots), set(roots)
+            visited = set(state["read_candidate_paths"])
+            if fresh_frontier:
+                batch = [{"relative_path": path, "depth": 0} for path in roots]
+            else:
+                batch = state["pending_paths"][:policy.max_semantic_files]
+                state["pending_paths"] = state["pending_paths"][policy.max_semantic_files:]
+            pending = deque((row["relative_path"], row["depth"], None, "") for row in batch)
+            queued = {row["relative_path"] for row in batch}
+            deferred_paths = {row["relative_path"] for row in state["pending_paths"]}
+            expansions = state["pending_expansions"][:policy.max_semantic_files]
+            state["pending_expansions"] = state["pending_expansions"][policy.max_semantic_files:]
+            pending.extend((row["caller_path"], row["depth"], row["relation_kind"], row["after_key"])
+                           for row in expansions)
             dynamic_candidate_cache = {}
             root_set = set(roots)
             # Multiple concept entries share the ordinary allowance. The
@@ -213,40 +237,60 @@ def build_complete_working_set(database_path, source_session, business_map, poli
             metadata["available_unsupplied_paths"] = []
 
             def enqueue(target, depth):
-                if target in queued:
+                if target in queued or target in visited:
                     return
-                if depth >= depth_limit:
+                if depth_limit is not None and depth >= depth_limit:
                     budget_frontier("dependency_depth_budget", target)
                 elif len(queued) >= policy.max_semantic_files:
                     budget_frontier("dependency_file_budget", target)
+                    if target not in deferred_paths:
+                        state["pending_paths"].append({"relative_path": target, "depth": depth + 1})
+                        deferred_paths.add(target)
                 else:
+                    if target in deferred_paths:
+                        state["pending_paths"] = [row for row in state["pending_paths"] if row["relative_path"] != target]
+                        deferred_paths.remove(target)
                     queued.add(target)
-                    pending.append((target, depth + 1))
+                    pending.append((target, depth + 1, None, ""))
+
+            def expansion_cursor(relative, depth, kind, after):
+                state["pending_expansions"].append({"caller_path": relative, "depth": depth,
+                                                   "relation_kind": kind, "after_key": after})
+                frontier("dependency_navigation_pending", relative, relation_kind=kind,
+                         source_available=True, cursor_available=True)
 
             while pending:
                 cancel()
-                relative, depth = pending.popleft()
+                relative, depth, expansion_kind, after_key = pending.popleft()
                 row = db.execute("SELECT relative_path,sha256,encoding,line_count FROM source_files "
                                  "WHERE relative_path=?", (relative,)).fetchone()
                 if row is None:
                     frontier("source_not_indexed", relative, blocking=True)
                     continue
-                records.append(dict(row))
-                metadata["candidate_paths"].append(relative)
+                if expansion_kind is None:
+                    records.append(dict(row))
+                    metadata["candidate_paths"].append(relative)
+                    if relative not in visited:
+                        state["read_candidate_paths"].append(relative)
+                        visited.add(relative)
                 if identity.get("exclusive_source_scope"):
                     continue
                 targets = db.execute("SELECT DISTINCT s.relative_path FROM relations r "
                     "JOIN symbols s ON s.symbol_id=r.target_entity_id WHERE r.relative_path=? "
                     "AND r.relation_type IN ('CALLS','INCLUDES_COPY') AND r.status='confirmed' "
-                    "ORDER BY s.relative_path LIMIT ?", (relative, policy.max_semantic_files + 1)).fetchall()
-                for target_row in targets:
+                    "AND s.relative_path>? ORDER BY s.relative_path LIMIT ?",
+                    (relative, after_key if expansion_kind == "confirmed" else "", policy.max_semantic_files + 1)).fetchall() if expansion_kind in {None, "confirmed"} else []
+                for target_row in targets[:policy.max_semantic_files]:
                     enqueue(target_row[0], depth)
+                if len(targets) > policy.max_semantic_files:
+                    expansion_cursor(relative, depth, "confirmed", targets[policy.max_semantic_files - 1][0])
                 unresolved = db.execute("SELECT DISTINCT r.relation_id,r.relation_type,r.target_name,r.status "
                     "FROM relations r LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
-                    "WHERE r.relative_path=? AND (r.relation_type='CALL_TARGET_FROM' OR "
+                    "WHERE r.relative_path=? AND r.relation_id>? AND (r.relation_type='CALL_TARGET_FROM' OR "
                     "(r.relation_type IN ('CALLS','INCLUDES_COPY') AND "
                     "(r.status IS NULL OR r.status!='confirmed' OR s.relative_path IS NULL))) "
-                    "ORDER BY r.relation_type,r.target_name LIMIT ?", (relative, _FRONTIER_LIMIT + 1)).fetchall()
+                    "ORDER BY r.relation_id LIMIT ?", (relative,
+                        after_key if expansion_kind == "unresolved" else "", _FRONTIER_LIMIT + 1)).fetchall() if expansion_kind in {None, "unresolved"} else []
                 for edge in unresolved[:_FRONTIER_LIMIT]:
                     if edge["relation_type"] == "CALL_TARGET_FROM":
                         nominated = dynamic_target_source_candidates(db, edge["relation_id"],
@@ -292,12 +336,24 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                              target_name=edge["target_name"], relation_type=edge["relation_type"])
                 if len(unresolved) > _FRONTIER_LIMIT:
                     frontier("unresolved_targets_limited", relative, minimum_omitted_count=1)
-                if business_overview:
-                    definitions, definition_gaps = _file_definition_candidates(db, relative)
+                    expansion_cursor(relative, depth, "unresolved", unresolved[_FRONTIER_LIMIT - 1]["relation_id"])
+                if business_overview and expansion_kind in {None, "file_definitions"}:
+                    definitions, definition_gaps = _file_definition_candidates(db, relative,
+                        after_name=after_key if expansion_kind == "file_definitions" else "")
                     for gap in definition_gaps:
-                        frontier(gap.pop("reason"), relative, **gap)
+                        if gap["reason"] == "file_definition_names_pending":
+                            expansion_cursor(relative, depth, "file_definitions", gap["after_name"])
+                        else:
+                            frontier(gap.pop("reason"), relative, **gap)
                     for target in definitions:
                         enqueue(target, depth)
+            metadata.update(pending_path_count=len(state["pending_paths"]),
+                pending_expansion_count=len(state["pending_expansions"]),
+                global_candidate_count=len(state["read_candidate_paths"]),
+                global_unresolved_count=len(state["unresolved_boundaries"]),
+                traversal_complete=not state["pending_paths"] and not state["pending_expansions"])
+            if not metadata["traversal_complete"] or state["unresolved_boundaries"]:
+                metadata["closure_complete"] = False
             if records and not identity.get("exclusive_source_scope"):
                 # A whole physical file cannot repair missing dependency facts.
                 # Read only selected files' boundaries, scanning the stored map

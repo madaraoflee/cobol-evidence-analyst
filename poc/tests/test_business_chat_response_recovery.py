@@ -159,7 +159,12 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
         return error
 
     def draft_followup(self, respond, *, draft_finish_reason="stop"):
-        """Create a real bounded reading gap before accepting the first draft."""
+        """Isolate answer-revision recovery after a real bounded reading gap.
+
+        The scripted second response is an answer failure, not a cumulative
+        analysis response. Compaction failure/replay has its own default-on
+        regressions, so this 512-character fixture disables that extra stage.
+        """
         (self.source / "rule.cbl").write_text(
             "IDENTIFICATION DIVISION.\nPROGRAM-ID. FINAL-RULE.\n"
             "DATA DIVISION.\nWORKING-STORAGE SECTION.\n"
@@ -185,6 +190,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
             envelope = json.loads(request.body)
             self.assertNotIn("tools", envelope)
             payload = json.loads(envelope["messages"][-1]["content"])
+            self.assertNotEqual(payload.get("schema"), "business-analysis-compaction/v1")
             self.requests.append(payload)
             if len(self.requests) == 1:
                 page = payload["source_context"][0]["pages"][0]
@@ -199,7 +205,8 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
                 answer_detail="brief",
                 policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0,
                                    max_source_characters=512, max_complete_source_characters=512,
-                                   initial_pages=1, initial_source_characters=512))
+                                   initial_pages=1, initial_source_characters=512,
+                                   context_compaction_enabled=False))
         return output, draft[0]
 
     def test_failed_empty_recovery_preserves_retained_draft_finish_state(self):

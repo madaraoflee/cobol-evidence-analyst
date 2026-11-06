@@ -41,6 +41,7 @@ class CollectionFlowDeliveryTests(unittest.TestCase):
             build_business_index(source, database, source_format="free")
             ensure_repository_search(database, source)
             requests = []
+            compactions, archived_pages = [], {}
             now = [0.0]
             clock = SimpleNamespace(monotonic=lambda: now[0], time=lambda: 2000000000 + now[0])
             instructions = "先说明业务结论，再说明每项扣减条件和金额来源；不要只解释字段赋值。"
@@ -51,11 +52,27 @@ class CollectionFlowDeliveryTests(unittest.TestCase):
 
             def transport(request):
                 messages = json.loads(request.body)["messages"]
-                self.assertIn(instructions, messages[0]["content"])
                 payload = json.loads(messages[-1]["content"])
+                if payload.get("schema") == "business-analysis-compaction/v1":
+                    task = payload["analysis_compaction"]
+                    compactions.append(task)
+                    entries = [{"kind": row["kind"], "text": row["text"],
+                        "evidence_ids": row["evidence_ids"], "covers_entry_ids": [row["entry_id"]]}
+                        for row in task["previous_entries"]]
+                    entries.append({"kind": "conditions", "text": "各项扣减按主流程次序执行，且余额足够才适用；金额初值须结合对应声明核对。",
+                        "evidence_ids": task["source_ids"], "covers_entry_ids": []})
+                    text = json.dumps({"schema": "analysis-ledger-result/v1", "task_id": task["task_id"],
+                        "entries": entries, "deferred_source_ids": []}, ensure_ascii=False)
+                    return TransportResponse(200, json.dumps({"choices": [{"message": {"content": text},
+                        "finish_reason": "stop"}]}, ensure_ascii=False))
+                self.assertIn(instructions, messages[0]["content"])
                 requests.append(payload)
                 self.assertLessEqual(len(requests), 2, "Useful review must remain bounded")
                 pages = [page for bundle in payload["source_context"] for page in bundle["pages"]]
+                archived_pages.update({page["evidence_id"]: page for page in pages})
+                current_ids = {page["evidence_id"] for page in pages}
+                declared_ids = set(payload.get("analysis_ledger", {}).get("historical_source_references", []))
+                pages = [page for identifier, page in archived_pages.items() if identifier in current_ids | declared_ids]
                 supplied = "\n".join(page["source_text"] for page in pages)
                 for name, amount in steps:
                     self.assertIn(f"PERFORM APPLY-{name}", supplied)

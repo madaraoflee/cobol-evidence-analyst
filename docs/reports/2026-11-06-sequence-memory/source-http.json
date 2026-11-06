@@ -1,0 +1,253 @@
+{
+  "schema_version": "investigation-continuity-check/v1",
+  "report_execution_id": "f0e5a57f5205baff6c3ed6eba04d36f9",
+  "created_at_utc": "2026-11-06T06:45:35.883410+00:00",
+  "transport_kind": "synthetic",
+  "external_model_calls": 0,
+  "paid_model_calls": 0,
+  "real_model_accuracy": null,
+  "formal_acceptance": false,
+  "checks": {
+    "default_policy_has_no_soft_target": true,
+    "slow_first_answer_is_automatically_completed": true,
+    "custom_single_paragraph_has_no_local_appendix": true,
+    "partial_latest_prompt_and_existing_draft_supplied": true,
+    "partial_prior_answer_preserved_as_revision": true,
+    "partial_continuation_completes_without_discarding_text": true,
+    "partial_revision_and_citation_survive_restart": true,
+    "truncated_latest_prompt_and_existing_draft_supplied": true,
+    "truncated_prior_answer_preserved_as_revision": true,
+    "truncated_continuation_completes_without_discarding_text": true,
+    "truncated_revision_and_citation_survive_restart": true,
+    "saved_business_content_drives_existing_omission_review": true,
+    "business_fixture_has_real_partial_continuation_boundary": true,
+    "cross_language_continuation_uses_current_requirements_and_source": true,
+    "cross_language_continuation_preserves_previous_answer_revision": true,
+    "cross_language_continuation_keeps_historical_source_evidence": true,
+    "local_formula_repair_preserves_saved_english": true,
+    "requests_recorded_once_without_provider_errors": true,
+    "independent_review_runs_revision_and_fresh_review_over_http": true,
+    "independent_review_binds_final_diagnostics_to_revised_answer": true,
+    "independent_review_preserves_source_copy_identity_and_current_requirements": true,
+    "independent_review_json_never_becomes_visible_answer": true,
+    "adjacent_chinese_path_supplies_exact_source_1": true,
+    "saved_profile_reopens_same_index_without_reimport": true,
+    "adjacent_chinese_path_supplies_exact_source_2": true,
+    "adjacent_path_requests_recorded_once_without_provider_errors": true,
+    "repeated_submission_recovers_original_job_without_another_request": true,
+    "confirmed_downstream_subject_saved": true,
+    "reopened_conversation_keeps_answer_and_same_snapshot": true,
+    "reopened_followup_supplies_downstream_formula": true,
+    "named_followup_supplies_requested_previous_format": true,
+    "followup_context_requests_recorded_once": true,
+    "direct_business_question_revises_assignment_only_summary": true,
+    "business_answer_has_no_automatic_technical_appendix": true,
+    "dynamic_literal_supplies_candidate_without_claiming_runtime_binding": true,
+    "seven_hops_copy_logical_and_physical_files_supplied": true,
+    "supplied_source_lookup_denial_corrected_in_final_answer": true,
+    "business_depth_requests_recorded_once": true,
+    "earlier_original_is_evicted_under_unchanged_default_source_budget": true,
+    "earlier_read_location_remains_available_without_model_findings": true,
+    "explicit_reread_restores_exact_evicted_original_before_answer": true,
+    "rereading_keeps_nine_unique_requests_and_default_source_budget": true,
+    "natural_sequence_question_supplies_late_execution_body_without_program_name": true,
+    "sequence_question_keeps_specific_contract_without_generic_inventory": true,
+    "sequence_candidates_preserve_unread_and_dynamic_target_boundaries": true
+  },
+  "errors": [],
+  "status": "passed",
+  "source_commit": "6e0b4a617673ba6e4f691ab95c5c8eddb5c38ea3",
+  "source_dirty": false,
+  "execution_surface": "source_python_http",
+  "runtime_platform": "Darwin",
+  "archive_sha256": null,
+  "binary_path": null,
+  "binary_sha256": null,
+  "application_sha256": "35696ff130b73003afa357695cbdf987c1d54fbe33cf99698a7d982e22d0ece9",
+  "observations": [
+    {
+      "phase": "default",
+      "run_id": "7c2fda1e609d80d4339fbd58",
+      "model_requests": 2,
+      "elapsed_seconds": 20.297521082989988,
+      "answer_sha256": "9813d3abf287c58affbb298008867187fb788b4cbf2001938f7a928649b5a34a"
+    },
+    {
+      "phase": "partial",
+      "previous_run_id": "c184239fc8559eba9c9a9d66",
+      "run_id": "90a5472a60e104cc9219f9a1",
+      "revision_id": "8bc883fd1d3616f0ed1a7dc86b52caf2",
+      "answer_sha256": "b412ee884cabcba3db099a3b1eff87106a78b17af9ea9d27e3966ee575b7cfb6"
+    },
+    {
+      "phase": "truncated",
+      "previous_run_id": "049879eb7509e1fed8372b06",
+      "run_id": "5f5b33f8309072b3d8bc4381",
+      "revision_id": "5bb5cc200f3c2c64677399f5e153fecf",
+      "answer_sha256": "a037185f87271720ed27330c69647b58eba71c9b1bee4a4cec6ba7a6c8178a9a"
+    },
+    {
+      "phase": "business_content",
+      "run_id": "679540b2c31d2c63913b39d4",
+      "model_requests": 2,
+      "elapsed_seconds": 0.32884883299993817,
+      "answer_sha256": "6c72d17980e6462eda1069baa14f36edeb7b2ab7a1589b63c779087c6d025137"
+    },
+    {
+      "phase": "business_partial",
+      "run_id": "a43e1eaf3e5e1268f3425789",
+      "model_requests": 1,
+      "elapsed_seconds": 0.12076904199784622,
+      "answer_sha256": "633b725e194fc071ff03ada65ae249c11e07aac9a21516703d81a95654db4c4b"
+    },
+    {
+      "phase": "continue_business_english",
+      "previous_run_id": "151ff5a33b83eba2b583a12c107c2dcc",
+      "run_id": "042d89242117c05a60b97860",
+      "revision_id": "bf589f8837f6c11fdda3335464a63431",
+      "model_requests": 1,
+      "elapsed_seconds": 0.1313956249941839,
+      "answer_sha256": "30c3a33e53e5f5a57840254d4eb66554e65d5e9e9a006f9a7e25855a40608ad3"
+    },
+    {
+      "phase": "saved_language_repair",
+      "run_id": "85905e66138570b6c493cf27",
+      "model_requests": 1,
+      "elapsed_seconds": 0.13044645900663454,
+      "answer_sha256": "ebf0e1291a11bada9a4dbc65d6063241abbacb8ff6d999f26bae8a4d3251501c"
+    },
+    {
+      "phase": "independent_review",
+      "run_id": "5d6ec3e50950b7f5c1e014fa",
+      "model_requests": 4,
+      "stages": [
+        "investigate",
+        "semantic_review",
+        "semantic_revise",
+        "semantic_review"
+      ],
+      "answer_sha256": "d9ac963c644e30e756239954b0e73b9616fa00da5b6e89bd7df067d548b45ed4",
+      "reviewed_answer_sha256": [
+        "9443dbb92e2f104582d72e54472ab715debb8b713e6f95b3aed9c67022f8289d",
+        "d9ac963c644e30e756239954b0e73b9616fa00da5b6e89bd7df067d548b45ed4"
+      ],
+      "evidence_sha256": "d35a11981de68d014a06303b5f2a1e1c29892d567fb19e20b96710d2ba2743c0",
+      "elapsed_seconds": 0.42599595899810083
+    },
+    {
+      "phase": "adjacent_chinese_path",
+      "question": "请解释source-dir/root.cbl中的TOTAL-AMOUNT如何计算？",
+      "run_id": "88c0b8396e16deb4afb54443",
+      "snapshot_id": "sha256:3a958d7de13943c0bb2cd091ad991aec19798010e99f491583cdc48601d6f519",
+      "elapsed_seconds": 0.2745270829909714,
+      "startup": {
+        "http_ready_seconds": 0.1748,
+        "restoration_waited": false,
+        "workspace_ready_seconds": 0.1748
+      }
+    },
+    {
+      "phase": "adjacent_chinese_path",
+      "question": "請解釋source-dir/root.cbl中的TOTAL-AMOUNT如何計算？",
+      "run_id": "7df3d8811afb0e3693628fb4",
+      "snapshot_id": "sha256:3a958d7de13943c0bb2cd091ad991aec19798010e99f491583cdc48601d6f519",
+      "elapsed_seconds": 0.29327316700073425,
+      "startup": {
+        "http_ready_seconds": 0.1718,
+        "restoration_waited": false,
+        "workspace_ready_seconds": 0.1718
+      },
+      "restart_seconds": 0.17184954100230243
+    },
+    {
+      "phase": "followup_context",
+      "turn": 1,
+      "run_id": "d54910fa40bb6d9869d4238e",
+      "snapshot_id": "sha256:3917d586dcf3ceb44ef5f05adf2a3c7a7ac23f1c5d17d7c1b3926e3249c4292c",
+      "elapsed_seconds": 0.369829542003572
+    },
+    {
+      "phase": "followup_context",
+      "turn": 2,
+      "run_id": "142438d75ed3a3bbd900a479",
+      "snapshot_id": "sha256:3917d586dcf3ceb44ef5f05adf2a3c7a7ac23f1c5d17d7c1b3926e3249c4292c",
+      "elapsed_seconds": 0.3379071250092238
+    },
+    {
+      "phase": "followup_context",
+      "turn": 3,
+      "run_id": "95bab29a8eac086dba4a32aa",
+      "snapshot_id": "sha256:3917d586dcf3ceb44ef5f05adf2a3c7a7ac23f1c5d17d7c1b3926e3249c4292c",
+      "elapsed_seconds": 0.1444246250030119
+    },
+    {
+      "phase": "direct_business_depth",
+      "run_id": "997b41c62de9dd2fdaa6b730",
+      "model_requests": 2,
+      "elapsed_seconds": 0.5488674590014853
+    },
+    {
+      "phase": "deep_business_chain",
+      "run_id": "b2cabc5e92a8454311840914",
+      "source_member_count": 11,
+      "elapsed_seconds": 0.19404149999900255
+    },
+    {
+      "phase": "round_evidence_reread",
+      "run_id": "bb31daca5f3eccb653d7b17d",
+      "model_requests": 9,
+      "elapsed_seconds": 0.6016973749938188
+    },
+    {
+      "phase": "natural_business_sequence",
+      "run_id": "de7642dec42a805d63cf1f38",
+      "model_requests": 1,
+      "elapsed_seconds": 0.5499521669989917
+    }
+  ],
+  "synthetic_model_requests": 34,
+  "fixture_sha256": {
+    "root.cbl": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+    "decision.cbl": "bd30aa3009dc53a5ce38af94d2a8ada7770b54742512248ed8e37c883385b3c9",
+    "caller.cbl": "a1213ff948c32314f0157651e7502d901afc09b834dc14294250a5e318f7ca3c",
+    "independent_review/root.cbl": "75e243662c1cc363aaf8e112769118672e318f705e4d45d3b1de51080e7a6103",
+    "independent_review/amount-input.cpy": "6975068eac48bd0848908e2e1ffcbd2c9816f5e11136eff85199ba614756fd73",
+    "source_identity/source-dir/root.cbl": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+    "source_identity/root.cbl": "c62b0b264e06b94405777b85b8789e44f4f5823e099d835abb4f74d7e0973927",
+    "followup_context/entry.cbl": "3f684bf9730d9b488f421ea80cb7c9d626bf1b11fd886e474f6b10d67140f9cb",
+    "followup_context/detail.cbl": "dcf3b09c841c47ab62fcf6138ec1c22880cb149dc0803869f072bf76a481aee2",
+    "business_depth/nightjob.clle": "8c9a50d77ba5a22374e2932934a9af578f259d1e797c1b4be59e1efecb0b8809",
+    "business_depth/settle.cbl": "1b46f917bdbaee0f91d557847cb64e566a4ccd773209e0de4c39f5414f0a35a7",
+    "business_depth/balance.cbl": "3dca83c499c433ef4b2c26d9412923cc892f0e4c5f0946c9022b8ea73c3ce8b5",
+    "business_depth/flow.cbl": "a3396f3bb10bdf922f4f89b3d0034b07775a38e842560988a393ba18df6fccd3",
+    "business_depth/step-1.cbl": "c911ff423cf26876e49760d7c034d45744fbf5d0838f53a55b2792901f1b0d60",
+    "business_depth/step-2.cbl": "a0193b61a4a305db5fdc0d95f1e4ce210f22661c47a89660445ede00b2ae02dc",
+    "business_depth/step-3.cbl": "7347e92f867fbd9e30b96a5e88d53f4afaf825c3b4c1096e2bdd2503afd2bdd1",
+    "business_depth/step-4.cbl": "9118e1ff583d075b571e3539c99cb10d44704286b29275d6b297922622ea7acb",
+    "business_depth/step-5.cbl": "9fd0cd255796911c617109bb0b413e30bbafb9f8424f08e84777ca8a80fa7ee1",
+    "business_depth/step-6.cbl": "0253a17ba9306564b0516c9a44a0911de2c2c40c23b543f133f82b6560cd595b",
+    "business_depth/step-7.cbl": "1c5f5c888fa58683e51ec8616e14751b63129d9a4587a01c1a4829621cf1018f",
+    "business_depth/REQUEST-CONTEXT.cpy": "ac80c3712207bee98bde48b1937a7bc5f81505a05e61a55a675096c3409e1395",
+    "business_depth/ACTIVEVIEW.lf": "5d5e0decb14e8c0ebd7a29a0846ab6edf53196d8f47eabf1e0b828bed81fa5fc",
+    "business_depth/ACTIVEBASE.pf": "c36407337cf16303f0d57264b9d5316506461c2f71fd01153e42e43a1c265bd3",
+    "round_evidence/root.cbl": "9ad0ce218830b863c606ac814154756e41e4e6f97040c04d899325f6c9d6746f",
+    "round_evidence/helper-1.cbl": "fc637ab3899b987e6abd53b0d5ed68d28bb25a9098c6cff71bbd9a96bfacd001",
+    "round_evidence/helper-2.cbl": "38c254f43a2cafe3de4eae0618ceb1b56b900902b82b63de0e45a231262da72d",
+    "round_evidence/helper-3.cbl": "6cc1c7b7606272a16ea1ccd47d52e606754a5cec092c7d457b50fcf235f29842",
+    "round_evidence/helper-4.cbl": "997772528207be54226bc146cccf8fbbf188b075a8901a1ae010b5ad5c573f99",
+    "round_evidence/helper-5.cbl": "20a43f704574bb90eaa766806c8da3ebcaeef843a646112196777525afa61700",
+    "round_evidence/helper-6.cbl": "5c69c387b982890807732863806876366396a419931342a730728bf3ddbcc87a",
+    "round_evidence/helper-7.cbl": "9c617deb00bc861bd373a19c5c1f0277a6a7c3a29f8147dde56732ffdf4f232c",
+    "sequence_selection/a-init-0.cbl": "2cf3fc8ba7c9c2723901d0e8161c1a7a150a05c345b38cfb752a5dd89aab0231",
+    "sequence_selection/a-init-1.cbl": "2ba3213d01fca865915acf367fabc871c2adefd737f643f5e78fabe3df3dae6e",
+    "sequence_selection/a-init-2.cbl": "5665f428f2a9d65d06a6d7eeb2954e3ccdc2f617cf94f55a2be57bce7773b4ef",
+    "sequence_selection/a-init-3.cbl": "db429fa083594b8a6e9f7bd6ddd852a46dc4aec4549b175f3b420f953b5ea3cd",
+    "sequence_selection/a-init-4.cbl": "2b3d0ccfa6776f838006cae7c988371ab6db08d6e9132440831425c271055896",
+    "sequence_selection/a-init-5.cbl": "638410bf472aa211ad74e3aaabcc40c91bc6be9e229e94fc76e8f088b627ecbc",
+    "sequence_selection/a-init-6.cbl": "1319983a71d7e6a910bda3a8ebcf2b70248aed1d1ac7b5f19bd462402405ad32",
+    "sequence_selection/z-collect.cbl": "c97c980fec16034f1aeb5690a9ad0576b69c52f158ee557786a81d2469c829f3",
+    "sequence_selection/credit.cbl": "1185e8c854213b4b3d044ac88756eb5bf8751710528f19ca17839240f6490c3c"
+  },
+  "injected_wait_seconds": 20,
+  "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."
+}

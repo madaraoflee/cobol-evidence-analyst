@@ -100,6 +100,67 @@ def _answer_preview(value):
     return {"text": value["text"][:24000], "round": value["round"], "stage": value["stage"]}
 
 
+def _analysis_state(value):
+    """Project a self-contained public investigation snapshot, not model reasoning."""
+    if not isinstance(value, dict) or value.get("schema_version") != "business-investigation-progress/v1":
+        return None
+
+    def number(item):
+        return type(item) is int and 0 <= item <= 9_007_199_254_740_991
+
+    def bounded_text(item):
+        return item if len(item) <= 2000 else item[:1999] + "…"
+
+    def prose(item):
+        return (isinstance(item, str) and not re.search(
+            r'<(?:think|analysis)(?:\s|>)|["\'](?:reasoning_content|reasoning|chain_of_thought|tool_calls|'
+            r'search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|'
+            r'backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect)["\']\s*:', item, re.I))
+
+    if (not number(value.get("revision")) or not number(value.get("round")) or value["round"] < 1
+            or not isinstance(value.get("phase"), str)
+            or value["phase"] not in {"investigate", "compacting", "answer", "review"}
+            or not prose(value.get("summary")) or not number(value.get("omitted_findings"))):
+        return None
+    counts = value.get("counts")
+    count_keys = ("candidate", "open", "conflicts", "total_sources")
+    if not isinstance(counts, dict) or any(not number(counts.get(key)) for key in count_keys):
+        return None
+    findings = value.get("findings")
+    if not isinstance(findings, list):
+        return None
+    rows = []
+    for row in findings[:64]:
+        if (not isinstance(row, dict) or not isinstance(row.get("id"), str) or not 1 <= len(row["id"]) <= 180
+                or not isinstance(row.get("kind"), str)
+                or row["kind"] not in {"rules", "conditions", "handoffs", "conflicts", "open_questions"}
+                or not prose(row.get("text")) or not number(row.get("evidence_count"))):
+            return None
+        rows.append({"id": row["id"], "kind": row["kind"], "text": bounded_text(row["text"]),
+                     "evidence_count": row["evidence_count"]})
+    projected = {"schema_version": value["schema_version"], "revision": value["revision"],
+        "round": value["round"], "phase": value["phase"], "summary": bounded_text(value["summary"]),
+        "counts": {key: counts[key] for key in count_keys}, "findings": rows,
+        "omitted_findings": min(9_007_199_254_740_991, value["omitted_findings"] + max(0, len(findings) - 64))}
+    if "global_pending" in counts or "has_pending_work" in value:
+        if (not number(counts.get("global_pending")) or type(value.get("has_pending_work")) is not bool
+                or counts["global_pending"] > 0 and not value["has_pending_work"]):
+            return None
+        projected["counts"]["global_pending"] = counts["global_pending"]
+        projected["has_pending_work"] = value["has_pending_work"]
+    if "compaction" in value:
+        compact = value["compaction"]
+        keys = ("cycle", "before_bytes", "after_bytes", "retained_entries", "deferred_sources")
+        if (not isinstance(compact, dict) or not isinstance(compact.get("status"), str)
+                or compact["status"] not in {"not_needed", "running", "completed", "failed"}
+                or any(not number(compact.get(key)) for key in keys)
+                or type(compact.get("structural_preservation_verified")) is not bool):
+            return None
+        projected["compaction"] = {"status": compact["status"], **{key: compact[key] for key in keys},
+            "structural_preservation_verified": compact["structural_preservation_verified"]}
+    return projected
+
+
 class RequestError(ValueError):
     def __init__(self, code: str, message: str, status: int = 400, *, diagnostic=None) -> None:
         super().__init__(message)
@@ -2047,7 +2108,7 @@ class WorkbenchState:
                     options["conversation_history"] = self.conversation_store.model_history(
                         conversation["id"], before_position=target["position"],
                         max_characters=options.get("_conversation_history_max_characters", options["agent_policy"].max_history_characters),
-                        question=options["question"], include_legacy=True)
+                        question=options["question"], include_legacy=True, include_analysis_handoff=True)
                     try:
                         self.conversation_store.claim_retry(conversation["id"], retry_message_id, job_id)
                     except ValueError:
@@ -2055,7 +2116,7 @@ class WorkbenchState:
                 else:
                     options["conversation_history"] = self.conversation_store.model_history(
                         conversation["id"], max_characters=options["agent_policy"].max_history_characters,
-                        question=options["question"], include_legacy=True)
+                        question=options["question"], include_legacy=True, include_analysis_handoff=True)
                     self.conversation_store.append(conversation["id"], "user", options["question"], status="pending", run_id=job_id)
                 self.conversation = self.conversation_store.get(conversation["id"])
             elif not same_project and not source_update:
@@ -2155,6 +2216,12 @@ class WorkbenchState:
                     current[key] = snapshot
                 elif key in previous:
                     current[key] = previous[key]
+            snapshot = _analysis_state(event.get("analysis_state"))
+            prior_state = previous.get("analysis_state")
+            if snapshot is not None and (prior_state is None or snapshot["revision"] >= prior_state["revision"]):
+                current["analysis_state"] = snapshot
+            elif prior_state is not None:
+                current["analysis_state"] = prior_state
             if "question_budget_seconds" in current and "question_remaining_seconds" in current:
                 current["question_remaining_seconds"] = min(current["question_remaining_seconds"],
                     current["question_budget_seconds"])

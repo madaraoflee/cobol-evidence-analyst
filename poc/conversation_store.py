@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import secrets
 import sqlite3
 
@@ -158,8 +159,10 @@ def _model_history_rows(db, identifier, max_messages, before_position, *, legacy
         + position_filter + f"ORDER BY {order} LIMIT ?", parameters).fetchall()
 
 
-def _project_history(db, rows, max_characters, *, source_question=False, legacy=False):
+def _project_history(db, rows, max_characters, *, source_question=False, legacy=False,
+                     include_analysis_handoff=False):
     remaining, details_remaining, messages = max_characters, MODEL_HISTORY_DETAILS_BYTES, []
+    handoff_selected = False
     latest_user = next((row for row in rows if row["role"] == "user"), None)
     reserved_user = min(latest_user["content_length"], max(1, max_characters // 4)) if latest_user else 0
     for offset, row in enumerate(rows):
@@ -179,6 +182,15 @@ def _project_history(db, rows, max_characters, *, source_question=False, legacy=
         content = ("" if navigation_only else db.execute("SELECT substr(content,1,?) FROM messages WHERE position=?",
                    (available, row["position"])).fetchone()[0])
         message = {"role": row["role"], "content": content}
+        if include_analysis_handoff and row["role"] == "assistant" and not handoff_selected:
+            handoff_selected = True
+            handle = db.execute("SELECT CASE WHEN json_valid(details) THEN "
+                "CASE WHEN json_type(details,'$.investigation_run_id')='text' "
+                "AND length(json_extract(details,'$.investigation_run_id'))=24 "
+                "THEN json_extract(details,'$.investigation_run_id') END END "
+                "FROM messages WHERE position=?", (row["position"],)).fetchone()[0]
+            if isinstance(handle, str) and re.fullmatch(r"[0-9a-f]{24}", handle):
+                message["investigation_run_id"] = handle
         if row["status"] == "partial":
             message["analysis_status"] = "PARTIAL"
         remaining -= len(content)
@@ -294,7 +306,7 @@ class ConversationStore:
 
     def model_history(self, identifier, *, max_messages=MODEL_HISTORY_MESSAGES,
                       max_characters=MODEL_HISTORY_CHARACTERS, before_position=None,
-                      question=None, include_legacy=False):
+                      question=None, include_legacy=False, include_analysis_handoff=False):
         """Read a bounded provider context; the complete transcript stays on disk.
 
         Large response diagnostics and framework excerpts are display records,
@@ -318,7 +330,8 @@ class ConversationStore:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN")
             rows = _model_history_rows(db, identifier, max_messages, before_position, legacy=False)
-            messages = _project_history(db, rows, max_characters, source_question=source_question)
+            messages = _project_history(db, rows, max_characters, source_question=source_question,
+                                        include_analysis_handoff=include_analysis_handoff)
             if include_legacy:
                 old_rows = _model_history_rows(db, identifier, max_messages, before_position, legacy=True)
                 legacy = _project_history(db, old_rows, max_characters, legacy=True)

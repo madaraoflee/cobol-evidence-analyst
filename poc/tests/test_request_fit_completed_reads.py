@@ -34,6 +34,7 @@ class CompletedReadRequestFitTests(unittest.TestCase):
             "framework_references": [], "budget_wire_compact": True, "task": "Explain the supplied rules.",
             "question_investigation": {"state": "bounded_partial", "scope": "source_candidates",
                 "can_answer": False, "semantic_execution_verified": False, "required_items": requirements,
+                "pending_work": {"rule_path_count": 20}, "investigation_complete": False,
                 "planned_actions": [{"tool": "read", "arguments": {"relative_path": "entry.cbl",
                     "start_line": 1, "end_line": 100}, "reason": f"route{index} " + str(index) * 300}
                     for index in range(90)]}}
@@ -48,6 +49,8 @@ class CompletedReadRequestFitTests(unittest.TestCase):
         self.assertEqual(investigation["required_items"], requirements)
         self.assertEqual(investigation["omitted_planned_action_count"], 90)
         self.assertFalse(investigation["can_answer"])
+        self.assertFalse(investigation["investigation_complete"])
+        self.assertEqual(investigation["pending_work"], {"rule_path_count": 20})
         self.assertEqual(payload["question_investigation"], original)
         self.assertEqual(wire["source_context"][0]["pages"][0]["source_text"], source)
 

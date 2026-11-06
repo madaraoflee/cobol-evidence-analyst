@@ -56,7 +56,10 @@ class LongLineReadBudgetTests(unittest.TestCase):
                        pages[0]["evidence_id"])
             return fixtures.reply(f"处理进入复核步骤。[{ref}]")
 
+        # Isolate the requested physical read allowance from the independently
+        # tested cumulative-compaction request protocol.
         policy = AgentPolicy(max_model_requests=2, max_answer_revisions=0,
+            context_compaction_enabled=False,
             max_business_context_actions_per_turn=0, read_source_characters=read_characters,
             max_source_characters=source_characters)
         with patch.object(repository_discovery, "read_repository_context", side_effect=observed):

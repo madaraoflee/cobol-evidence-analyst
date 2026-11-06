@@ -29,7 +29,9 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
                 f"MOVE {number} TO HELPER-RESULT.\n" + "\n".join(
                     f"*> neutral padding line {line}" for line in range(45)),
                 "01 HELPER-RESULT PIC 9.")
-        self.policy = AgentPolicy(max_source_characters=2000, max_complete_source_characters=2000)
+        # Keep the independent source-restoration fallback under direct test.
+        self.policy = AgentPolicy(context_compaction_enabled=False,
+            max_source_characters=2000, max_complete_source_characters=2000)
         self.identifiers = {}
 
     def capture(self, payload):
@@ -189,7 +191,7 @@ class PriorSourceMemoryEvictionChatTests(unittest.TestCase):
             self.capture(payload)
             return self.fixture.read_helper(number) if number <= 2 else self.final_answer(payload)
 
-        result = self.fixture.ask(respond, policy=AgentPolicy(max_model_requests=3,
+        result = self.fixture.ask(respond, policy=AgentPolicy(context_compaction_enabled=False, max_model_requests=3,
             max_source_characters=2000, max_complete_source_characters=2000), request_guard=3)
         self.assert_eviction(last_round=3)
         self.assertTrue(all("prior_source_memory" in payload for payload in self.fixture.requests))

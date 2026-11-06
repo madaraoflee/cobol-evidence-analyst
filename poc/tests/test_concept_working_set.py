@@ -262,7 +262,7 @@ class ConceptWorkingSetTests(unittest.TestCase):
                     for number in range(9)})
         result = self.collect()
         self.assert_sources(result, set(self.files))
-        self.assertEqual(result["metadata"]["depth_limit"], AgentPolicy().max_semantic_files)
+        self.assertIsNone(result["metadata"]["depth_limit"])
         self.assertTrue(result["metadata"]["closure_complete"])
         limited = self.collect(policy=AgentPolicy(max_semantic_files=3))
         self.assert_sources(limited, {"step0.cbl", "step1.cbl", "step2.cbl"})

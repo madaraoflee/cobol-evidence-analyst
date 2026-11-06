@@ -12,8 +12,8 @@ import time
 from prior_source_memory import source_binding_sha256
 from run_store import RunStore
 
-PIPELINE_VERSION = "question-evidence-v72"
-PROMPT_VERSION = "business-chat-v57"
+PIPELINE_VERSION = "question-evidence-v73"
+PROMPT_VERSION = "business-chat-v58"
 
 def _digest(value):
     return hashlib.sha256(value).hexdigest()
@@ -159,14 +159,19 @@ class QualityTrace:
         self._pending_round_id = record["round_id"]
         self.run_store.start_request(self.data["run_id"], record["round_id"], record["request_body_sha256"])
         checkpoint = self.run_store.load(self.data["run_id"])["checkpoint"]
-        self.run_store.checkpoint(self.data["run_id"], {**checkpoint, "quality": self.data,
+        updates = {"quality": self.data,
             "request_payload": payload,
             "analysis_plan": payload.get("question_investigation", {}).get("analysis_plan", {}),
             "obligations": payload.get("question_investigation", {}).get("required_items", []),
             "frontier": payload.get("question_investigation", {}).get("planned_actions", []),
             "budget": payload.get("investigation_budget", {}),
             "source_pages": source, "framework_references": framework,
-            "completed_actions": payload.get("completed_actions", [])})
+            "completed_actions": payload.get("completed_actions", [])}
+        if stage == "context_compact":
+            # Compression uses an old source batch, not the entire current
+            # investigation. A crash must retain its queued work and new pages.
+            updates = {"quality": self.data, "request_payload": payload}
+        self.run_store.checkpoint(self.data["run_id"], {**checkpoint, **updates})
         self._pending = (stage, payload, messages, trims, started)
 
     def finish_round(self, *, finish_reason=None, parsed_action=None, usage=None, error=None,

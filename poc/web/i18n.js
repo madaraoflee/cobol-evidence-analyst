@@ -166,6 +166,40 @@ Bitbucket 源碼快照|Bitbucket 源码快照|Bitbucket source snapshot
 已有證據的要點 |已有证据的要点 |Question items with evidence\u0020
 待核對 |待核对 |Pending checks\u0020
 調查進展|调查进展|Investigation progress
+進展顯示|进展显示|Progress display
+即時摘要|实时摘要|Live summary
+僅進度|仅进度|Progress only
+只調整顯示，不影響後台調查。|只调整显示，不影响后台调查。|Display preference only; background investigation is unchanged.
+階段發現（待核）|阶段发现（待核）|Stage findings (provisional)
+待查事項|待查事项|Open questions
+摘要中的待查事項|摘要中的待查事项|Open questions in summary
+全局待查記錄|全局待查记录|Global pending records
+同一鏈路可能對應多項記錄。|同一链路可能对应多项记录。|A single path may have several pending records.
+仍有全局待查內容，數量尚未確定。|仍有全局待查内容，数量尚未确定。|Global investigation work remains; its count is not yet known.
+目前沒有已登記的全局待查項；不代表所有未知路徑均已證實。|目前没有已登记的全局待查项；不代表所有未知路径均已证实。|No global work is currently recorded as pending; this does not verify every unknown path.
+全局待查狀態尚未同步。|全局待查状态尚未同步。|Global pending-work status is not yet available.
+待核對衝突|待核对冲突|Conflicts to check
+累計來源|累计来源|Sources recorded
+業務規則|业务规则|Business rules
+適用條件|适用条件|Applicable conditions
+交接關係|交接关系|Handoffs
+待核|待核|Provisional
+關聯依據|关联依据|Linked evidence
+查看階段發現與上下文整理|查看阶段发现与上下文整理|View stage findings and context updates
+以下是調查中的候選記錄，仍須核對；不等於已確認的業務結論。|以下是调查中的候选记录，仍须核对；不等于已确认的业务结论。|These investigation records are candidates that still need review; they are not confirmed business conclusions.
+此處未顯示的記錄|此处未显示的记录|Records not displayed here
+正在整理上下文|正在整理上下文|Organizing context
+目前無需壓縮|当前无需压缩|No compaction needed
+上下文整理完成|上下文整理完成|Context update completed
+上下文整理未完成|上下文整理未完成|Context update incomplete
+整理次數|整理次数|Context update cycle
+整理前|整理前|Before
+整理後|整理后|After
+本次保留記錄|本次保留记录|Records retained in this update
+仍待整理的來源|仍待整理的来源|Sources still awaiting synthesis
+結構關聯校驗通過；不代表完整語義已確認。|结构关联校验通过；不代表完整语义已确认。|Structural links passed validation; this does not confirm complete semantic preservation.
+結構關聯尚未確認；不能據此判定語義完整。|结构关联尚未确认；不能据此判定语义完整。|Structural links are not yet verified; semantic completeness cannot be inferred.
+整理調查上下文|整理调查上下文|Compacting investigation context
 正在撰寫業務回答|正在撰写业务回答|Writing the business answer
 正在核對回答與問題|正在核对回答与问题|Reviewing the answer against the question
 待核對事項|待核对事项|Pending checks

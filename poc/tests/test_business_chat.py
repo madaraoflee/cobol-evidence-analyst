@@ -494,7 +494,9 @@ class BusinessChatTests(unittest.TestCase):
                     last - page["start_line"] + 1]) == expected for page in source_pages(payload)))
             return reply("修订：已补读后续记录。")
         result = self.ask("LONG 程序都展示哪些记录？", respond,
-            policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096, read_source_characters=512,
+            # Exercise the independent read-cursor revision protocol.
+            policy=AgentPolicy(context_compaction_enabled=False,
+                max_source_characters=4096, max_complete_source_characters=4096, read_source_characters=512,
                                max_model_requests=3))["agent_result"]
         self.assertEqual(result["answer"], "修订：已补读后续记录。")
         self.assertEqual(result["metrics"]["model_requests"], 3)
@@ -528,7 +530,9 @@ class BusinessChatTests(unittest.TestCase):
                         return reply(f"可用初稿。[{evidence_id}]")
                     return failure
                 result = self.ask("LONG 展示记录的规则？", respond,
-                    policy=AgentPolicy(max_source_characters=4096, max_complete_source_characters=4096,
+                    # Inject failure into answer revision, not compaction.
+                    policy=AgentPolicy(context_compaction_enabled=False,
+                                       max_source_characters=4096, max_complete_source_characters=4096,
                                        read_source_characters=512, max_model_requests=3))["agent_result"]
                 self.assertIn("可用初稿", result["answer"])
                 self.assertEqual([ref["evidence_id"] for ref in result["narrative"]["citations"]], saved)
@@ -605,9 +609,14 @@ class BusinessChatTests(unittest.TestCase):
         output = self.ask("ENTRYPOINT 如何决定请求就绪？", respond)
         self.assertEqual(output["runner_status"], "COMPLETED")
         self.assertNotEqual(output["reason_code"], "REQUEST_TOO_LARGE")
-        self.assertEqual(read_rounds, [1, 2])
-        self.assertEqual(answer_rounds, [3])
-        self.assertEqual(len(self.requests), 3)
+        # Finite dependency batches are new material even while the model
+        # redundantly rereads the root. Only converge after all 64 are supplied.
+        supplied = {page["relative_path"] for request in self.requests
+            for page in source_pages(json.loads(request["messages"][-1]["content"]))}
+        self.assertTrue({f"member{index:02d}.cbl" for index in range(64)} <= supplied)
+        self.assertEqual(read_rounds, [1, 2, 3, 4])
+        self.assertEqual(answer_rounds, [5])
+        self.assertEqual(len(self.requests), 5)
         self.assertTrue(output["agent_result"]["model_answer_recorded"])
         self.assertEqual(output["agent_result"]["answer_origin"], "model")
         self.assertTrue(any(item.get("reason") == "no_evidence_progress"

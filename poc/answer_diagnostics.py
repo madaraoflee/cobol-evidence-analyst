@@ -28,7 +28,7 @@ WORKING_SET_REASONS = frozenset({
     "source_hash_mismatch", "source_read_unavailable", "candidate_source_set_supplied",
 })
 REQUEST_STAGES = frozenset({"answer", "discover", "investigate", "synthesis_review", "continuation",
-    "semantic_review", "semantic_revise", "empty_length_recovery", "empty_stop_recovery"})
+    "semantic_review", "semantic_revise", "empty_length_recovery", "empty_stop_recovery", "context_compact"})
 
 
 def _enum(value, allowed):
@@ -207,7 +207,7 @@ def build_answer_diagnostics(*, config, quality, result):
             request_context = _safe_failure_request_context(item.get("request_context"))
             api_failures.append({"stage": _enum(item.get("stage"), {
                 "configuration", "provider_request", "context_assembly", "response_parse",
-                "response_validation", "continuation", "synthesis_review", "semantic_review", "semantic_revise", "direct",
+                "response_validation", "continuation", "synthesis_review", "semantic_review", "semantic_revise", "context_compact", "direct",
                 "map", "reduce", "model_request", "repository_search", "page",
                 "program", "synthesis"}), **diagnostic,
                 **({"request_context": request_context} if request_context else {})})

@@ -18,7 +18,8 @@ class PriorMemoryRequestBudgetTests(unittest.TestCase):
         self.case = memory_fixtures.PriorSourceMemoryEvictionChatTests()
         self.case.setUp()
         self.addCleanup(self.case.doCleanups)
-        self.policy = AgentPolicy(max_source_characters=2000,
+        # Exercise the independent original-source restoration fallback.
+        self.policy = AgentPolicy(context_compaction_enabled=False, max_source_characters=2000,
             max_complete_source_characters=2000, max_request_bytes=32768,
             max_model_requests=4)
 
@@ -66,8 +67,9 @@ class PriorMemoryRequestBudgetTests(unittest.TestCase):
             for origin in block["origins"]:
                 supplying = next(row for row in trace["rounds"] if row["round_id"] == origin["round_id"])
                 self.assertEqual(origin["request_body_sha256"], supplying["request_body_sha256"])
-        memory = PriorSourceMemory(case.fixture.database, question=case.fixture.question, run_id=result["run_id"])
-        memory.scope = checkpoint["scope"]
+        memory = PriorSourceMemory(case.fixture.database, question=case.fixture.question, run_id=result["run_id"],
+            context={"analysis_identity": saved["metadata"].get("analysis_identity"),
+                     "compilation_context": saved["checkpoint"].get("compilation_context")})
         memory.restore(checkpoint, trace["rounds"])
         self.assertTrue(memory.effective_pages(final, verify_archive=True))
 
@@ -98,7 +100,7 @@ class PriorMemoryRequestBudgetTests(unittest.TestCase):
     def test_replaced_draft_still_resupplies_source_once_under_request_limit(self):
         # This scenario needs five existing investigation requests; neither
         # compaction nor the pending source bookmark may add a sixth request.
-        self.case.policy = AgentPolicy(max_source_characters=2000,
+        self.case.policy = AgentPolicy(context_compaction_enabled=False, max_source_characters=2000,
             max_complete_source_characters=2000, max_request_bytes=32768,
             max_model_requests=5)
         self.case.test_rewritten_draft_recovers_evicted_source_on_the_next_existing_turn()

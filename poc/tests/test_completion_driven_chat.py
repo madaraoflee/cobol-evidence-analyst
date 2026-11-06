@@ -132,7 +132,10 @@ class CompletionDrivenChatTests(unittest.TestCase):
                     f"因此调整后的金额是原金额加{amount}。[{page['evidence_id']}]")
 
         result = self.ask(respond, request_guard=11, answer_instructions=instructions,
-            policy=AgentPolicy(max_source_characters=2000, max_complete_source_characters=2000,
+            # Isolate the unbounded source-reading protocol; cumulative model
+            # compaction has separate actual-request and restart coverage.
+            policy=AgentPolicy(context_compaction_enabled=False,
+                max_source_characters=2000, max_complete_source_characters=2000,
                 initial_source_characters=1000, max_business_context_actions_per_turn=0,
                 max_evidence_groups=0))
         self.assertEqual(len(self.requests), 11)

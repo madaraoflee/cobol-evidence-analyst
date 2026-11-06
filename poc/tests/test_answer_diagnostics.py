@@ -189,6 +189,7 @@ class AnswerDiagnosticsTests(unittest.TestCase):
         diagnostic = build_diagnostic("MODEL_CLIENT_ERROR", http_status=500)
         for stage, expected in (("semantic_review", "semantic_review"),
                                 ("semantic_revise", "semantic_revise"),
+                                ("context_compact", "context_compact"),
                                 ("continue", "continuation"), ("revise", "synthesis_review"),
                                 ("empty_length_recovery", "empty_length_recovery"),
                                 ("empty_stop_recovery", "empty_stop_recovery")):
