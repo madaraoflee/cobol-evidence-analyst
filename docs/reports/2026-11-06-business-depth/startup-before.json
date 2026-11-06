@@ -1,0 +1,20 @@
+{
+  "schema": "startup-recovery-benchmark/v1",
+  "background_restore": false,
+  "report_bytes": 67126158,
+  "simulated_read_bytes_per_second": 16777216,
+  "constructor_seconds": 12.1993,
+  "first_http_seconds": 12.2056,
+  "restore_and_upgrade_provenance_seconds": 16.2659,
+  "full_report_hash_calls": 4,
+  "full_report_hash_bytes": 268504632,
+  "initial_status": "RUNNING",
+  "initial_origin": "index_version_upgrade",
+  "initial_snapshot_available": true,
+  "final_snapshot_available": true,
+  "checks": {
+    "http_200": true,
+    "upgrade_provenance_valid": true
+  },
+  "scope": "Synthetic source and slow-read simulation; unchanged report and real restore/planning code. Index rebuild, model calls, office-device timings excluded."
+}

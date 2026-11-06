@@ -7,6 +7,7 @@ module has no business-topic dictionary and never calls a remote service.
 from __future__ import annotations
 
 from collections import OrderedDict, defaultdict, deque
+from copy import deepcopy
 from functools import lru_cache
 import hashlib
 import json
@@ -16,6 +17,7 @@ import sqlite3
 import sys
 from threading import RLock
 
+from dependency_sources import dependency_source_availability
 from repository_identity import identity_blocks_analysis, identity_boundaries, identity_sql_scope, resolve_source_identity
 from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
 
@@ -1236,9 +1238,9 @@ def _cached_context_relations(connection, paths, limit=64, *, relation_cache=Non
             relation_cache.popitem(last=False)
     relation_cache.move_to_end(key)
     rows, omitted = relation_cache[key]
-    # These flat facts are enriched with range-specific citation lists below;
-    # those lists and caller mutations must never alter cached relation facts.
-    return [dict(row) for row in rows], omitted
+    # Candidate definitions and range-specific citation lists must not leak
+    # caller mutations into a later read of the same question.
+    return deepcopy(list(rows)), omitted
 
 
 def _context_relations(connection, paths, limit=64):
@@ -1264,20 +1266,31 @@ def _context_relations(connection, paths, limit=64):
              "UNION SELECT r.relation_id FROM targets t CROSS JOIN relations r ON r.target_entity_id=t.symbol_id "
              "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM','INCLUDES_COPY','PERFORMS')) "
              "SELECT r.relation_id,r.relative_path AS caller_path,r.relation_type,r.target_name,r.status AS resolution,"
-             "r.evidence_id,e.start_line AS caller_start_line,e.end_line AS caller_end_line,"
+             "r.evidence_id,r.metadata_json,e.start_line AS caller_start_line,e.end_line AS caller_end_line,"
              "s.relative_path AS target_path,u.start_line AS target_start_line,u.end_line AS target_end_line "
              "FROM candidates c CROSS JOIN relations r ON r.relation_id=c.relation_id "
              "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
              "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
              "LEFT JOIN code_units u ON u.unit_id=s.definition_unit_id "
-             "ORDER BY r.relation_type='PERFORMS',r.relative_path,e.start_line LIMIT ?")
-    rows = connection.execute(query, (*paths, *paths, limit + 1)).fetchall()
+             f"ORDER BY r.relative_path NOT IN ({slots}),"
+             "r.relation_type NOT IN ('CALLS','CALL_TARGET_FROM'),"
+             "r.relation_type='PERFORMS',r.relative_path,e.start_line,r.relation_id LIMIT ?")
+    rows = connection.execute(query, (*paths, *paths, *paths, limit + 1)).fetchall()
     result = []
+    candidate_cache = {}
     for row in rows[:limit]:
         item = dict(row)
+        metadata = json.loads(item.pop("metadata_json") or "{}")
         if item["relation_type"] == "CALL_TARGET_FROM" or item["resolution"] != "confirmed":
             item.update(target_path=None, target_start_line=None, target_end_line=None)
-        item["target_source_status"] = "indexed" if item["target_path"] else "unavailable"
+        if item["relation_type"] == "CALL_TARGET_FROM":
+            # A resolved data field is not a resolved program. Its value still
+            # needs investigation, even when a same-named program exists.
+            item["resolution"] = "unresolved"
+        item.update(dependency_source_availability(connection, item["relation_type"], item["target_name"],
+            target_path=item["target_path"], metadata=metadata, candidate_cache=candidate_cache))
+        if metadata.get("resolution_reason"):
+            item["resolution_reason"] = metadata["resolution_reason"]
         item["runtime_verified"] = False
         item["parameter_binding_verified"] = False
         result.append(item)

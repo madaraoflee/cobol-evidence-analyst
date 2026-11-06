@@ -17,6 +17,7 @@ from urllib.parse import quote
 
 from file_impact_evidence import is_file_impact_question, nominate_file_impact_evidence
 from business_behavior import wants_behavior_explanation
+from dependency_sources import dependency_source_availability
 from question_intent import calculation_intent
 from repository_identity import identity_blocks_analysis
 from question_planner import QuestionPlanner, EvidencePlanner, question_references, select_accumulations
@@ -1280,8 +1281,9 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
     encoded = quote(Path(database_path).resolve().as_posix(), safe="/:")
     with closing(sqlite3.connect(f"file:{encoded}?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
+        availability_cache = {}
         for path in paths[:_MAX_PATHS]:
-            rows = db.execute("SELECT r.target_name,r.relation_type,r.status,e.start_line,e.end_line,e.text,"
+            rows = db.execute("SELECT r.target_name,r.relation_type,r.status,r.metadata_json,e.start_line,e.end_line,e.text,"
                 "s.relative_path AS target_path FROM relations r JOIN evidence_spans e USING(evidence_id) "
                 "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id WHERE r.relative_path=? "
                 "AND r.relation_type IN ('CALLS','CALL_TARGET_FROM','PERFORMS','PERFORMS_THRU','INCLUDES_COPY') "
@@ -1310,14 +1312,21 @@ def _dependencies(database_path, paths, candidates, hashes, *, business_steps=Fa
                     continue
                 unresolved = (edge["relation_type"] == "CALL_TARGET_FROM"
                               or edge["status"] != "confirmed" or not edge["target_path"])
+                availability = dependency_source_availability(db, edge["relation_type"], edge["target_name"],
+                    target_path=edge["target_path"] if edge["status"] == "confirmed" else None,
+                    metadata=json.loads(edge["metadata_json"] or "{}"), candidate_cache=availability_cache)
+                source_status = availability["target_source_status"]
+                reason = ("runtime_target_unresolved" if source_status == "dynamic_target_unresolved"
+                          else "dependency_binding_unresolved" if source_status in {"candidate_sources_indexed", "unresolved"}
+                          else "external_implementation_unavailable" if source_status == "unavailable" else None)
                 result.append({"kind": "dependencies", "relative_path": path,
                     "start_line": edge["start_line"], "end_line": edge["end_line"],
                     "statement": edge["text"], "reads": [], "writes": [],
                     "source_sha256": hashes.get(path), "unresolved": unresolved,
-                    "source_available": bool(edge["target_path"]) and edge["relation_type"] != "CALL_TARGET_FROM",
+                    "source_available": True if source_status in {"indexed", "candidate_sources_indexed"}
+                        else False if source_status == "unavailable" else None,
                     "target_name": edge["target_name"], "relation_type": edge["relation_type"],
-                    "unresolved_reason": "runtime_target_unresolved" if edge["relation_type"] == "CALL_TARGET_FROM"
-                        else "external_implementation_unavailable"})
+                    "unresolved_reason": reason, **availability})
     return result, frontier
 
 
@@ -1328,7 +1337,9 @@ def _framework_dependencies(candidates, pages, framework_facts):
     for original in candidates:
         row = dict(original)
         if (row.get("kind") == "dependencies" and row.get("unresolved")
-                and not row.get("source_available") and row.get("relation_type") == "CALLS"
+                and row.get("source_available") is False
+                and row.get("unresolved_reason") == "external_implementation_unavailable"
+                and row.get("relation_type") == "CALLS"
                 and _visible_ids(row, pages)):
             facts = [fact for fact in framework_facts
                 if fact.get("kind") == "framework_operation"
@@ -1986,6 +1997,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             "missing_count": len(absent), "reason": ("runtime_target_unresolved" if
                 any(row.get("unresolved_reason") == "runtime_target_unresolved" for row in unresolved)
                 else "compile_condition_unknown" if any(row.get("unresolved_reason") == "compile_condition_unknown" for row in unresolved)
+                else "dependency_binding_unresolved" if any(row.get("unresolved_reason") == "dependency_binding_unresolved" for row in unresolved)
                 else "external_implementation_unavailable") if unresolved
                 else "source_not_supplied" if absent else kind + "_not_located" if required and not related
                 else "documented_framework_rule" if covered else "source_candidates_supplied" if related else "no_indexed_candidate",
@@ -1993,7 +2005,10 @@ def build_question_investigation(question, business_map, *, database_path=None,
                     for identifier in row["framework_fact_ids"])),
                 "framework_reference_ids": list(dict.fromkeys(identifier for row in covered
                     for identifier in row["framework_reference_ids"]))} if covered else {}),
-            **({"targets": list(dict.fromkeys(row["target_name"] for row in unresolved))[:8]} if unresolved else {})})
+            **({"targets": list(dict.fromkeys(row["target_name"] for row in unresolved))[:8],
+                "unresolved_reasons": list(dict.fromkeys(row.get("unresolved_reason") for row in unresolved)),
+                "indexed_candidate_paths": list(dict.fromkeys(candidate["relative_path"] for row in unresolved
+                    for candidate in row.get("target_source_candidates", [])))[:16]} if unresolved else {})})
     input_fields = {(row["relative_path"], field) for row in candidates
                     if row["kind"] in {"formula", "business_steps", "inputs"}
                     for field in row["reads"]}
@@ -2212,7 +2227,8 @@ def build_question_investigation(question, business_map, *, database_path=None,
     if max_actions <= 0:
         plans = []
     external = next((item for item in items if item["kind"] == "dependencies"
-                     and item["reason"] in {"external_implementation_unavailable", "runtime_target_unresolved"}), None)
+                     and item["reason"] in {"external_implementation_unavailable", "runtime_target_unresolved",
+                                            "dependency_binding_unresolved"}), None)
     if external and calculation and not any(row["kind"] == "formula" for row in candidates):
         formula = next(item for item in items if item["kind"] == "formula")
         formula.update(status="UNRESOLVED", reason=external["reason"],

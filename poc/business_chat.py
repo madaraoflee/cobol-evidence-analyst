@@ -710,7 +710,9 @@ def _prompt_payload(payload):
                 "time_scope": "Distinguish values passed into each call from its returned values. "
                               "For additional scenarios, state their own required conditions before giving outcomes."}
     if payload.get("budget_wire_compact"):
-        contract = {"detail": "Explain the requested behavior, decisive conditions, values and source evidence.",
+        contract = {"detail": ("Explain the requested business behavior thoroughly: relevant inputs, conditions, "
+                                "processing order, business effects, exceptions, outcomes and source evidence."
+                                if detailed else "Give a concise answer preserving decisive conditions and source evidence."),
                     "content": "Lead with the conclusion; qualify only affected claims.",
                     "time_scope": "Keep call inputs, returned values and later outcomes distinct; retain each scenario's assumptions."}
     explanation_contract = projected.get("business_analysis_brief", {}).get("business_explanation_contract", {})
@@ -721,7 +723,10 @@ def _prompt_payload(payload):
                 field_entities=payload.get("question_investigation", {}).get("analysis_plan", {}).get("entities", ()),
                 source_scopes=payload.get("question_investigation", {}).get("analysis_plan", {}).get("source_scopes", ()))):
         contract["detail"] = (
-            "Explain the concrete business purpose, data flow and decisive rules as a coherent process. "
+            ("Explain the concrete business purpose, data flow and decisive rules thoroughly as a coherent process. "
+             if detailed else "Explain the business purpose, flow and decisive rules concisely. ") +
+            "Follow the relevant source-backed logical views, subroutines and parameter handoffs; explain "
+            "what each step contributes to the business result, its conditions, exceptions and downstream use. "
             "Include declarations or implementation details only when they explain the requested behavior; "
             "do not expand a general introduction into a field/type inventory or unrelated scenarios.")
         contract["business_explanation"] = {
@@ -755,7 +760,11 @@ def _prompt_payload(payload):
                 "Name unknown business terminology as an interpretation, and qualify only affected claims. "
                 "Do not invent a schedule, online deployment, domain label or successful runtime outcome."}
         if payload.get("budget_wire_compact"):
-            contract["detail"] = "Explain business purpose, flow and decisive rules; omit unrelated declarations and scenarios."
+            contract["detail"] = (
+                ("Explain business purpose, flow and rules thoroughly, including relevant conditions, "
+                 "exceptions, outcomes and source-backed logical view/subroutine handoffs. " if detailed else
+                 "Explain business purpose, flow and rules concisely; preserve decisive conditions and outcomes. ")
+                + "Explain business effects; do not replace them with assignment translations or unrelated declarations.")
             contract["business_explanation"] = {
                 "task": "Explain the business purpose first for a newcomer, then separate relevant Batch job, "
                     "Online function / Programs, Tables and Files roles and data flow. "
@@ -3128,9 +3137,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             answer_instructions=answer_instructions,
                             working_set=evidence.bundle(selected_pages)[0].get("working_set"),
                             framework_references=payload.get("framework_references", []))
-                        if has_answer_instructions:
-                            payload["source_fact_suggestions"] = review_draft(answer, payload,
-                                current_investigation, audit=False)["fact_completion"]["suggested_facts"]
+                        payload["source_fact_suggestions"] = review_draft(answer, payload,
+                            current_investigation, audit=False)["fact_completion"]["suggested_facts"]
                         if not force_answer and not discovery_pending:
                             payload["task"] = ("继续完成同一个原问题。核对 draft_answer 和 answer_review，保留正确内容，"
                                 "结合本轮实际源码补充遗漏的条件、顺序和结果。需要补充资料时返回具体补查动作；"
@@ -3808,9 +3816,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "输出完整、可直接给用户的业务答案：先给结论，再说明必要条件、顺序和结果，关键判断引用来源。"
                         "未知事项只限定受影响的结论，答完所问业务点就结束。"
                         "不要输出复核过程、审稿意见、初稿评价或修改说明。使用普通 Markdown，不请求工具。"}
-                if has_answer_instructions:
-                    revised_payload["source_fact_suggestions"] = review_draft(answer, revised_payload,
-                        revised_payload["question_investigation"], audit=False)["fact_completion"]["suggested_facts"]
+                revised_payload["source_fact_suggestions"] = review_draft(answer, revised_payload,
+                    revised_payload["question_investigation"], audit=False)["fact_completion"]["suggested_facts"]
                 if draft_completion.get("source_availability_contradiction"):
                     revised_payload["task"] += (" 若 answer_review.source_availability_contradiction 为 true，"
                         "逐项对照 source_availability_contradictions 的文件、版本和行范围，修正与实际供应矛盾的缺失断言。"

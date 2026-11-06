@@ -45,7 +45,7 @@ def _same_compilation_inputs(recorded, current):
     return True
 
 
-def _full_repository_scope(output, source, snapshot):
+def _full_repository_scope(output, source, snapshot, *, check_cancel=None, report_session=None):
     path = output / "diagnosis.json"
     if not path.is_file() or path.is_symlink():
         return False
@@ -58,8 +58,9 @@ def _full_repository_scope(output, source, snapshot):
             return False
         report = json.loads(view_path.read_text(encoding="utf-8"))
         projection = report.get("display_projection", {}) if isinstance(report, dict) else {}
+        digest = report_session.sha256 if report_session is not None else report_sha256
         if (not isinstance(projection, dict) or projection.get("source_size") != path.stat().st_size
-                or projection.get("source_sha256") != report_sha256(path)):
+                or projection.get("source_sha256") != digest(path, check_cancel=check_cancel)):
             return False
     if not isinstance(report, dict) or report.get("source_root") != str(source):
         return False
@@ -78,7 +79,7 @@ def _full_repository_scope(output, source, snapshot):
             and build_scope.get("mode") in {"repository_index", "business_sparse_directory"})
 
 
-def plan_workspace_upgrade(saved, *, check_integrity=True, check_cancel=None):
+def plan_workspace_upgrade(saved, *, check_integrity=True, check_cancel=None, report_session=None):
     """Return ordinary offline-start options only for a known version change.
 
     Current indexes take the metadata-only path. A proposed upgrade additionally
@@ -198,7 +199,10 @@ def plan_workspace_upgrade(saved, *, check_integrity=True, check_cancel=None):
                                                separators=(",", ":")).encode()).hexdigest()
         if saved.get("index_upgrade_attempt") == attempt_key:
             return _decision("manual", "INDEX_UPGRADE_PREVIOUS_ATTEMPT")
-        if not _full_repository_scope(output, source, metadata["snapshot_id"]):
+        if check_cancel:
+            check_cancel()
+        if not _full_repository_scope(output, source, metadata["snapshot_id"], check_cancel=check_cancel,
+                                      report_session=report_session):
             return _decision("manual", "SOURCE_SCOPE_NOT_REPRODUCIBLE")
         # A failed attempt must not rescan a large index on every restart.
         # Check integrity only for a new eligible upgrade, then bind that check

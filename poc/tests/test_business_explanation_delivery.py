@@ -63,7 +63,7 @@ class BusinessExplanationDeliveryTests(unittest.TestCase):
         ensure_repository_search(self.database, self.source)
         self.config = CompanyAPIConfig("https://offline.example.invalid/v1", "offline-only", api_key="offline-only")
 
-    def ask(self, question, *, first_purpose_only=False):
+    def ask(self, question, *, first_purpose_only=False, first_assignment_only=False):
         captured, envelopes, replies = [], [], []
         original = business_chat._prompt_payload
         def projection(payload):
@@ -73,7 +73,9 @@ class BusinessExplanationDeliveryTests(unittest.TestCase):
             envelope = json.loads(request.body)
             envelopes.append(envelope)
             payload = json.loads(envelope["messages"][-1]["content"])
-            answer = ("SETTLE 整理符合受理要求的订单。" if first_purpose_only and len(envelopes) == 1
+            answer = ("程序把 RESULT-CODE 设置为 0，然后返回调用方。"
+                      if first_assignment_only and len(envelopes) == 1 else
+                      "SETTLE 整理符合受理要求的订单。" if first_purpose_only and len(envelopes) == 1
                       else source_authored_reply(payload))
             replies.append(answer)
             return TransportResponse(200, json.dumps({"choices": [{"message": {"content": answer},
@@ -128,6 +130,15 @@ class BusinessExplanationDeliveryTests(unittest.TestCase):
                          "简短解释 batch 程序和文件的关系。"):
             with self.subTest(question=question):
                 self.assertFalse(wants_business_overview(question))
+
+    def test_direct_business_question_reviews_assignment_only_answer(self):
+        output, captured, envelopes, replies = self.ask(BATCH_QUESTION, first_assignment_only=True)
+        self.assertEqual(len(envelopes), 2)
+        self.assertEqual(output["agent_result"]["answer"], replies[-1])
+        self.assertNotIn("RESULT-CODE", output["agent_result"]["answer"])
+        reviews = [payload["answer_review"] for payload in captured if payload.get("answer_review")]
+        self.assertTrue(any({"business_purpose", "program_roles", "data_roles"}
+                            <= set(review["missing_aspects"]) for review in reviews))
 
     def test_unknown_contract_guidance_survives_projection(self):
         brief = build_analysis_brief(BATCH_QUESTION, {"state": "located"}, [], [], 2048)

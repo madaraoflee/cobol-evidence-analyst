@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import tracemalloc
 import unittest
+from unittest.mock import patch
 
 POC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(POC_ROOT))
-from report_view import DIRECT_REPORT_BYTES, project_report, write_report_view
+from report_view import DIRECT_REPORT_BYTES, ReportReadSession, project_report, report_sha256, write_report_view
 from web_app import _read_json
 
 
@@ -100,6 +102,43 @@ class ReportViewTests(unittest.TestCase):
         self.assertEqual(view["answer_completion"], agent["answer_completion"])
         self.assertEqual(view["material_gap"], "source_not_read")
         self.assertEqual(view["stop_reason"], "source_not_read")
+
+    def test_restore_session_hashes_once_and_rechecks_equal_size_edits_with_preserved_mtime(self):
+        self.path.write_bytes(b"original")
+        session = ReportReadSession()
+        with patch("report_view.report_sha256", wraps=report_sha256) as read:
+            first = session.sha256(self.path)
+            self.assertEqual(session.sha256(self.path), first)
+            self.assertEqual(read.call_count, 1)
+            signature = self.path.stat()
+            self.path.write_bytes(b"modified")
+            os.utime(self.path, ns=(signature.st_atime_ns, signature.st_mtime_ns))
+            self.assertNotEqual(session.sha256(self.path), first)
+            self.assertEqual(read.call_count, 2)
+            # A later launch never trusts a digest retained from the previous
+            # launch, even when all file metadata still matches.
+            ReportReadSession().sha256(self.path)
+            self.assertEqual(read.call_count, 3)
+
+    def test_restore_session_without_reliable_change_signature_always_reads_bytes(self):
+        self.path.write_bytes(b"original")
+        session = ReportReadSession()
+        with patch.object(session, "_signature", return_value=None), \
+                patch("report_view.report_sha256", wraps=report_sha256) as read:
+            session.sha256(self.path)
+            session.sha256(self.path)
+            self.assertEqual(read.call_count, 2)
+
+    def test_restore_session_rejects_report_changed_during_content_verification(self):
+        self.path.write_bytes(b"original")
+        session = ReportReadSession()
+        def changed(path, **options):
+            digest = report_sha256(path, **options)
+            path.write_bytes(b"modified with new content")
+            return digest
+        with patch("report_view.report_sha256", side_effect=changed):
+            with self.assertRaisesRegex(ValueError, "changed during verification"):
+                session.sha256(self.path)
 
 
 if __name__ == '__main__':

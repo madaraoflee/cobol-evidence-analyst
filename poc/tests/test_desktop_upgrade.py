@@ -63,14 +63,29 @@ with ExitStack() as patches:
             app.conversation_store.append(conversation["id"], "assistant",
                                           "The available amount is the limit less the amount already used.")
             app.get_conversation(conversation["id"])
-        connection = HTTPConnection("127.0.0.1", service.server.server_port, timeout=5)
-        try:
-            connection.request("GET", "/api/state")
-            response = connection.getresponse()
-            state = json.loads(response.read())
-            assert response.status == 200
-        finally:
-            connection.close()
+        def read_state():
+            connection = HTTPConnection("127.0.0.1", service.server.server_port, timeout=5)
+            try:
+                connection.request("GET", "/api/state")
+                response = connection.getresponse()
+                state = json.loads(response.read())
+                assert response.status == 200
+                return state
+            finally:
+                connection.close()
+
+        state = read_state()
+        if phase != "seed":
+            # The desktop now serves its shell before retained report checks
+            # finish. Assert restored history only after that visible operation
+            # completes; a failed/cancelled restore must not count as readiness.
+            deadline = time.monotonic() + 20
+            while (state.get("job") or {}).get("status") == "RUNNING" and time.monotonic() < deadline:
+                assert state["job"].get("origin") == "workspace_restore", state["job"]
+                time.sleep(0.01)
+                state = read_state()
+            assert (state.get("job") or {}).get("origin") == "workspace_restore", state.get("job")
+            assert state["job"]["status"] == "COMPLETED", state["job"]
         print(json.dumps({"profile": str(profile), "application": str(app_paths.RESOURCE_ROOT),
                           "state": state}, ensure_ascii=False))
     finally:

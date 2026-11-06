@@ -241,8 +241,10 @@ class NativeWorkbench:
         self.process = self.process_log = None
         self.origin = self.token = self.address = None
         self.progress_samples = []
+        self.startup_samples = []
 
     def start(self):
+        started = time.monotonic()
         require(self.process is None or self.process.poll() is not None, "Workbench already running")
         self.info_path.unlink(missing_ok=True)
         self.token = None
@@ -267,6 +269,16 @@ class NativeWorkbench:
             state = self.request("GET", "/api/state")
             self.token = state["session_token"]
             require(state.get("api_configured") is True, "Synthetic profile was not loaded")
+            sample = {"http_ready_seconds": round(time.monotonic() - started, 4),
+                      "restoration_waited": False}
+            self.startup_samples.append(sample)
+            restore = state.get("job") or {}
+            if restore.get("origin") == "workspace_restore" and restore.get("status") == "RUNNING":
+                sample["restoration_waited"] = True
+                job = self.wait_job(restore["job_id"], timeout=120)
+                require(job["status"] == "COMPLETED", "Saved workspace restoration failed")
+                state = self.request("GET", "/api/state")
+            sample["workspace_ready_seconds"] = round(time.monotonic() - started, 4)
             return state
         raise TimeoutError("Workbench startup timed out")
 

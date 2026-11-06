@@ -148,8 +148,14 @@ def complete_supplied_answer(question, answer, investigation, source_pages, *, s
     scopes = [scope for scope in (investigation.get("source_scope") or {}).get("ranges", ())
               if scope.get("exclusive") is not False and scope.get("source_sha256")]
     relevant = intents.intersection({"calculation", "accumulation", "overwrite", "condition", "exception", "flow", "explanation"})
-    from business_synthesis import wants_business_detail
+    from business_synthesis import wants_business_detail, wants_business_overview
     detailed = wants_business_detail(question, answer_detail=answer_detail)
+    if wants_business_overview(question, answer_detail=answer_detail,
+            field_entities=plan.get("entities", ()), source_scopes=plan.get("source_scopes", ())):
+        # Raw assignments and PIC clauses are useful review material, but
+        # appending them bypasses the requested business explanation. Let an
+        # existing model revision integrate their relevant business effects.
+        append_source_facts = False
     necessary_short = intents.intersection({"accumulation", "overwrite", "exception"})
     if not scopes or not relevant or not (detailed or necessary_short):
         report["status"] = "scope_not_applicable"

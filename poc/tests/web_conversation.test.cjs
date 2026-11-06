@@ -62,6 +62,58 @@ test('the supported service opens a real conversation workspace with retrieval a
   const html=h.run('renderWorkbench()');assert.match(html,/conversation-composer/);assert.match(html,/What would you like to understand/);assert.doesNotMatch(html,/id="reading-depth"|id="job-progress"|evidence-panel/);assert.match(html,/<details class="conversation-options">/);assert.deepEqual(h.requests.map(item=>item.url),['/api/state']);
 });
 
+test('background restoration shows progress and loads the complete restored workspace after its receipt completes',async()=>{
+  const h=harness();let states=0,polls=0;
+  const restore={job_id:'restore-job',origin:'workspace_restore',kind:'index',status:'RUNNING',progress:{phase:'verifying_saved_reports'}};
+  h.respond(url=>{
+    if(url==='/api/state')return ++states===1?{session_token:'test',api_configured:true,project:null,conversation:null,conversations:[],active_job_id:'restore-job',job:restore}:
+      {session_token:'test',api_configured:true,answer_instructions:'Explain business outcomes.',answer_detail:'brief',project:project(),conversation:conversation(firstMessages),conversations:[conversation(firstMessages)],job:{...restore,status:'COMPLETED'}};
+    if(url==='/api/jobs/restore-job')return ++polls===1?restore:{...restore,status:'COMPLETED'};
+    assert.fail(url);
+  });
+  await h.run('initialize()');
+  assert.equal(h.run('state.busy'),true);assert.equal(h.run('state.project'),null);
+  assert.match(h.run('renderWorkbench()'),/Verifying saved analysis reports/);
+  await h.run("pollJob('restore-job',true)");
+  assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.conversation.messages.length'),2);
+  assert.equal(h.run('state.answerInstructions'),'Explain business outcomes.');assert.equal(h.run('state.answerDetail'),'brief');
+  assert.equal(h.run('state.project.snapshot_id'),'sha256:source');
+});
+
+test('a completed restoration receipt follows the automatic upgrade job without resubmitting an import',async()=>{
+  const h=harness();let states=0;
+  const restore={job_id:'restore-job',origin:'workspace_restore',kind:'index',status:'RUNNING',progress:{phase:'restoring_workspace'}};
+  const upgrade={job_id:'upgrade-job',origin:'index_version_upgrade',kind:'index',status:'RUNNING',source:project().source,output:project().output,progress:{phase:'preparing_index'}};
+  h.respond(url=>{
+    if(url==='/api/state')return ++states===1?{session_token:'test',api_configured:true,project:null,conversation:null,conversations:[],active_job_id:'restore-job',job:restore}:
+      {session_token:'test',api_configured:true,project:project(),conversation:conversation(firstMessages),conversations:[conversation(firstMessages)],active_job_id:'upgrade-job',job:upgrade};
+    if(url==='/api/jobs/restore-job')return {...restore,status:'COMPLETED'};
+    if(url==='/api/jobs/upgrade-job')return upgrade;
+    assert.fail(url);
+  });
+  await h.run('initialize()');
+  assert.equal(h.run('state.jobId'),'upgrade-job');assert.equal(h.run('state.busy'),true);
+  assert.equal(h.run('state.conversation.messages.length'),2);
+  assert.equal(h.requests.filter(item=>item.options?.method==='POST').length,0);
+});
+
+test('cancelled restoration reloads saved library navigation and preferences without claiming source readiness',async()=>{
+  const h=harness();let states=0;
+  const restore={job_id:'restore-job',origin:'workspace_restore',kind:'index',status:'RUNNING',progress:{phase:'verifying_saved_reports'}};
+  const retained={workspace_id:'saved-library',source_label:'Saved business source',available:true,active:false};
+  h.respond(url=>{
+    if(url==='/api/state')return ++states===1?{session_token:'test',api_configured:true,project:null,conversation:null,conversations:[],active_job_id:'restore-job',job:restore}:
+      {session_token:'test',api_configured:true,project:null,conversation:null,conversations:[],answer_instructions:'Keep previous business preferences.',source_workspaces:[retained],job:{...restore,status:'CANCELLED'}};
+    if(url==='/api/jobs/restore-job')return {...restore,status:'CANCELLED'};
+    assert.fail(url);
+  });
+  await h.run('initialize()');
+  assert.equal(h.run('state.busy'),false);assert.equal(h.run('state.project'),null);
+  assert.equal(h.run('state.sourceWorkspaces[0].workspace_id'),'saved-library');
+  assert.equal(h.run('state.answerInstructions'),'Keep previous business preferences.');
+  assert.match(h.run('state.error'),/History and settings remain saved/);
+});
+
 test('server default conversation title follows the selected interface language without rewriting user titles',()=>{
   const h=harness('en');setup(h);h.run("state.conversation.title='新对话'");
   assert.match(h.run('renderWorkbench()'),/New conversation/);assert.doesNotMatch(h.run('renderWorkbench()'),/新对话/);

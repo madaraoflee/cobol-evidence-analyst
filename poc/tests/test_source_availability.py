@@ -263,6 +263,18 @@ class SourceAvailabilityChatTests(unittest.TestCase):
         self.assertEqual(len(self.requests), 2)
         self.assert_local_repair(result)
 
+    def test_failed_lookup_with_actual_supplied_source_is_corrected_before_delivery(self):
+        result = self.ask(["金额按基础金额乘以二得到。[evidence] 找不到 rule.cbl 的源码，无法完整解答。"])
+        self.assertEqual(len(self.requests), 1)
+        self.assertIn("金额按基础金额乘以二得到", result["answer"])
+        self.assertNotIn("找不到", result["answer"])
+        self.assertNotIn("无法完整解答", result["answer"])
+        self.assertIn("完整源码已提供", result["answer"])
+        trace = json.loads(Path(result["metrics"]["quality_trace_path"]).read_text())
+        self.assertEqual(len(trace["source_availability_repairs"]), 1)
+        self.assertEqual(trace["source_availability_repairs"][0]["relative_path"], "rule.cbl")
+        self.assertFalse(result["claims_semantically_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

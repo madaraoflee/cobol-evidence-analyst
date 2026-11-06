@@ -1559,8 +1559,11 @@ def assess_business_answer(question, answer, investigation, source_pages, *, ans
     generic_behavior = _generic_behavior_summary(explanation)
     technical_inventory = _technical_inventory_only(answer)
     plan = investigation.get("analysis_plan") or {}
-    if saved_business_explanation_requested(question, answer_instructions,
+    if wants_business_overview(question, answer_detail=answer_detail, answer_instructions=answer_instructions,
             field_entities=plan.get("entities", ()), source_scopes=plan.get("source_scopes", ())):
+        # The same business-content requirement applies whether it came from
+        # this question or saved preferences. An assignment-only synopsis does
+        # not explain supplied roles and handoffs; a narrow value question can.
         technical_inventory = technical_inventory or _assignment_only_synopsis(answer)
     missing = [item["kind"] for item in requirements if item["kind"] != "accumulation"
                if (technical_inventory or generic_behavior if item["kind"] in _NARRATIVE_ASPECTS

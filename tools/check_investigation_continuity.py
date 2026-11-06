@@ -348,6 +348,7 @@ def run_source_identity_check(command, root, checks=None, observations=None):
                 observations.append({"phase": "adjacent_chinese_path", "question": question,
                     "run_id": agent["run_id"], "snapshot_id": snapshot,
                     "elapsed_seconds": result["elapsed_seconds"],
+                    "startup": workbench.startup_samples[-1],
                     **({"restart_seconds": restart_seconds} if index else {})})
             journal = read_journal(output)["requests"]
             checks["adjacent_path_requests_recorded_once_without_provider_errors"] = (
@@ -442,6 +443,103 @@ def run_followup_context_check(command, root, checks=None, observations=None):
                 and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
     return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
         "fixture_sha256": {"followup_context/" + name: sha256(source / name) for name in files}}
+
+
+def run_business_depth_check(command, root, checks=None, observations=None):
+    """Require business revision and deep original source through the final EXE."""
+    from tools.business_onboarding_fixture import BATCH_QUESTION, scripted_answer, sources
+
+    checks = checks if checks is not None else {}
+    observations = observations if observations is not None else []
+    source, output, profile = root / "source", root / "workspace", root / "profile"
+    source.mkdir(parents=True)
+    files = sources()
+    files["flow.cbl"] = (
+        "IDENTIFICATION DIVISION.\nPROGRAM-ID. ORDERFLOW.\n"
+        "ENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n"
+        'SELECT ACTIVE-RECORD ASSIGN TO "ACTIVEVIEW".\n'
+        "DATA DIVISION.\nWORKING-STORAGE SECTION.\nCOPY REQUEST-CONTEXT.\n"
+        'PROCEDURE DIVISION.\nMAIN.\nCALL "STEP-1" USING REQUEST-AMOUNT.\nGOBACK.\n')
+    for level in range(1, 8):
+        body = (f'CALL "STEP-{level + 1}" USING REQUEST-AMOUNT.' if level < 7 else
+                'IF REQUEST-AMOUNT > 50000\nDISPLAY "approval required before settlement"\nEND-IF.')
+        files[f"step-{level}.cbl"] = (
+            f"IDENTIFICATION DIVISION.\nPROGRAM-ID. STEP-{level}.\nDATA DIVISION.\n"
+            "LINKAGE SECTION.\n01 REQUEST-AMOUNT PIC 9(6).\n"
+            f"PROCEDURE DIVISION USING REQUEST-AMOUNT.\nMAIN.\n{body}\nGOBACK.\n")
+    files.update({"REQUEST-CONTEXT.cpy": "01 REQUEST-AMOUNT PIC 9(6).\n",
+        "ACTIVEVIEW.lf": "     A          R ACTIVEREC PFILE(ACTIVEBASE)\n",
+        "ACTIVEBASE.pf": "     A          R BASEREC\n     A            REQUEST-AMOUNT 6S 0\n"})
+    for name, body in files.items():
+        (source / name).write_text(body, encoding="utf-8")
+    deep_question = "请详细解释 ORDERFLOW 的业务流程、logical view 与 subroutine 调用和最终业务规则。"
+    deep_paths = set(files) - set(sources())
+    expected = []
+
+    def respond(envelope, payload, index):
+        require(index < 3, "Business-depth check repeated a model request")
+        if index < 2:
+            require(payload["question"] == BATCH_QUESTION, "Business question changed")
+            main = verify_pages(source, payload, "WRITE SETTLEMENT-REC")
+            verify_pages(source, payload, "CALL PGM(SETTLE)")
+            if index == 0:
+                return f"程序把 RESULT-CODE 设置为0，然后返回调用方。[{main['evidence_id']}]", "stop"
+            require(payload.get("draft_answer") and payload.get("answer_review", {}).get("missing_aspects"),
+                    "Assignment-only business answer was not reviewed")
+            answer = scripted_answer(payload)
+            expected.append(answer)
+            return answer, "stop"
+        require(payload["question"] == deep_question, "Deep-chain question changed")
+        final = verify_pages(source, payload, "approval required before settlement")
+        pages = supplied_pages(payload)
+        physical = {page["relative_path"]: page for page in pages
+                    if "complete_working_set" in page.get("selection_reasons", [])}
+        require(set(physical) == deep_paths, "Deep-chain request omitted a source member")
+        for path, page in physical.items():
+            require(page["source_text"].splitlines() == files[path].splitlines(),
+                    "Deep-chain request omitted original source lines")
+        working = payload["source_context"][0]["working_set"]
+        require(working["physical_complete"] and not working["semantic_execution_verified"]
+                and not working["closure_complete"], "File coverage was confused with runtime binding")
+        return ("ORDERFLOW 将请求金额沿七层子程序传入 STEP-7；最后一层在金额大于50000时发出审批提示，"
+            "这段代码没有执行审批或结算写入。ACTIVEVIEW 的定义指向 ACTIVEBASE，实际库绑定仍待确认。"
+            f"[{final['evidence_id']}] 找不到 step-7.cbl 的源码，无法完整解答。"), "stop"
+
+    with CompletionProvider(root / "provider", respond) as provider:
+        environment = write_profile(profile, provider, {"max_model_requests": 2, "max_answer_revisions": 1})
+        with NativeWorkbench(command, profile, environment, root) as workbench:
+            indexed = workbench.analyze(source, output)
+            require(indexed["job"]["status"] == "COMPLETED" and not provider.requests, "Business-depth index failed")
+            reviewed = workbench.analyze(source, output, BATCH_QUESTION, answer_detail="detailed")
+            require(reviewed["result"] and not provider.errors, "Business-depth answer failed: " + "; ".join(provider.errors))
+            agent = reviewed["result"]["agent_result"]
+            checks["direct_business_question_revises_assignment_only_summary"] = (
+                len(provider.requests) == agent["metrics"]["model_requests"] == 2
+                and bool(provider.requests[-1]["payload"].get("answer_review")))
+            checks["business_answer_has_no_automatic_technical_appendix"] = (
+                bool(expected) and agent["answer"] == expected[-1]
+                and reviewed["state"]["conversation"]["messages"][-1]["content"] == expected[-1])
+            observations.append({"phase": "direct_business_depth", "run_id": agent["run_id"],
+                "model_requests": agent["metrics"]["model_requests"], "elapsed_seconds": reviewed["elapsed_seconds"]})
+            (profile / "agent-settings.json").write_text(json.dumps({"version": 1,
+                "agent": {"max_model_requests": 1, "max_answer_revisions": 0}}), encoding="utf-8")
+            result = workbench.analyze(source, output, deep_question, answer_detail="detailed")
+            require(result["result"] and not provider.errors, "Deep-chain answer failed: " + "; ".join(provider.errors))
+            agent = result["result"]["agent_result"]
+            checks["seven_hops_copy_logical_and_physical_files_supplied"] = (
+                len(provider.requests) == 3 and agent["metrics"]["model_requests"] == 1)
+            checks["supplied_source_lookup_denial_corrected_in_final_answer"] = (
+                "找不到" not in agent["answer"] and "无法完整解答" not in agent["answer"]
+                and "完整源码已提供" in agent["answer"] and not agent["claims_semantically_verified"])
+            observations.append({"phase": "deep_business_chain", "run_id": agent["run_id"],
+                "source_member_count": len(deep_paths), "elapsed_seconds": result["elapsed_seconds"]})
+            journal = read_journal(output)["requests"]
+            checks["business_depth_requests_recorded_once"] = (not provider.errors
+                and len(journal) == len(provider.requests) == 3
+                and all(row["state"] == "completed" for row in journal)
+                and {row["request_hash"] for row in journal} == {row["request_sha256"] for row in provider.requests})
+    return {"checks": checks, "observations": observations, "synthetic_model_requests": len(provider.requests),
+        "fixture_sha256": {"business_depth/" + name: sha256(source / name) for name in files}}
 
 
 def run_checks(command, root, report=None):
@@ -693,11 +791,12 @@ def run_checks(command, root, report=None):
     independent = run_independent_review_check(command, root / "independent-review", checks, observations)
     identity = run_source_identity_check(command, root / "source-identity", checks, observations)
     followup = run_followup_context_check(command, root / "followup-context", checks, observations)
+    depth = run_business_depth_check(command, root / "business-depth", checks, observations)
     return {"checks": checks, "observations": observations,
         "synthetic_model_requests": len(provider.requests) + sum(result["synthetic_model_requests"]
-            for result in (independent, identity, followup)),
+            for result in (independent, identity, followup, depth)),
         "fixture_sha256": {**{name: sha256(source / name) for name in ("root.cbl", "decision.cbl", "caller.cbl")},
-            **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"]},
+            **independent["fixture_sha256"], **identity["fixture_sha256"], **followup["fixture_sha256"], **depth["fixture_sha256"]},
         "injected_wait_seconds": 20,
         "timing_interpretation": "Injected loopback wait tests control flow, not real-model speed."}
 

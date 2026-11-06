@@ -24,12 +24,71 @@ _PRIORITY = {name: index for index, name in enumerate((
 ))}
 
 
-def report_sha256(path: Path) -> str:
+def report_sha256(path: Path, *, check_cancel=None) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(65536), b""):
+            if check_cancel:
+                check_cancel()
             digest.update(chunk)
+    if check_cancel:
+        check_cancel()
     return digest.hexdigest()
+
+
+class ReportReadSession:
+    """Reuse content verification only inside one restore/update operation.
+
+    A new process or restoration always reads the bytes. A changed file identity,
+    size, modification time or change time invalidates the operation's digest.
+    """
+
+    def __init__(self):
+        self._verified = {}
+
+    @staticmethod
+    def _signature(path):
+        value = path.stat()
+        signature = value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+        if os.name != "nt":
+            return signature
+        # Python's Windows ctime is creation time, not the metadata change
+        # time. Without the latter, a same-size edit with restored mtime could
+        # reuse a digest. Filesystems lacking this API simply do not cache.
+        try:
+            import ctypes
+            import msvcrt
+
+            class BasicInformation(ctypes.Structure):
+                _fields_ = [(name, ctypes.c_longlong) for name in
+                    ("creation", "access", "write", "change")] + [("attributes", ctypes.c_uint32)]
+
+            function = ctypes.WinDLL("kernel32", use_last_error=True).GetFileInformationByHandleEx
+            function.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+            function.restype = ctypes.c_int
+            with path.open("rb") as stream:
+                information = BasicInformation()
+                if not function(msvcrt.get_osfhandle(stream.fileno()), 0,
+                                ctypes.byref(information), ctypes.sizeof(information)):
+                    return None
+            return (*signature, information.change)
+        except (OSError, AttributeError):
+            return None
+
+    def sha256(self, path, *, check_cancel=None):
+        if check_cancel:
+            check_cancel()
+        signature = self._signature(path)
+        key = str(path.absolute())
+        previous = self._verified.get(key)
+        if signature is not None and previous is not None and previous[0] == signature:
+            return previous[1]
+        value = report_sha256(path, check_cancel=check_cancel)
+        if self._signature(path) != signature:
+            raise ValueError("report changed during verification")
+        if signature is not None:
+            self._verified[key] = signature, value
+        return value
 
 
 def project_report(report: dict) -> dict:
@@ -70,7 +129,7 @@ def project_report(report: dict) -> dict:
     return result
 
 
-def write_report_view(path: Path, report: dict) -> None:
+def write_report_view(path: Path, report: dict, *, check_cancel=None) -> None:
     """Write an atomic companion only when the full report exceeds browser capacity."""
     if path.stat().st_size <= DIRECT_REPORT_BYTES:
         return
@@ -78,7 +137,8 @@ def write_report_view(path: Path, report: dict) -> None:
     if destination.is_symlink():
         raise ValueError("invalid report view path")
     view = project_report(report)
-    view["display_projection"].update(source_sha256=report_sha256(path), source_size=path.stat().st_size)
+    view["display_projection"].update(source_sha256=report_sha256(path, check_cancel=check_cancel),
+                                      source_size=path.stat().st_size)
     descriptor, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".tmp", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:

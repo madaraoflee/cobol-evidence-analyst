@@ -138,6 +138,54 @@ class SourceAvailabilityRepairTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertNotRegex(answer, r"[\u3400-\u9fff]")
 
+    def test_failed_lookup_denials_of_supplied_source_are_corrected(self):
+        for denied in (
+            "rule.cbl 的源码找不到", "rule.cbl 的源码未找到",
+            "rule.cbl 的源码无法定位", "rule.cbl 的源碼無法找到",
+            "找不到 rule.cbl 的源码", "未检索到 rule.cbl 的完整源码",
+            "当前程序的源码找不到", "找不到当前程序的源码",
+            "The source for rule.cbl could not be found",
+            "Cannot find the source for rule.cbl",
+        ):
+            with self.subTest(denied=denied):
+                answer, records = self.repair(denied + "。", answer_language="zh-CN")
+                self.assertEqual(len(records), 1)
+                self.assertEqual(answer, "`programs/rule.cbl` 的完整源码已提供[ev_rule]。")
+
+    def test_missing_rules_targets_runtime_and_old_versions_are_not_lookup_denials(self):
+        for original in (
+            "rule.cbl 中找不到重试规则。", "当前源码找不到异常处理逻辑。",
+            "当前程序找不到运行数据。", "找不到 rule.cbl 的旧版本源码。",
+            "找不到 external.cbl 的源码。", "rule.cbl 调用的程序源码找不到。",
+            "如果找不到 rule.cbl 的源码就先读取。", "并不是找不到 rule.cbl 源码。",
+            "历史答案称找不到 rule.cbl 的源码。",
+            "Cannot find the retry rules in rule.cbl.",
+            "The current program cannot find the runtime input.",
+            "找不到 rule.cbl 调用的程序源码。", "Cannot find the source called by rule.cbl.",
+            "无法找到 rule.cbl 的调用目标。", "rule.cbl 找不到 CALL 目标。",
+            "找不到 rule.cbl 的状态码定义。", "rule.cbl 中无法定位 CHECK-STATUS。",
+            "rule.cbl 源码中的 CHECK-STATUS 找不到。",
+            "Cannot find CHECK-STATUS in the source for rule.cbl.",
+        ):
+            with self.subTest(original=original):
+                answer, records = self.repair(original)
+                self.assertEqual(answer, original)
+                self.assertEqual(records, [])
+
+    def test_lookup_of_complete_source_requires_complete_physical_coverage(self):
+        partial = {**self.page, "source_text": "MAIN.", "end_line": 1}
+        for original in ("未检索到 rule.cbl 的完整源码。",
+                         "Cannot find the complete source for rule.cbl."):
+            answer, records = self.repair(original, pages=[partial])
+            self.assertEqual(answer, original)
+            self.assertEqual(records, [])
+
+    def test_lookup_repair_retains_independent_business_prose(self):
+        original = "找不到 rule.cbl 的源码但异常处理规则仍需核对。"
+        answer, records = self.repair(original)
+        self.assertEqual(len(records), 1)
+        self.assertTrue(answer.endswith("但异常处理规则仍需核对。"))
+
 
 if __name__ == "__main__":
     unittest.main()

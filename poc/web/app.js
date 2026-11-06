@@ -794,6 +794,8 @@ function phaseLabel(phase){
     reading_sources:t('逐頁讀取源碼'),analyzing_pages:t('解讀已讀源碼'),synthesizing:t('整合業務解讀'),
     framework:t('檢索相關框架資料'),framework_reference:t('載入框架資料'),framework_semantics:t('整理框架與源碼的對應'),source_version:t('記錄源碼版本'),
     preparing:t('準備中'),preparing_index:t('準備索引結構'),queued:t('等待開始'),backup:t('備份現有索引'),backing_up:t('正在保留舊版本'),
+    restoring_workspace:t('恢復上次的資料庫'),verifying_saved_reports:t('核驗已保存的分析報告'),
+    restoring_conversations:t('恢復已保存的對話'),loading_saved_index:t('載入已有索引'),
     discovering:t('掃描檔案目錄'),discover:t('掃描檔案目錄'),discovery:t('掃描檔案目錄'),
     catalog:t('更新輕量目錄'),catalog_scan:t('更新輕量目錄'),repository_search:t('建立業務查找索引'),
     discovering_business:t('查找相關業務實作'),searching_repository:t('查找相關業務實作'),
@@ -1580,6 +1582,13 @@ async function pollJob(jobId, polling=false, afterRevision=null, waitSupported=t
   const waiting=state.jobKind==='question' && waitSupported && Number.isSafeInteger(afterRevision) && afterRevision>=0;
   const path=`/api/jobs/${encodeURIComponent(jobId)}`+(waiting?`/progress?after=${afterRevision}&wait_ms=20000`:'');
   try{const job=await api(path);if(state.jobId!==jobId)return;
+    if(job.origin==='workspace_restore' && ['COMPLETED','CANCELLED','FAILED'].includes(job.status)){
+      const restored=await api('/api/state');if(state.jobId!==jobId)return;
+      state.busy=false;state.jobId=null;state.sourceJobBackup=null;state.sourceJobTarget=null;stopProgressClock();
+      await initialize(restored);
+      if(job.status!=='COMPLETED'){state.error=job.status==='FAILED'?apiErrorText(job.error):t('已停止恢復資料庫。歷史記錄與設定仍保留，可重新打開工作台或選擇已存資料庫。');render();}
+      return;
+    }
     if(!applyJobSnapshot(jobId,job)){const revision=Number.isSafeInteger(job.progress_revision)&&job.progress_revision>=0?job.progress_revision:null;const nextWait=state.jobKind==='question'&&waitSupported&&revision!==null;setTimeout(()=>pollJob(jobId,true,revision,waitSupported),nextWait?0:1000);}
   }catch(error){if(state.jobId!==jobId)return;if(waiting && [400,404,405].includes(error.status)){setTimeout(()=>pollJob(jobId,true,null,false),0);return;}if(error.status===404 || error.status===403){state.busy=false;state.jobId=null;stopProgressClock();restoreSourceJob();state.error=error.message;if(state.jobKind==='demo'){state.mode='demo';state.project=state.demoRestore?.project || null;state.conversation=state.demoRestore?.conversation || null;state.demoRestore=null;}if(state.remoteSourceJob && state.jobKind==='index')finishRemoteSourceFeedback('UNCONFIRMED');render();if(state.sourceJobFeedback)focusSourceJobFeedback();return;}state.pollError=t('進度連線中斷，正在重試；後台工作可能仍在繼續。');updateProgressPanel();setTimeout(()=>pollJob(jobId,true,afterRevision,waitSupported),2500);}
 }

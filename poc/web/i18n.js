@@ -216,6 +216,11 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 （上限 |（上限 | (limit\u0020
 ；非完成時間預估）|；非完成时间预估）|; not an ETA)
 準備索引結構|准备索引结构|Preparing index structures
+恢復上次的資料庫|恢复上次的资料库|Restoring the previous library
+核驗已保存的分析報告|核验已保存的分析报告|Verifying saved analysis reports
+恢復已保存的對話|恢复已保存的对话|Restoring saved conversations
+載入已有索引|载入已有索引|Loading the existing index
+已停止恢復資料庫。歷史記錄與設定仍保留，可重新打開工作台或選擇已存資料庫。|已停止恢复资料库。历史记录与设置仍保留，可重新打开工作台或选择已存资料库。|Library restoration stopped. History and settings remain saved; reopen the workbench or select a saved library.
 最近對話|最近对话|Recent conversations
 調整左側欄寬度|调整左侧栏宽度|Resize left sidebar
 調整右側欄寬度|调整右侧栏宽度|Resize right sidebar

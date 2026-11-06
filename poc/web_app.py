@@ -35,7 +35,7 @@ from company_api import APIClientError, APIConfigurationError, CompanyAPIConfig,
 from investigation_tools import InvestigationTools
 from repo_inventory import parse_extensions
 from framework_knowledge import framework_status, _resolve_reference
-from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, project_report, report_sha256
+from report_view import DIRECT_REPORT_BYTES, VIEW_REPORT_BYTES, ReportReadSession, project_report, report_sha256
 from conversation_store import ConversationStore, projected_conversation_title
 from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
@@ -342,7 +342,9 @@ def _validate_options(payload: object) -> dict:
     }
 
 
-def _read_json(path: Path) -> object:
+def _read_json(path: Path, *, check_cancel=None, report_session=None) -> object:
+    if check_cancel:
+        check_cancel()
     if path.is_symlink() or not path.is_file():
         raise ValueError("invalid report")
     if path.stat().st_size <= DIRECT_REPORT_BYTES:
@@ -352,14 +354,15 @@ def _read_json(path: Path) -> object:
         raise ValueError("invalid report view")
     view = json.loads(view_path.read_text(encoding="utf-8"))
     projection = view.get("display_projection", {}) if isinstance(view, dict) else {}
-    if projection.get("source_size") != path.stat().st_size or projection.get("source_sha256") != report_sha256(path):
+    digest = report_session.sha256 if report_session is not None else report_sha256
+    if projection.get("source_size") != path.stat().st_size or projection.get("source_sha256") != digest(path, check_cancel=check_cancel):
         raise ValueError("report view does not match complete report")
     return view
 
 
-def _workspace_diagnosis(path: Path) -> object:
+def _workspace_diagnosis(path: Path, *, check_cancel=None, report_session=None) -> object:
     try:
-        return _read_json(path)
+        return _read_json(path, check_cancel=check_cancel, report_session=report_session)
     except ValueError:
         if path.is_symlink() or not path.is_file() or path.stat().st_size <= DIRECT_REPORT_BYTES:
             raise
@@ -367,13 +370,17 @@ def _workspace_diagnosis(path: Path) -> object:
     # validated JSON once; future restarts read its bounded companion. This
     # touches the report only and preserves the original file byte for byte.
     from report_view import project_report, write_report_view
+    if check_cancel:
+        check_cancel()
     with path.open(encoding="utf-8") as stream:
         complete = json.load(stream)
+    if check_cancel:
+        check_cancel()
     if not isinstance(complete, dict):
         raise ValueError("invalid diagnosis")
     view = project_report(complete)
     try:
-        write_report_view(path, complete)
+        write_report_view(path, complete, check_cancel=check_cancel)
     except (OSError, ValueError):
         pass
     return view
@@ -644,7 +651,8 @@ class WorkbenchState:
                  remote_source_root: Path | None = None,
                  model_check_transport: Transport | None = None,
                  policy_provider: Callable = load_agent_policy,
-                 folder_picker: Callable[[Path], str | None] = _pick_local_folder) -> None:
+                 folder_picker: Callable[[Path], str | None] = _pick_local_folder,
+                 background_restore: bool = False) -> None:
         self.session_token = secrets.token_urlsafe(32)
         self.analyzer, self.config_provider = analyzer, config_provider
         self.policy_provider = policy_provider
@@ -675,8 +683,94 @@ class WorkbenchState:
         self._startup_upgrade_plan = None
         self.conversation = None
         self.conversation_store = None
-        self._restore_workspace()
-        self._upgrade_restored_index()
+        self._restore_check_cancel = None
+        self._restore_progress = None
+        self._restore_report_session = None
+        self._workspace_profile_loaded = False
+        self._retained_startup_workspace = None
+        self._profile_restore_incomplete = False
+        self._startup_restore_archive = None
+        self._startup_restore_thread = None
+        if background_restore and state_path is not None and state_path.is_file() and not state_path.is_symlink():
+            self._begin_workspace_restore()
+        else:
+            self._restore_workspace()
+            self._upgrade_restored_index()
+
+    def _begin_workspace_restore(self):
+        """Publish progress before reading retained reports or an old index."""
+        with self.lock:
+            self.started_at = self.updated_at = self.phase_started_at = self.progress_updated_at = time.monotonic()
+            identifier = secrets.token_hex(16)
+            self.job = {"job_id": identifier, "kind": "index", "origin": "workspace_restore",
+                "source": None, "output": None, "status": "RUNNING", "result": None, "error": None,
+                "cancel_requested": False, "progress": {"phase": "restoring_workspace", "completed": 0,
+                    "total": None, "unit": "files", "current_file": None, "bytes_completed": 0, "bytes_total": None}}
+            self._notify_job_changed()
+            self._startup_restore_thread = threading.Thread(target=self._run_workspace_restore,
+                args=(identifier,), daemon=True, name="workspace-restore")
+            self._startup_restore_thread.start()
+
+    def _run_workspace_restore(self, identifier):
+        # Build the entire restored view privately. Readers never observe half
+        # of one library combined with the conversation or snapshot of another.
+        candidate = WorkbenchState(analyzer=self.analyzer, config_provider=self.config_provider,
+            demo_output_root=self.demo_output_root, remote_source_root=self.remote_source_root,
+            policy_provider=self.policy_provider)
+        candidate.state_path = self.state_path
+        candidate._restore_check_cancel = self._check_cancel
+        candidate._restore_progress = lambda phase: self._progress(identifier,
+            {"phase": phase, "completed": 0, "total": None})
+        try:
+            candidate._restore_workspace()
+            self._check_cancel()
+            # Recheck upgrade provenance on this worker, outside the public
+            # state lock. The update worker still performs its integrity gate.
+            from workspace_upgrade import plan_workspace_upgrade
+            plan = (plan_workspace_upgrade(candidate._saved_workspace, check_integrity=False,
+                       check_cancel=self._check_cancel, report_session=candidate._restore_report_session)
+                    if (candidate._startup_upgrade_plan or {}).get("status") == "ready" else {})
+            with self.lock:
+                self._check_cancel()
+                for key in ("project", "conversation", "conversation_store", "framework_reference_path",
+                            "_graph_preview_cache", "_local_workspace", "_saved_workspace", "_startup_upgrade_plan",
+                            "_restore_report_session",
+                            "answer_detail", "answer_instructions", "source_preferences", "source_workspaces",
+                            "_history_truncated", "_recent_history_truncated"):
+                    setattr(self, key, getattr(candidate, key))
+                self.updated_at = time.monotonic()
+                self.job.update(status="COMPLETED")
+                self._notify_job_changed()
+                # Keep this terminal receipt when an automatic version upgrade
+                # immediately replaces the current job. Existing pollers can
+                # finish restoration and reload the new job without a 404.
+                self._startup_restore_archive = self._job_snapshot()
+                self._upgrade_restored_index(_verified_plan=plan)
+        except AnalysisCancelled:
+            with self.lock:
+                self._retain_startup_profile(candidate)
+                self.updated_at = time.monotonic()
+                self.job.update(status="CANCELLED")
+                self._notify_job_changed()
+        except Exception as exc:
+            with self.lock:
+                self._retain_startup_profile(candidate)
+                self.updated_at = time.monotonic()
+                self.job.update(status="FAILED", error={"code": "WORKSPACE_RESTORE_FAILED",
+                    "message": "恢复资料库未完成。原资料库和历史记录仍保留，请重新打开工作台。",
+                    "diagnostic": _failure_diagnostic(exc, "WORKSPACE_RESTORE_FAILED")})
+                self._notify_job_changed()
+
+    def _retain_startup_profile(self, candidate):
+        """Keep saved library/history navigation even when report loading stops."""
+        if not candidate._workspace_profile_loaded:
+            # An unreadable profile must never be replaced by initial defaults.
+            self._profile_restore_incomplete = True
+            return
+        for key in ("framework_reference_path", "answer_detail", "answer_instructions", "source_preferences",
+                    "source_workspaces", "_history_truncated", "_local_workspace"):
+            setattr(self, key, getattr(candidate, key))
+        self._retained_startup_workspace = copy.deepcopy(candidate._local_workspace)
 
     def _relationship_preview(self, database: Path, snapshot_id: str) -> dict:
         """Reuse one unchanged graph preview, with a fresh snapshot check.
@@ -706,7 +800,7 @@ class WorkbenchState:
                 "limit": MAX_GRAPH_EDGES, "result": copy.deepcopy(result)}
         return result
 
-    def _upgrade_restored_index(self):
+    def _upgrade_restored_index(self, *, _verified_plan=None):
         """Use the ordinary rollback-safe local update for known old versions."""
         if self._local_workspace is None:
             return
@@ -717,7 +811,8 @@ class WorkbenchState:
             return
         # Display repair must never promote an originally mismatched report
         # into authority for an automatic source-scope change.
-        plan = plan_workspace_upgrade(self._saved_workspace, check_integrity=False)
+        plan = (_verified_plan if _verified_plan is not None else plan_workspace_upgrade(self._saved_workspace,
+                check_integrity=False, report_session=self._restore_report_session))
         if plan["status"] != "ready" or plan["attempt_key"] != original["attempt_key"]:
             return
         try:
@@ -726,7 +821,7 @@ class WorkbenchState:
             self._local_workspace["index_upgrade_attempt"] = plan["attempt_key"]
             self._save_workspace()
             self.start(plan["options"], _index_upgrade={"saved": copy.deepcopy(self._saved_workspace),
-                "attempt_key": plan["attempt_key"]})
+                "attempt_key": plan["attempt_key"], "report_session": self._restore_report_session})
             with self.lock:
                 if self.job:
                     self.job["origin"] = "index_version_upgrade"
@@ -1058,10 +1153,16 @@ class WorkbenchState:
                     "recent_conversations_truncated": self._history_truncated or self._recent_history_truncated}
 
     def _save_workspace(self, options=None):
+        if self._profile_restore_incomplete:
+            raise ValueError("WORKSPACE_PROFILE_RESTORE_INCOMPLETE")
         options = options or self.project
         data = {"source": str(options.get("source") or ""), "output": str(options.get("output") or ""),
                 "restore_blocked": self.project.get("restore_blocked") is True,
                 "conversation_id": (self.conversation or {}).get("id")}
+        if not data["source"] and self._retained_startup_workspace:
+            # Changing a preference after cancelling restoration must not erase
+            # the saved active library or its conversation pointer.
+            data = copy.deepcopy(self._retained_startup_workspace)
         remote = _remote_metadata(options.get("_remote_source") or options.get("remote_source"))
         if remote:
             data["remote_source"] = remote
@@ -1108,6 +1209,15 @@ class WorkbenchState:
                 temporary.unlink(missing_ok=True)
 
     def _restore_workspace(self, saved_data=None):
+        self._restore_report_session = ReportReadSession()
+        report_session = self._restore_report_session
+        check_cancel = self._restore_check_cancel
+        def stage(phase):
+            if check_cancel:
+                check_cancel()
+            if self._restore_progress:
+                self._restore_progress(phase)
+
         self._graph_preview_cache = None
         if saved_data is None and (self.state_path is None or not self.state_path.is_file() or self.state_path.is_symlink()):
             return
@@ -1134,6 +1244,7 @@ class WorkbenchState:
             instructions = saved.get("answer_instructions")
             self.answer_instructions = instructions if isinstance(instructions, str) else ""
             self.source_preferences = _source_preferences(saved.get("source_preferences"))
+            self._workspace_profile_loaded = True
             if not all(isinstance(saved.get(key), str) and saved[key] for key in ("source", "output")):
                 return
             source_input, output_input = Path(saved["source"]), Path(saved["output"])
@@ -1166,9 +1277,12 @@ class WorkbenchState:
             # Startup only establishes a reproducible candidate. The full
             # database integrity scan runs in the cancellable update worker,
             # after the local server can show progress and retained history.
-            self._startup_upgrade_plan = plan_workspace_upgrade(saved, check_integrity=False)
+            stage("verifying_saved_reports")
+            self._startup_upgrade_plan = plan_workspace_upgrade(saved, check_integrity=False,
+                                                               check_cancel=check_cancel, report_session=report_session)
             # Historical answers belong to the selected source/output pair,
             # independently of whether today's index can authorize a question.
+            stage("restoring_conversations")
             self._restore_conversations(source, output, saved.get("conversation_id"))
             if saved.get("restore_blocked") is True or (output / SOURCE_UPDATE_PENDING).exists() or (output / SOURCE_UPDATE_PENDING).is_symlink():
                 self.project["restore_blocked"] = True
@@ -1179,15 +1293,18 @@ class WorkbenchState:
                 return
             if not database.is_file():
                 return
-            report = _workspace_diagnosis(output / "diagnosis.json")
+            stage("verifying_saved_reports")
+            report = _workspace_diagnosis(output / "diagnosis.json", check_cancel=check_cancel,
+                                         report_session=report_session)
             if (not isinstance(report, dict) or report.get("source_manifest_verified") is not True
                     or report.get("source_root") != str(source) or not isinstance(report.get("scope"), dict)):
                 return
             try:
-                programs = _read_json(output / "programs.json")
+                programs = _read_json(output / "programs.json", check_cancel=check_cancel, report_session=report_session)
             except (OSError, ValueError):
                 programs = None
             from repository_discovery import _fast_snapshot
+            stage("loading_saved_index")
             with closing(sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True)) as connection:
                 connection.row_factory = sqlite3.Row
                 connection.execute("BEGIN")
@@ -1284,7 +1401,8 @@ class WorkbenchState:
             pass
         if saved.get("conversation_id"):
             try:
-                agent = _read_json(output / "agent-result.json")
+                stage("verifying_saved_reports")
+                agent = _read_json(output / "agent-result.json", check_cancel=check_cancel, report_session=report_session)
                 if isinstance(agent, dict) and (agent.get("agent_result") is None or isinstance(agent.get("agent_result"), dict)):
                     agent_snapshot = (agent.get("agent_result") or {}).get("snapshot_id")
                     if agent_snapshot is not None and agent_snapshot != snapshot:
@@ -1346,6 +1464,10 @@ class WorkbenchState:
                 or not isinstance(payload["answer_instructions"], str)):
             raise RequestError("INVALID_OPTIONS", "请提供文字形式的 AI 回答要求。")
         with self.lock:
+            if self._profile_restore_incomplete:
+                raise RequestError("WORKSPACE_RESTORE_FAILED", "原工作区设置尚未读取，请重新打开工作台后再修改。", 409)
+            if self.job and self.job["status"] == "RUNNING" and self.job.get("origin") == "workspace_restore":
+                raise RequestError("JOB_ACTIVE", "资料库恢复完成后可以更新回答要求。", 409)
             previous = self.answer_instructions
             self.answer_instructions = payload["answer_instructions"]
             try:
@@ -1816,6 +1938,8 @@ class WorkbenchState:
 
     def _start(self, payload: object, *, _remote_import=None, _index_upgrade=None) -> dict:
         with self.lock:
+            if self._profile_restore_incomplete:
+                raise RequestError("WORKSPACE_RESTORE_FAILED", "原工作区设置尚未读取，请重新打开工作台后再接入源码。", 409)
             if self.job and self.job["status"] == "RUNNING":
                 raise RequestError("JOB_ACTIVE", "当前分析尚未结束，请等待完成。", 409)
         options = _validate_options(payload)
@@ -2142,7 +2266,8 @@ class WorkbenchState:
             if upgrade is not None:
                 from workspace_upgrade import plan_workspace_upgrade
                 self._progress(job_id, {"phase": "preparing_index", "completed": 0, "total": None})
-                checked = plan_workspace_upgrade(upgrade["saved"], check_cancel=self._check_cancel)
+                checked = plan_workspace_upgrade(upgrade["saved"], check_cancel=self._check_cancel,
+                                                 report_session=upgrade.get("report_session"))
                 if checked.get("status") != "ready" or checked.get("attempt_key") != upgrade["attempt_key"]:
                     raise ValueError("SOURCE_INDEX_CHANGED_DURING_UPGRADE_CHECK")
                 self._check_cancel()
@@ -2365,6 +2490,8 @@ class WorkbenchState:
 
     def get_job(self, job_id: str) -> dict:
         with self.lock:
+            if self._startup_restore_archive and self._startup_restore_archive["job_id"] == job_id:
+                return copy.deepcopy(self._startup_restore_archive)
             if not self.job or self.job["job_id"] != job_id:
                 raise RequestError("JOB_NOT_FOUND", "任务不存在或已由新的源码分析替换。", 404)
             return self._job_snapshot()
@@ -2760,7 +2887,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 def create_server(port: int = 8765, *, app: WorkbenchState | None = None, web_root: Path = WEB_ROOT) -> LocalServer:
-    return LocalServer(port, app or WorkbenchState(state_path=state_root() / "workbench-state.json"), web_root)
+    return LocalServer(port, app or WorkbenchState(state_path=state_root() / "workbench-state.json",
+                                                  background_restore=True), web_root)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

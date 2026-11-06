@@ -68,6 +68,11 @@ _ABSENCE = re.compile(
     r"(?:没有|沒有|没|沒|尚无|尚無|缺少|缺失)\s*(?:完整|全文)?(?:源码|源碼|代码|代碼|原文|实现|實現)|"
     r"\b(?:not\s+(?:been\s+)?(?:provided|supplied|available|included|read)|"
     r"(?:has|have)\s+not\s+(?:been\s+)?(?:provided|supplied|read)|unavailable|missing)\b", re.I)
+_LOOKUP_ABSENCE = re.compile(
+    r"找不到|查不到|(?:未|没有|沒有|没|沒)(?:能)?(?:找到|查到|检索到|檢索到|定位到)|"
+    r"(?:无法|無法|不能)(?:找到|查到|检索到|檢索到|定位)|"
+    r"\b(?:(?:cannot|can't|could\s+not|couldn't|unable\s+to)\s+(?:find|locate)|"
+    r"(?:(?:could|can)\s+)?not\s+(?:be\s+)?(?:found|located))\b", re.I)
 _PARTIAL = re.compile(
     r"(?:只能|仅能|僅能|仅|僅|只).{0,24}(?:看到|看见|看見|拿到|取得|读取|讀取|获得|獲得|有).{0,40}(?:部分|片段|节录|節錄)|"
     r"(?:只|仅|僅)(?:提供|供应|供應)(?:了)?\s*(?:部分|片段|节录|節錄)|"
@@ -179,9 +184,20 @@ dependency implementations, or a complete business explanation.
         clause_start += len(raw_clause) - len(clause)
         if (_NEGATED.search(clause) or _CONDITIONAL.search(clause) or _REPORTED.search(clause)):
             continue
-        assertion = _ABSENCE.search(clause) or _PARTIAL.search(clause)
+        assertion = _ABSENCE.search(clause) or _PARTIAL.search(clause) or _LOOKUP_ABSENCE.search(clause)
         if assertion is None:
             continue
+        if _LOOKUP_ABSENCE.fullmatch(assertion.group()):
+            # A failed lookup can refer to a callee, a field definition or an
+            # internal paragraph. Only repair explicit physical-source objects;
+            # merely naming the containing file does not supply those objects.
+            if (not _SOURCE_MATERIAL.search(clause) or _CALLEE.search(clause)
+                    or re.search(r"\b(?:called\s+by|targets?\s+of)\b", clause, re.I)):
+                continue
+            if re.search(r"(?:源码|源碼|代码|代碼|原文)(?:之中|中|内|內|里面|裡面|里|裡|中的|内的|內的)", clause):
+                continue
+            if re.search(r"\b(?:in|within|inside)\s+(?:the\s+)?(?:source|code)\b", clause, re.I):
+                continue
         if _semantic_content_absence(clause, assertion):
             continue
         # Processing source remains source even when its name contains field
@@ -237,6 +253,10 @@ dependency implementations, or a complete business explanation.
             # Answer depth alone is not a source-completeness assertion.
             full_denial = bool(_PARTIAL.search(clause) or _FULL.search(
                 clause[max(0, nearest.start() - 16):assertion.end()]))
+            if _LOOKUP_ABSENCE.fullmatch(assertion.group()):
+                full_denial = full_denial or bool(re.search(
+                    r"(?:完整|全文|全量|全部)(?:的)?(?:源码|源碼|代码|代碼|原文)|"
+                    r"\b(?:complete|whole|entire|full)\s+(?:source|code)\b", clause, re.I))
         row = available.get(path)
         if row is None:
             continue
@@ -266,6 +286,8 @@ dependency implementations, or a complete business explanation.
             "_assertion_start": clause_start + assertion.start(),
             "_assertion_end": clause_start + assertion.end(),
             "_subject_start": clause_start + (nearest.start() if matches else _CURRENT_SUBJECT.search(clause).start()),
+            "_subject_end": clause_start + (nearest.end() if matches else _CURRENT_SUBJECT.search(clause).end()),
+            "_lookup_denial": bool(_LOOKUP_ABSENCE.fullmatch(assertion.group())),
             "relative_path": path,
             "assertion": "complete_source_not_supplied" if full_denial else "source_not_supplied",
             "evidence_ids": row.get("complete_evidence_ids", row["evidence_ids"]),
@@ -313,6 +335,13 @@ def repair_source_availability_assertions(answer, source_pages, working_set=None
         while end > start and text[end - 1] in ".!?":
             end -= 1
         suffix = text[finding["_assertion_end"]:end]
+        if finding["_lookup_denial"] and finding["_subject_end"] > finding["_assertion_end"]:
+            # In "cannot find the source for file.cbl", the object follows the
+            # verb. Its already-resolved subject is part of the false denial,
+            # not independent prose that should survive after the correction.
+            suffix = text[finding["_subject_end"]:end]
+            suffix = re.sub(r"^(?:程序|程式|文件)", "", suffix)
+        suffix = re.sub(r"^[ \t`*]*(?:的\s*)?", "", suffix)
         # The object may follow the absence verb, as in "未提供完整源码".
         suffix = re.sub(r"^[ \t`*]*(?:(?:了|的|本轮|本輪|完整|全部|全文)\s*)*"
                         r"(?:(?:字段|欄位|栏位|参数|參數)(?:的)?(?:处理|處理)?)?"
