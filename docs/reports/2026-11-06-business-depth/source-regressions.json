@@ -2,40 +2,40 @@
   "kind": "local_business_depth_regressions",
   "status": "passed",
   "runtime_platform": "Darwin",
-  "tested_base_commit": "63d230063f5dcbcdca309737e7e32134988f502e",
-  "tested_uncommitted_changes": true,
-  "tests_run": 4703,
+  "tested_base_commit": "9ed3d60db9cbb3cad158a5cdee0ac77a0c660a41",
+  "tested_uncommitted_changes": false,
+  "tests_run": 4704,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
   "each_discovered_test_ran_once": true,
-  "test_source_hashes_match_final_tree": false,
-  "discovery_ids_sha256": "75ae4ca6f3a00e4fa853479efc27c531efbf4ab40983645f787580679375929c",
-  "test_sources_sha256": "19fdd626f7613eac1d3c1d1c0883285c5a71794c31ef7714565938bf44a1cc95",
+  "test_source_hashes_match_final_tree": true,
+  "discovery_ids_sha256": "c7bc98c59b8b9026e42c1b016a2e47674e717228bbbd310fe9b3f11b66b8d293",
+  "test_sources_sha256": "5dddc95d008b6cfcb4ab815ad2171b7575ec6c4547d9f69849a5f2b4bf407f4d",
   "shards": [
     {
       "index": 0,
       "tests_run": 1176,
-      "elapsed_seconds": 64.853731,
-      "report_sha256": "968d0e92186bf72152340317ad58f09bd9586a6e77d89eef29b792a0cd525f6c"
+      "elapsed_seconds": 81.301237,
+      "report_sha256": "58e4dc03e22ccdc8a23a7835fa97f15901ff5b0a00c7b2c227656f0318ae35bb"
     },
     {
       "index": 1,
       "tests_run": 1176,
-      "elapsed_seconds": 81.52067,
-      "report_sha256": "e1d7701db29e893737d926e1f1301388c22fda37abee5fbbb800f50606a107fe"
+      "elapsed_seconds": 56.574011,
+      "report_sha256": "f30a8b462b1a0b669ed1c2f38575ef9f951891fe35e72f3f06dc3f2cef3dc147"
     },
     {
       "index": 2,
       "tests_run": 1176,
-      "elapsed_seconds": 103.167921,
-      "report_sha256": "1eb48658c03966de5a0aed81040824dee62f3a4642a834f3bc5c4a1dfb95da2d"
+      "elapsed_seconds": 100.036457,
+      "report_sha256": "4888c97599ccf56fe314033f0a0922da235fc244e6451755699be71177282346"
     },
     {
       "index": 3,
-      "tests_run": 1175,
-      "elapsed_seconds": 117.477378,
-      "report_sha256": "72cb15ddf3b90188d45ad3c378ce53f5da9796bfb37c3706194412f98f3859f7"
+      "tests_run": 1176,
+      "elapsed_seconds": 109.762428,
+      "report_sha256": "c309f0d472ec6f509d1988f0b5330f31f0c78a372a86707b9a22f29784187c61"
     }
   ],
   "browser_tests": {
@@ -83,7 +83,7 @@
     },
     {
       "path": "poc/report_view.py",
-      "sha256": "6290dbe3e24db8a1ff7d1c3c0687a0aec868dfb8ab7a9ac0135430ed84efabf5"
+      "sha256": "d919ae92a3b62e6dbe178928bbb9e39868183a292bf14d9c65705c6bbbc26454"
     },
     {
       "path": "poc/repository_discovery.py",
@@ -103,7 +103,7 @@
     },
     {
       "path": "poc/tests/test_dependency_source_availability.py",
-      "sha256": "1141ed367ebabf1f5ead4431f686efcf8588268ca67035f65feae430b530a6e8"
+      "sha256": "5d38448ca6178ad143af4c8e54eef4bce94e0d11c3e42c0527c13e654a51c1bf"
     },
     {
       "path": "poc/tests/test_desktop_upgrade.py",
@@ -115,7 +115,7 @@
     },
     {
       "path": "poc/tests/test_report_view.py",
-      "sha256": "9febccdc64d10308539ffd00ff578f4a5e4996800caf44393f18cfc99f61d624"
+      "sha256": "3b750800169160a3b68b5b9279030406559e71da2e684e741166e5baa817595a"
     },
     {
       "path": "poc/tests/test_source_availability.py",
@@ -127,7 +127,7 @@
     },
     {
       "path": "poc/tests/test_workspace_background_restore.py",
-      "sha256": "52973b2ede3454804ef334a1b5206a227baff3b6efa3fc293da358cf7dde99e7"
+      "sha256": "55052936b660c6f9abcd6ac4511bcc4d57fc591dde1d6f45a34f9ad54e9bf215"
     },
     {
       "path": "poc/tests/web_conversation.test.cjs",
@@ -157,14 +157,5 @@
       "path": "tools/desktop_acceptance_runtime.py",
       "sha256": "6cdea25c183549986e15e7b7bee685293266b00fee2a15f68c302577ac19ceb8"
     }
-  ],
-  "followup_verification": {
-    "report": "source-newline-regressions.json",
-    "reason": "Two source-hash fixture expectations now read actual bytes, including native Windows CRLF. Product source is unchanged after the complete local run.",
-    "tests_per_line_ending": 20,
-    "line_endings": [
-      "LF",
-      "CRLF"
-    ]
-  }
+  ]
 }

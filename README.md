@@ -1,8 +1,8 @@
 # COBOL Evidence Analyst
 
-**最新 Windows 测试候选：[`v2026.11.06.1-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.1-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.06.1-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复追问回错程序、长答案和大诊断挤掉前文与源码引用、旧调查重开后无法续查，以及重复提交、历史错序和资料库升级状态问题；保留此前启动与中文源码路径修复。应用冻结于 `7fa6af6`。
+**最新 Windows 测试候选：[`v2026.11.06.2-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.2-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.06.2-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复启动恢复阻塞、复杂调用链漏查及“已有源码却找不到”的错误断言；业务流程回答会复核纯技术浅答，保留详细业务要求，不再自动追加逐句代码附录。保留此前对话记忆与恢复修复。应用冻结于 `9ed3d60`。
 
-本机 4,665 项 Python、283 项网页及 1 项工具测试通过；Windows 覆盖同一批 Python 回归，4,663 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 32 项补充检查，8 个发布文件的服务端哈希已复核。已复现的失忆路径通过回归，但上下文仍有预算；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。修复范围、已知限制和发布指纹见[本次候选交付记录](./docs/reports/2026-11-06-conversation-memory/README.md)。
+本机 4,704 项 Python、286 项网页及 1 项工具测试通过；Windows 覆盖同一批 Python 回归，4,702 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 38 项补充检查，8 个发布文件的服务端哈希已复核。已复现的失忆路径通过回归，但上下文仍有预算；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。根因、修复边界和发布指纹见[本次候选交付记录](./docs/reports/2026-11-06-business-depth/README.md)。
 
 先退出旧版，再完整解压启动，同一用户沿用原配置、历史及源码副本。正常重开不重新下载；每周更新请从已有资料库进入“检查并更新”，选择实际更新分支或勾选“跟随默认分支”。Cloud 首次仍下载一次整仓快照，后续只下载新增、修改或损坏文件；新快照仍需建立本地索引。
 
@@ -12,7 +12,7 @@
 
 **2026-10-17 多轮分析候选：** 新版支持按完成度推进、实时回答草稿和有来源绑定的跨轮源码记忆。应用冻结于 [`1c3fb71`](https://github.com/madaraoflee/cobol-evidence-analyst/commit/1c3fb714fb275648a053f8861f129246d73383fb)；[下载 Windows 候选包](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/39064458797/artifacts/12114081375)，包指纹、解压步骤与验收范围见[验证记录](./docs/reports/2026-10-17-completion-driven-analysis.md)。该历史候选保留用于追溯；测试最新改动请使用页面顶部的新候选，或更新 `main` 后运行源码。
 
-**统一版本以 `main` 为准，Windows 为主要交付平台。** 默认提供详细业务解释，按输入、条件、执行顺序、字段变化和结果展开。Mac 本地开发源码与 GitHub 使用同一主分支，本次 Windows 候选绑定其中的冻结提交；日常使用无需在原版、改进版之间选择。下载、更新与版本核对见[统一版本说明](./docs/unified-release.md)，业务评估记录见[详细回答验证报告](./docs/reports/2026-10-07-detailed-business-correction.md)。
+**统一版本以 `main` 为准，Windows 为主要交付平台。** 默认提供详细业务解释，按业务目的、进入条件、处理职责、数据交接、异常和结果展开；计算规则在需要时保留精确公式。Mac 本地开发源码与 GitHub 使用同一主分支，本次 Windows 候选绑定其中的冻结提交；日常使用无需在原版、改进版之间选择。下载、更新与版本核对见[统一版本说明](./docs/unified-release.md)，业务评估记录见[详细回答验证报告](./docs/reports/2026-10-07-detailed-business-correction.md)。
 
 **系统的最终交付是通用业务分析：直接提出业务问题，由系统在本地代码库查找、阅读和解释相关逻辑。** 没有固定业务主题词典或预置问答路线；演示案例只是操作示例。真实作业调度作为后续可选能力，当前聚焦本地 COBOL/COPYBOOK 与用户提供的框架资料。
 

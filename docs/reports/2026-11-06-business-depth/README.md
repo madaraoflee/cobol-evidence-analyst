@@ -82,10 +82,16 @@
 
 桌面使用的 [`model_profiles.py`](../../../poc/model_profiles.py) 默认单次输出额度是 **8192 tokens**，不是底层 `company_api.py` 通用配置的 1024。显式环境或本地配置可以覆盖默认。本轮没有凭空提高模型限额。长度中断已有续写机制，但模型以 `stop` 正常结束的浅答不会仅因短而续写，所以仍需上述内容审查。上下文、语义分析文件数及回答续写都有边界；不能承诺无限链路、无限记忆或无限正文。
 
-## 验证与发布计划
+## 验证与候选交付
 
 回答质量相关的 139 项针对性测试已通过，覆盖实际请求、字节预算、原文绑定、保存偏好、精确计算补全以及已知浅答修订。测试使用固定合成回复，只证明检索、传输、审查与保存行为，不能当成真实模型质量提升的评分。
 
-包含动态调用补充修复的最终完整回归 **4,703 项 Python、286 项网页及1项工具测试全部通过**，无失败、无跳过。四组发现清单和测试源码哈希一致，执行ID并集恰好覆盖所有发现测试；见[源码回归记录](source-regressions.json)。异步恢复使旧升级测试需要等到恢复完成后再检查历史，已更新等待条件且保留全部原配置、历史和索引断言。第一次 Windows 回归发现两项新增测试将 LF 内存字符串的哈希与 Windows 实际写出的 CRLF 文件比较；应用按实际字节核验是正确的。只修正测试预期为磁盘原件字节，20项相关测试又分别以LF和CRLF全部通过，见[换行验证记录](source-newline-regressions.json)。这两项失败不需要改变生产代码。另一项Windows测试则实测发现上述变更时间复用缺陷，已回退该平台缓存，并保留等长改写后必须得到新摘要、散列期间变化必须拒绝的断言；最终Windows全量和EXE验证待补。最终包补充检查已纳入直接业务提问的浅答修订、正文不被自动追加技术附录、七层调用/COPY/LF/PF 原文供应、错误“找不到源码”断言修正及请求记录一致性；这些检查必须在最终 EXE 上运行，不能以源码测试替代。
+包含动态调用与Windows校验修复的最终完整回归 **4,704 项 Python、286 项网页及1项工具测试全部通过**，无失败、无跳过。四组发现清单和测试源码哈希一致，执行ID并集恰好覆盖所有发现测试；见[源码回归记录](source-regressions.json)。异步恢复使旧升级测试需要等到恢复完成后再检查历史，已更新等待条件且保留全部原配置、历史和索引断言。第一次 Windows 回归发现两项新增测试将 LF 内存字符串的哈希与 Windows 实际写出的 CRLF 文件比较；应用按实际字节核验是正确的。只修正测试预期为磁盘原件字节，20项相关测试又分别以LF和CRLF全部通过，见[换行验证记录](source-newline-regressions.json)。这两项失败不需要改变生产代码。[同次Windows失败记录](windows-initial-findings.json)中的另一项测试则实测发现上述变更时间复用缺陷，已回退该平台缓存，并保留等长改写后必须得到新摘要、散列期间变化必须拒绝的断言；最终Windows全量和EXE均已通过，实际交付记录如下。最终包补充检查已纳入直接业务提问的浅答修订、正文不被自动追加技术附录、七层调用/COPY/LF/PF 原文供应、错误“找不到源码”断言修正及请求记录一致性；本轮这组检查已在最终EXE上执行，不能据此代替真实模型质量评分。
 
-调查管线更新为 `question-evidence-v71`，提示版本为 `business-chat-v56`。GitHub 交付仍遵守 [AGENTS.md](../../../AGENTS.md) 和[同包联合验收流程](../../joint-release-acceptance.md)：源码回归和原生离线检查通过后可交付候选；同包真实模型问答、人工逐条评分与实际办公设备验收缺失时，不替换正式版本。正式发布须使用 [`tools/publish_desktop_release.py`](../../../tools/publish_desktop_release.py)。本报告后续补充实际构建、候选、产物指纹与验证凭据，不预先宣告发布完成。
+调查管线更新为 `question-evidence-v71`，提示版本为 `business-chat-v56`。GitHub 交付仍遵守 [AGENTS.md](../../../AGENTS.md) 和[同包联合验收流程](../../joint-release-acceptance.md)：源码回归和原生离线检查通过后可交付候选；同包真实模型问答、人工逐条评分与实际办公设备验收缺失时，不替换正式版本。正式发布须使用 [`tools/publish_desktop_release.py`](../../../tools/publish_desktop_release.py)。
+
+[Windows 构建42145571919](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42145571919)成功，应用冻结于 `9ed3d60db9cbb3cad158a5cdee0ac77a0c660a41`。Windows四组回归恰好覆盖4,704项，4,702项通过，仅2项POSIX权限测试按规则跳过。最终EXE通过原25类案例的79个固定离线样本，以及38项补充检查；补充检查实际完成24次本机合成请求，零外部模型调用。首跳为动态候选的七层调用、COPY、logical/physical file共11份原文在实际请求中核对，仍保留运行绑定未确认的限制。
+
+已发布[GitHub候选v2026.11.06.2-rc.1](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.2-rc.1)，八个交付文件的服务端大小和SHA-256全部匹配已下载的Actions原件，标签指向冻结应用提交。Windows ZIP SHA-256为 `d691cdce9fd6686c45003345138a81fec3303463073752d50c9bcb42ea97f8aa`，EXE SHA-256为 `231fb463467f2ca0ae4d0e15e9b117fb85faa44504a3dbb053481bfd9757baa7`，见[交付凭据](windows-candidate.json)。重算候选门禁与CI一致：允许测试候选，正式发布仍缺同包真实模型、人工与目标办公设备验收；正式版仍为 `v2026.10.14.2`。
+
+[配套办公验收工具构建42150925437](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42150925437)已手动启动，绑定同一应用提交、桌面run42145571919与候选artifact13471418740。该工具包尚在构建和独立离线复跑，不代表目标办公设备或真实模型验收已完成；完成后补充产物核对凭据。

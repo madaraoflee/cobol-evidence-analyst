@@ -1,0 +1,43 @@
+{
+  "kind": "initial_windows_regression_findings",
+  "workflow_run_id": 42143141489,
+  "source_commit": "a17ee0a4b988d980b478d08d413d101515f17b4a",
+  "status": "failed_no_candidate_built",
+  "failed_shards": [
+    {
+      "shard": 0,
+      "tests_run": 1176,
+      "status": "failed",
+      "report_sha256": "488f1352af2a903ba6e7f8c92871264b5ea730db24b07f01d0395c6e52f9dfd3",
+      "failures": [
+        {
+          "id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_actual_request_supplies_seven_hops_copy_and_logical_file_definition",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_dependency_source_availability.py\", line 177, in test_actual_request_supplies_seven_hops_copy_and_logical_file_definition\n    self.assertEqual(page['source_sha256'], hashlib.sha256(self.files[path].encode()).hexdigest())\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '0b175c9d7da0dc046ca5a6b103b608d65d31f62bf30d2009731d0230f034211e' != '157f6ac239cf91d61faf8064a54a86d1c6611315f76bff13f49a8ea05ad29625'\n- 0b175c9d7da0dc046ca5a6b103b608d65d31f62bf30d2009731d0230f034211e\n+ 157f6ac239cf91d61faf8064a54a86d1c6611315f76bff13f49a8ea05ad29625\n\n"
+        },
+        {
+          "id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_dependency_source_availability.py\", line 223, in test_dynamic_initial_value_supplies_first_request_without_model_search\n    self.assertEqual(candidate['source_provenance'][0]['source_sha256'],\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n                     hashlib.sha256(self.files['z-main.cbl'].encode()).hexdigest())\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'd26958610f5e260a65d12c369be98dbcb87b220d27a65b41196ec7bcb99d3cf9' != 'f60156a7f21fdb859c263ea2c9e5761bb9012bcad0172100067b5ce9d9f04aaf'\n- d26958610f5e260a65d12c369be98dbcb87b220d27a65b41196ec7bcb99d3cf9\n+ f60156a7f21fdb859c263ea2c9e5761bb9012bcad0172100067b5ce9d9f04aaf\n\n"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "shard": 2,
+      "tests_run": 1176,
+      "status": "failed",
+      "report_sha256": "7a2e2d46eefb625b54ec949025283a3148e2a20131059f87f6eb5ef5bc6048a6",
+      "failures": [
+        {
+          "id": "test_report_view.ReportViewTests.test_restore_session_hashes_once_and_rechecks_equal_size_edits_with_preserved_mtime",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_report_view.py\", line 116, in test_restore_session_hashes_once_and_rechecks_equal_size_edits_with_preserved_mtime\n    self.assertNotEqual(session.sha256(self.path), first)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5' == '0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5'\n"
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "resolution": {
+    "fixture_hashes": "Compare actual file bytes, including Windows CRLF. LF and CRLF regressions passed.",
+    "report_digest_reuse": "Disable timestamp-based digest reuse on Windows. Always read report bytes while retaining before/after stat checks."
+  },
+  "formal_acceptance": false
+}
