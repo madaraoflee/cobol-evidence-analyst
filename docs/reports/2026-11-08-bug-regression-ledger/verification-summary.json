@@ -1,0 +1,74 @@
+{
+  "source_commit": "74c4a7a7eb52cfd95b760d3ca00748c2a30c037d",
+  "source_snapshot": "ac1599288bc0798b200f0399cb6a3f2eeb7e7f050bd5d69b663144e824bb5631",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "python_tests": 4868,
+  "browser_tests": 296,
+  "bug_outcomes": {
+    "passed": 229,
+    "unverified": 9
+  },
+  "first_attempt": {
+    "source_regressions_passed": false,
+    "cause": "Local loopback socket binding was denied by execution permissions. No tests were removed, skipped or weakened. Full rerun retained separately.",
+    "reports": [
+      {
+        "name": "python-0.json",
+        "status": "failed",
+        "tests": 1217,
+        "failures": 0,
+        "errors": 2,
+        "sha256": "32bde3355e8f23509a35fc67a03c85f5cf1222c107ce75c5ca7fd8deae28a516"
+      },
+      {
+        "name": "python-1.json",
+        "status": "failed",
+        "tests": 1217,
+        "failures": 2,
+        "errors": 23,
+        "sha256": "fdf8b9f1890bcf26e1040c80d9a34563872d4588d8aad5b5cbb2cc87c5f3fbe3"
+      },
+      {
+        "name": "python-2.json",
+        "status": "failed",
+        "tests": 1217,
+        "failures": 3,
+        "errors": 16,
+        "sha256": "3e08a82a2dd6ec269565b062d6fb69cbaaf51008d6c3aa7bb52e0e82003741d3"
+      },
+      {
+        "name": "python-3.json",
+        "status": "failed",
+        "tests": 1216,
+        "failures": 4,
+        "errors": 32,
+        "sha256": "8f42ab65e723ba7ba2daedd81f943fa3e7b242e4d27d6408734fa941f334e54f"
+      },
+      {
+        "name": "python-tools.json",
+        "status": "passed",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "sha256": "e19a64cbe9aa1ea29a8fb8db38ea3f533f80bd697fa4f8ec30dcd2f05757661f"
+      }
+    ]
+  },
+  "current_development_checkout": {
+    "status": "blocked",
+    "missing_historical_tests": 23,
+    "note": "Inventory check only; no full test pass claimed."
+  },
+  "raw_report_archive_sha256": "0527109703ac2b16c7c7beaa0c2ac3592c98c97fd417e2475b3f873cfea4b483",
+  "report_sha256": {
+    "python-0.json": "a1bb703f022d99aa86cc17ce9acaf6d87bb817f6b04cab623f26c7b41b5391db",
+    "python-1.json": "3bb7b9fb2662885d7fda407666e0cc694afb8ba67d4b73b9932613f7094d32cf",
+    "python-2.json": "0b3532697bf76527e1ba4ba2bd1a6f586fae605ad6cceebfbd5c449e4bdd661d",
+    "python-3.json": "1482053ef3a43056541a925524a23dcce10d609c3909d7decc7320381f1300d8",
+    "python-tools.json": "4c6286b3a1edef6de18f8100afd7e67e337227bfc364deb6e23ddec0e490220b",
+    "browser.jsonl": "dfb4419d88bd7800d02f8c2404fb059c6430509020b42e557dfd78f4d71a0f46",
+    "SOURCE-SNAPSHOT.json": "ab76bec8d4d47ed52b7cd1189d4642b97d41880e72a06ffa9c012a64a6962b84",
+    "BUG-REGRESSION-REPORT.json": "875aa69cd60058a6dbdc1941a26b7ed2d2abe502f145de22a46042eb51ccf87e"
+  }
+}
