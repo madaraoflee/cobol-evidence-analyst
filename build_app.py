@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parent
 BUILD_ROOT = ROOT / ".build" / "desktop"
 APP_NAME = "COBOLWorkbench"
 WEB_FILES = ("index.html", "app.js", "i18n.js", "styles.css", "appearance.css",
-             "theme.js", "layout.js", "markdown.js", "marked.umd.js", "marked.LICENSE.md")
+             "theme.js", "layout.js", "markdown.js", "marked.umd.js", "marked.LICENSE.md",
+             "online.html", "online.js", "online.css")
 FORBIDDEN_SUFFIXES = {".py", ".pyc", ".pyo", ".pyw", ".sqlite", ".db", ".pem", ".key", ".p12", ".pfx"}
 FORBIDDEN_PARTS = {".git", ".poc-data", "__pycache__", "tests", ".env"}
 

@@ -1,0 +1,88 @@
+test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata) ... ERROR
+test_relation_tail_remains_reachable_after_one_thousand (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_relation_tail_remains_reachable_after_one_thousand) ... ERROR
+test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) ... 
+  test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=True) ... ERROR
+  test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=-1) ... ERROR
+  test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=1.5) ... ERROR
+  test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset='1') ... ERROR
+  test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=9223372036854775808) ... ERROR
+test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) ... ERROR
+
+======================================================================
+ERROR: test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 93, in test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata
+    action = _action({"tool": "search", "text": "shared", "limit": 20, "offset": 1000})
+  File "/private/tmp/cobol-integrated-release-20261109/poc/online_investigation.py", line 178, in _action
+    raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+online_material_format.MaterialError: ONLINE_INVALID_MODEL_ACTION
+
+======================================================================
+ERROR: test_relation_tail_remains_reachable_after_one_thousand (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_relation_tail_remains_reachable_after_one_thousand)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 109, in test_relation_tail_remains_reachable_after_one_thousand
+    action = _action({"tool": "relations", "path": "main.cbl", "limit": 20, "offset": 1000})
+  File "/private/tmp/cobol-integrated-release-20261109/poc/online_investigation.py", line 178, in _action
+    raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+online_material_format.MaterialError: ONLINE_INVALID_MODEL_ACTION
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 123, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=offset)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 123, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=offset)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=1.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 123, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=offset)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset='1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 123, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=offset)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets) (offset=9223372036854775808)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 123, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=offset)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_deep_search_page_keeps_all_query_and_page_budgets (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 127, in test_deep_search_page_keeps_all_query_and_page_budgets
+    query.search("shared", offset=1000)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.search() got an unexpected keyword argument 'offset'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.208s
+
+FAILED (errors=8)

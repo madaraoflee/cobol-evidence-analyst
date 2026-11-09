@@ -1,5 +1,7 @@
 # COBOL Evidence Analyst
 
+**2026-11-07：已新增独立的 Bitbucket 在线分析工作区，本地分析核心保持冻结。** 源码生成端统一预计算、按包发布分析资料，客户端按需调查并核验原文；新入口支持业务问答、连续追问、停止/续查、版本选择、历史与引用导出，见[在线工作台使用与部署](./docs/20-bitbucket-online-workbench.md)。原侧栏增加“Bitbucket 在线分析”链接，旧“从 Bitbucket 接入”仍使用下述本机快照机制，旧数据不迁移。已有独立固定提交发布脚本、可选同步声明校验和未启用的流水线模板，不依赖同事的同步机器或脚本；真实企业部署、模型业务效果和设备验收须在公司网络完成，不能用合成验证替代。架构与隔离边界见[设计](./docs/19-bitbucket-online-analysis-design.md)和 [ADR-0017](./docs/adr/0017-bitbucket-first-with-local-analysis-frozen.md)，本次未构建应用包或运行云端任务。
+
 **最新 Windows 测试候选：[`v2026.11.06.2-rc.1`](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.06.2-rc.1)。** [下载 Windows x64 ZIP](https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.06.2-rc.1/COBOLWorkbench-windows-x64.zip)。本版修复启动恢复阻塞、复杂调用链漏查及“已有源码却找不到”的错误断言；业务流程回答会复核纯技术浅答，保留详细业务要求，不再自动追加逐句代码附录。保留此前对话记忆与恢复修复。应用冻结于 `9ed3d60`。
 
 本机 4,704 项 Python、286 项网页及 1 项工具测试通过；Windows 覆盖同一批 Python 回归，4,702 项通过，2 项 POSIX 专用测试按规则跳过。最终 EXE 通过 79 个固定离线样本和 38 项补充检查，8 个发布文件的服务端哈希已复核。已复现的失忆路径通过回归，但上下文仍有预算；同包真实模型、人工与目标办公设备验收仍待完成，正式版保持原版本。根因、修复边界和发布指纹见[本次候选交付记录](./docs/reports/2026-11-06-business-depth/README.md)。

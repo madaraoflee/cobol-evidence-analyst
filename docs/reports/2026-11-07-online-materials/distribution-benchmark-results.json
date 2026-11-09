@@ -1,0 +1,51 @@
+{
+  "schema_version": "online-distribution-benchmark/v1",
+  "source": {
+    "programs": 2000,
+    "copybooks": 200,
+    "files": 2200,
+    "bytes": 19051664,
+    "largest_file_bytes": 655496,
+    "source_fingerprint": "2deb07ba175321cf63731f72924699938d84a5d29d303a546cea3bdc0b95a647",
+    "shape": "Free-format programs, static CALL ring, shared COPY fields, repeated comments; no execution."
+  },
+  "network_calls": 0,
+  "model_calls": 0,
+  "transport": "in_process_protocol_simulation",
+  "source_and_material_directory_removed_before_query": true,
+  "build_and_export_seconds": 12.702104,
+  "publication_seconds_simulated": 1.378007,
+  "logical_objects": 3413,
+  "object_kinds": {
+    "references": 256,
+    "facts": 2200,
+    "terms": 256,
+    "postings": 445,
+    "files": 256
+  },
+  "published_bundles": 256,
+  "published_artifacts": 258,
+  "publication_protocol_requests": 792,
+  "published_bytes": 13780213,
+  "largest_bundle_bytes": 118927,
+  "cold_query": {
+    "logical_material_bytes": 205006,
+    "actual_protocol_body_bytes": 1044305,
+    "protocol_requests_including_redirects": 32,
+    "total_matches": 2000,
+    "truncated": true,
+    "returned_paths": [
+      "entry-0198.cbl",
+      "entry-0199.cbl",
+      "entry-0000.cbl"
+    ]
+  },
+  "warm_query_additional_bytes": 0,
+  "script_sha256": "97d0f42b5549baa1cd17043e2345c32900a4c7f59d20563e544dea312eefd114",
+  "limitations": [
+    "No real HTTP latency, authentication, rate limits or cloud quota were measured.",
+    "Synthetic source contains repeated comments and is not a GB-scale performance result.",
+    "The synchronization receipt is a synthetic attestation for this temporary Git checkout.",
+    "Logical object bytes and actual bundled body bytes intentionally differ."
+  ]
+}

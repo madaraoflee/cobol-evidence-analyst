@@ -1,0 +1,89 @@
+{
+  "exercise": "synthetic_local_only",
+  "stage": {
+    "status": "sources_staged",
+    "files": 33,
+    "source_bytes": 918287,
+    "manifest_sha256": "f1d0216dab4ade36bb051042151f51a8edc0bb20e70a4737db9354e428098124",
+    "scope": "static_python_import_closure",
+    "dynamic_imports_inferred": false
+  },
+  "verify": {
+    "status": "sources_verified",
+    "files": 33,
+    "source_bytes": 918287,
+    "manifest_sha256": "f1d0216dab4ade36bb051042151f51a8edc0bb20e70a4737db9354e428098124",
+    "scope": "static_python_import_closure",
+    "dynamic_imports_inferred": false
+  },
+  "runtime": {
+    "status": "runtime_checks_passed",
+    "checks": {
+      "python": {
+        "status": "passed"
+      },
+      "git": {
+        "status": "passed"
+      },
+      "sqlite_fts5": {
+        "status": "passed"
+      },
+      "temporary_storage": {
+        "status": "passed",
+        "free_bytes": 11100160000,
+        "minimum_free_bytes": 0
+      },
+      "output_storage": {
+        "status": "passed",
+        "free_bytes": 11100160000,
+        "minimum_free_bytes": 0
+      }
+    },
+    "resource_floor_is_capacity_guarantee": false
+  },
+  "inventory_without_extensionless": {
+    "status": "inventory_checked",
+    "coverage_scope": "discovery_selection_only",
+    "commit": "8d3247e302b46bc9703b3656f090d0323d12d29a",
+    "git_tracked_files": 3,
+    "selected_files": 1,
+    "selected_tracked_files": 1,
+    "tracked_not_selected": 2,
+    "excluded_extensionless_file_count": 1,
+    "excluded_extensions": {
+      ".md": 1
+    },
+    "excluded_extension_kinds_truncated": false,
+    "ignored_directories_and_symlinks": "not_traversed",
+    "source_body_in_report": false,
+    "source_content_parsed": false,
+    "git_worktree_content_check": true,
+    "source_semantics_verified": false,
+    "sync_completeness": "not_verified"
+  },
+  "inventory_with_extensionless": {
+    "status": "inventory_checked",
+    "coverage_scope": "discovery_selection_only",
+    "commit": "8d3247e302b46bc9703b3656f090d0323d12d29a",
+    "git_tracked_files": 3,
+    "selected_files": 2,
+    "selected_tracked_files": 2,
+    "tracked_not_selected": 1,
+    "excluded_extensionless_file_count": 0,
+    "excluded_extensions": {
+      ".md": 1
+    },
+    "excluded_extension_kinds_truncated": false,
+    "ignored_directories_and_symlinks": "not_traversed",
+    "source_body_in_report": false,
+    "source_content_parsed": false,
+    "git_worktree_content_check": true,
+    "source_semantics_verified": false,
+    "sync_completeness": "not_verified"
+  },
+  "real_network_access": false,
+  "enterprise_source_access": false,
+  "real_model_called": false,
+  "cloud_pipeline_executed": false,
+  "desktop_build_executed": false
+}

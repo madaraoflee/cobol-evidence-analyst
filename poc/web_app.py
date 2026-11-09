@@ -56,6 +56,8 @@ FRAMEWORK_DEMO_OUTPUT = state_root() / "framework-runs"
 STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/i18n.js": "i18n.js", "/styles.css": "styles.css",
                 "/appearance.css": "appearance.css", "/theme.js": "theme.js", "/layout.js": "layout.js",
                 "/markdown.js": "markdown.js", "/marked.umd.js": "marked.umd.js"}
+ONLINE_STATIC_FILES = {"/online": "online.html", "/online.html": "online.html",
+                       "/online.js": "online.js", "/online.css": "online.css"}
 MAX_REQUEST_BYTES = 32_768
 MAX_PROGRESS_WAIT_MS = 20_000
 MAX_PROGRESS_WAITERS = 8
@@ -2667,6 +2669,8 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, port: int, app: WorkbenchState, web_root: Path) -> None:
         self.app, self.web_root = app, web_root.resolve()
+        self.online_app = None
+        self.online_lock = threading.Lock()
         self.job_stream_slots = threading.BoundedSemaphore(MAX_JOB_STREAMS)
         self.job_stream_stop = threading.Event()
         super().__init__(("127.0.0.1", port), RequestHandler)
@@ -2675,6 +2679,8 @@ class LocalServer(ThreadingHTTPServer):
 
     def server_close(self) -> None:
         self.job_stream_stop.set()
+        if self.online_app is not None:
+            self.online_app.close()
         super().server_close()
 
 
@@ -2827,7 +2833,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 raise RequestError("INVALID_ROUTE", "请求路径无效。")
             path = route.path
             self._guard(token=path.startswith("/api/") and path != "/api/state")
-            if path == "/api/state" and not route.query:
+            if path.startswith("/api/online/"):
+                from online_web_bridge import dispatch_online
+                self._json(*dispatch_online(self.server, "GET", self.path))
+            elif path == "/api/state" and not route.query:
                 self._json(200, self.server.app.state())
             elif path == "/api/framework-demo" and not route.query:
                 self._json(200, self.server.app.framework_demo())
@@ -2867,6 +2876,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                     raise RequestError("NOT_FOUND", "页面文件尚未就绪。", 404)
                 content_type = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}[file.suffix]
                 self._send(200, file.read_bytes(), content_type + "; charset=utf-8")
+            elif path in ONLINE_STATIC_FILES:
+                file = self.server.web_root / ONLINE_STATIC_FILES[path]
+                if file.is_symlink() or not file.is_file():
+                    raise RequestError("NOT_FOUND", "在线页面文件尚未就绪。", 404)
+                content_type = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}[file.suffix]
+                self._send(200, file.read_bytes(), content_type + "; charset=utf-8")
             else:
                 raise RequestError("NOT_FOUND", "请求的页面不存在。", 404)
         except RequestError as exc:
@@ -2879,6 +2894,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             route = urlsplit(self.path)
+            if route.path.startswith("/api/online/"):
+                from online_web_bridge import dispatch_online
+                self._json(*dispatch_online(self.server, "DELETE", self.path))
+                return
             source_match = re.fullmatch(r"/api/recent-conversations/([a-f0-9]{64})/([a-f0-9]{32})", route.path)
             if route.query or route.fragment or (re.fullmatch(r"/api/conversations/[a-f0-9]{32}", route.path) is None and source_match is None):
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
@@ -2895,7 +2914,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             self._guard(token=True)
             cancel_match = re.fullmatch(r"/api/jobs/([a-f0-9]{32})/cancel", self.path)
-            if self.path not in {"/api/analyze", "/api/source/remote", "/api/source/remote/update", "/api/source/open", "/api/framework-demo/prepare", "/api/framework", "/api/answer-instructions", "/api/conversations", "/api/conversations/open", "/api/model-check", "/api/pick-folder"} and cancel_match is None:
+            online_request = self.path.startswith("/api/online/")
+            if self.path not in {"/api/analyze", "/api/source/remote", "/api/source/remote/update", "/api/source/open", "/api/framework-demo/prepare", "/api/framework", "/api/answer-instructions", "/api/conversations", "/api/conversations/open", "/api/model-check", "/api/pick-folder"} and cancel_match is None and not online_request:
                 raise RequestError("NOT_FOUND", "请求的操作不存在。", 404)
             if self.headers.get_content_type() != "application/json" or self.headers.get("Transfer-Encoding"):
                 raise RequestError("INVALID_CONTENT_TYPE", "只接受 JSON 请求。", 415)
@@ -2911,7 +2931,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 payload = json.loads(raw_payload.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 raise RequestError("INVALID_JSON", "请求内容不是有效 JSON。") from None
-            if cancel_match:
+            if online_request:
+                from online_web_bridge import dispatch_online
+                self._json(*dispatch_online(self.server, "POST", self.path, payload))
+            elif cancel_match:
                 if payload != {}:
                     raise RequestError("INVALID_OPTIONS", "取消任务请求须为空对象。")
                 self._json(202, self.server.app.cancel(cancel_match.group(1)))

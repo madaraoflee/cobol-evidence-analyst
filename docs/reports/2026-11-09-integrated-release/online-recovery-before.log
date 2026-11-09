@@ -1,0 +1,131 @@
+test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change) ... FAIL
+test_answer_ready_checkpoint_obeys_cancellation_before_source_read (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_obeys_cancellation_before_source_read) ... FAIL
+test_answer_ready_checkpoint_revalidates_without_repeating_model_request (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_revalidates_without_repeating_model_request) ... FAIL
+test_incoming_can_reach_matches_after_one_thousand (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_can_reach_matches_after_one_thousand) ... ERROR
+test_incoming_cli_exposes_offset_with_backward_compatible_default (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_cli_exposes_offset_with_backward_compatible_default) ... ERROR
+test_incoming_continues_after_first_hundred_matches (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_continues_after_first_hundred_matches) ... ERROR
+test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) ... 
+  test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=True) ... ERROR
+  test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=-1) ... ERROR
+  test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=1.5) ... ERROR
+  test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset='1') ... ERROR
+  test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=9223372036854775808) ... ERROR
+test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) ... ERROR
+
+======================================================================
+ERROR: test_incoming_can_reach_matches_after_one_thousand (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_can_reach_matches_after_one_thousand)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 64, in test_incoming_can_reach_matches_after_one_thousand
+    tail = query.incoming("WORKER-ENTRY", limit=20, offset=1000)
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_cli_exposes_offset_with_backward_compatible_default (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_cli_exposes_offset_with_backward_compatible_default)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 78, in test_incoming_cli_exposes_offset_with_backward_compatible_default
+    self.assertEqual(parser().parse_args(arguments).offset, 0)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Namespace' object has no attribute 'offset'
+
+======================================================================
+ERROR: test_incoming_continues_after_first_hundred_matches (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_continues_after_first_hundred_matches)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 55, in test_incoming_continues_after_first_hundred_matches
+    self.assertEqual(pages[0]["offset"], 0)
+                     ~~~~~^^^
+IndexError: list index out of range
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 89, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    query.incoming("WORKER-ENTRY", offset=offset)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 89, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    query.incoming("WORKER-ENTRY", offset=offset)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=1.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 89, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    query.incoming("WORKER-ENTRY", offset=offset)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset='1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 89, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    query.incoming("WORKER-ENTRY", offset=offset)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions) (offset=9223372036854775808)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 89, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    query.incoming("WORKER-ENTRY", offset=offset)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MaterialQuery.incoming() got an unexpected keyword argument 'offset'
+
+======================================================================
+ERROR: test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 100, in test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions
+    self.assertEqual(incoming[-1]["action"]["offset"], 0)
+                     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'offset'
+
+======================================================================
+FAIL: test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 128, in test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change
+    self.assertEqual(denied["status"], "failed")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'answered' != 'failed'
+- answered
++ failed
+
+
+======================================================================
+FAIL: test_answer_ready_checkpoint_obeys_cancellation_before_source_read (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_obeys_cancellation_before_source_read)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 143, in test_answer_ready_checkpoint_obeys_cancellation_before_source_read
+    self.assertEqual(result["status"], "cancelled")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'answered' != 'cancelled'
+- answered
++ cancelled
+
+
+======================================================================
+FAIL: test_answer_ready_checkpoint_revalidates_without_repeating_model_request (test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_revalidates_without_repeating_model_request)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_investigation_recovery_paging.py", line 118, in test_answer_ready_checkpoint_revalidates_without_repeating_model_request
+    self.assertEqual(result["source_requests"], 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.395s
+
+FAILED (failures=3, errors=9)

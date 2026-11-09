@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在线源码业务分析</title>
+  <link rel="stylesheet" href="/online.css">
+  <script src="/marked.umd.js" defer></script>
+  <script src="/markdown.js" defer></script>
+  <script src="/online.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#question">跳至提问</a>
+  <header class="topbar"><div><span class="brand">源码业务分析</span><span class="tag">BITBUCKET ONLINE</span></div><a href="/">返回本地工作台</a></header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="在线资料与历史">
+      <div class="section-heading"><h2>在线资料</h2><button id="connect" class="compact">接入</button></div>
+      <p class="muted small">按需读取分析资料与源码，引用固定在所选版本。</p>
+      <div id="workspace-list" class="items"></div>
+      <button id="new-conversation" class="secondary wide" disabled>＋ 新对话</button>
+      <h2 class="history-heading">最近对话</h2><div id="conversation-list" class="items"></div>
+      <div class="sidebar-footer"><span id="connection-status" role="status">正在连接本机服务…</span><p class="small muted">在线资料、对话和授权独立管理。</p></div>
+    </aside>
+    <main>
+      <section class="source-heading"><div><p class="eyebrow">BUSINESS INVESTIGATION</p><h1 id="source-title">从业务问题开始</h1><p id="source-version" class="muted">接入已发布的在线分析资料，查找流程、规则与源码依据。</p></div><div class="source-actions"><button id="update" class="secondary" disabled>选择新版本</button><button id="credentials" class="secondary" disabled>更新授权</button><button id="disconnect" class="quiet" disabled>结束授权</button></div></section>
+      <p id="source-basis" class="small muted" hidden></p>
+      <details id="coverage" class="coverage-panel" hidden><summary id="coverage-title">资料覆盖范围</summary><p id="coverage-summary" class="small muted"></p><ul id="coverage-boundaries"></ul><ul id="coverage-skips"></ul></details>
+      <div id="error" class="notice error" role="alert" hidden></div>
+      <section id="progress" class="notice" aria-live="polite" hidden><div><strong id="progress-title">正在分析</strong><p id="progress-detail"></p></div><button id="cancel" class="secondary">停止</button></section>
+      <section id="messages" class="messages" aria-label="业务分析对话" aria-live="polite"><div class="empty"><div class="empty-mark">⌕</div><h2>让每个结论有源码依据</h2><p>可以询问一项业务如何处理、条件如何判断，或变更会影响哪些程序。系统会记录已核对的范围和待确认事项。</p></div></section>
+      <div id="continuation" class="continuation" hidden><p id="continuation-description"></p><button id="resume" class="secondary">继续调查</button><button id="retry" class="secondary" hidden>确认重新调用模型</button></div>
+      <div class="conversation-tools"><button id="export-markdown" class="quiet" disabled>导出 Markdown</button><button id="export-json" class="quiet" disabled>导出 JSON</button><button id="delete-conversation" class="quiet danger" disabled>删除对话</button></div>
+      <form id="question-form" class="composer"><label for="question">业务问题</label><textarea id="question" rows="3" maxlength="16000" placeholder="例如：从接收请求到完成处理，这项业务经过哪些步骤？异常时会怎样？" required></textarea><div class="composer-bottom"><label class="consent"><input id="allow-source-transfer" type="checkbox">允许将本次分析所需片段发送到已配置的公司模型</label><button id="send" class="primary" disabled>开始分析</button></div><p id="model-status" class="muted small"></p></form>
+    </main>
+  </div>
+  <dialog id="connect-dialog" aria-labelledby="connect-title"><form id="connect-form" autocomplete="off"><div class="dialog-heading"><h2 id="connect-title">接入在线分析资料</h2><button type="button" class="quiet" data-close>关闭</button></div><p class="muted">使用公司网络中已发布的分析版本。接入只读取清单，提问后才读取相关资料与源码。</p><label for="source-repository">源码仓库</label><input id="source-repository" placeholder="https://bitbucket.org/workspace/source" maxlength="1024" required><label for="location-kind">分析资料位置</label><select id="location-kind"><option value="downloads">Bitbucket Downloads</option><option value="https">获准的 HTTPS 资料地址</option></select><div id="downloads-fields"><label for="material-repository">资料所在仓库（留空沿用源码仓库）</label><input id="material-repository" placeholder="workspace/source" maxlength="1024"><div class="field-row"><button type="button" id="load-releases" class="secondary">读取已发布版本</button><span id="release-status" class="small muted" role="status"></span></div><label for="release-name">分析版本</label><select id="release-name" required><option value="">请先读取版本列表</option></select></div><div id="https-fields" hidden><label for="material-url">资料地址</label><input id="material-url" type="url" placeholder="https://approved.example/materials/version/" maxlength="4096"><label for="source-commit">完整提交版本</label><input id="source-commit" maxlength="64" placeholder="40 位完整提交哈希"><label for="material-revision">资料修订（可选，填写后严格核对）</label><input id="material-revision" maxlength="64"></div><details open><summary>读取授权</summary><p class="small muted">凭据仅留在本次运行内存中。退出服务后需重新授权，已有对话仍可查看。</p><label for="material-username">资料读取账号邮箱（使用 API token 时填写）</label><input id="material-username" autocomplete="off" maxlength="512"><label for="material-token">资料读取令牌</label><input id="material-token" type="password" autocomplete="new-password" maxlength="8192"><label class="consent"><input id="same-credentials" type="checkbox" checked>源码读取沿用同一授权</label><div id="source-credentials" hidden><label for="source-username">源码读取账号邮箱</label><input id="source-username" autocomplete="off" maxlength="512"><label for="source-token">源码读取令牌</label><input id="source-token" type="password" autocomplete="new-password" maxlength="8192"></div></details><div id="connect-error" class="notice error" role="alert" hidden></div><div class="dialog-footer"><button type="button" class="secondary" data-close>取消</button><button id="connect-submit" class="primary">接入所选版本</button></div></form></dialog>
+  <dialog id="credentials-dialog" aria-labelledby="credentials-title"><form id="credentials-form" autocomplete="off"><div class="dialog-heading"><h2 id="credentials-title">更新当前资料的读取授权</h2><button type="button" class="quiet" data-close>关闭</button></div><p class="muted">授权更新不会切换源码版本。使用两个不同账号时，请分别填写。</p><label for="auth-material-username">资料账号邮箱</label><input id="auth-material-username" maxlength="512" autocomplete="off"><label for="auth-material-token">资料令牌</label><input id="auth-material-token" type="password" maxlength="8192" autocomplete="new-password"><label for="auth-source-username">源码账号邮箱</label><input id="auth-source-username" maxlength="512" autocomplete="off"><label for="auth-source-token">源码令牌</label><input id="auth-source-token" type="password" maxlength="8192" autocomplete="new-password"><div id="credentials-error" class="notice error" hidden role="alert"></div><div class="dialog-footer"><button type="button" class="secondary" data-close>取消</button><button class="primary">更新授权</button></div></form></dialog>
+  <dialog id="evidence-dialog" class="evidence-dialog" aria-labelledby="evidence-title"><div class="dialog-heading"><h2 id="evidence-title">源码依据</h2><button type="button" class="quiet" data-close>关闭</button></div><p id="evidence-version" class="muted small"></p><pre id="evidence-text"></pre></dialog>
+</body>
+</html>

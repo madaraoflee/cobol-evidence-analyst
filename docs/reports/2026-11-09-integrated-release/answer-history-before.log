@@ -1,0 +1,29 @@
+test_actual_completion_with_identical_text_is_a_new_answer (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_actual_completion_with_identical_text_is_a_new_answer) ... ok
+test_cancelled_recovery_preserves_original_answer_without_another_copy (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_cancelled_recovery_preserves_original_answer_without_another_copy) ... FAIL
+test_changed_answer_or_citations_or_evidence_or_coverage_is_not_discarded (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_changed_answer_or_citations_or_evidence_or_coverage_is_not_discarded) ... ok
+test_identical_answer_for_a_new_question_is_not_deduplicated (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_identical_answer_for_a_new_question_is_not_deduplicated) ... ok
+test_new_partial_delivery_is_preserved_even_with_identical_text (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_new_partial_delivery_is_preserved_even_with_identical_text) ... ok
+test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer) ... FAIL
+
+======================================================================
+FAIL: test_cancelled_recovery_preserves_original_answer_without_another_copy (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_cancelled_recovery_preserves_original_answer_without_another_copy)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_recovery_answer_history.py", line 108, in test_cancelled_recovery_preserves_original_answer_without_another_copy
+    self.assertEqual(len(saved["messages"]), 2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 2
+
+======================================================================
+FAIL: test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer (test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_recovery_answer_history.py", line 79, in test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer
+    self.assertEqual(len(saved["messages"]), 2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 2
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.377s
+
+FAILED (failures=2)
