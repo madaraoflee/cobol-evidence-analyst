@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -35,11 +37,54 @@ def _verify_checkout(source, commit, subdirectory, paths=None):
     # Diff against HEAD checks staged and unstaged edits in the selected scope.
     _git(root, "diff", "--no-ext-diff", "--no-textconv", "--quiet", "HEAD", "--", subdirectory or ".")
     if paths is not None:
-        tracked = {os.fsdecode(item) for item in
-                   _git(root, "ls-files", "-z", "--", subdirectory or ".").split(b"\0") if item}
         prefix = subdirectory + "/" if subdirectory else ""
-        if any(prefix + relative_path(path) not in tracked for path in paths):
+        selected = {prefix + relative_path(path): source / path for path in paths}
+        objects = {}
+        # Git's clean filters can hide byte differences from `git diff`.
+        # Read the immutable tree once, then hash only indexed files without
+        # filters; spawning Git for each source would scale poorly.
+        tree = _git(root, "ls-tree", "-r", "-z", "--full-tree", commit, "--", subdirectory or ".")
+        for row in tree.split(b"\0"):
+            if not row:
+                continue
+            try:
+                header, name = row.split(b"\t", 1)
+                path = os.fsdecode(name)
+                if path not in selected:
+                    continue
+                mode, kind, object_id = header.decode("ascii").split()
+                valid_commit(object_id)
+            except (ValueError, UnicodeError):
+                raise MaterialError("MATERIAL_CHECKOUT_UNAVAILABLE") from None
+            if mode not in {"100644", "100755"} or kind != "blob" or len(object_id) != len(commit):
+                raise MaterialError("MATERIAL_CHECKOUT_CONTENT_MISMATCH")
+            objects[path] = object_id
+        if selected.keys() - objects.keys():
             raise MaterialError("MATERIAL_UNTRACKED_SOURCE")
+        for path, source_file in selected.items():
+            _verify_blob_bytes(source_file, objects[path])
+
+
+def _verify_blob_bytes(path, object_id):
+    try:
+        if path.is_symlink():
+            raise MaterialError("MATERIAL_CHECKOUT_CONTENT_MISMATCH")
+        with path.open("rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                raise MaterialError("MATERIAL_CHECKOUT_CONTENT_MISMATCH")
+            hasher = hashlib.sha1(usedforsecurity=False) if len(object_id) == 40 else hashlib.sha256()
+            hasher.update(b"blob " + str(info.st_size).encode("ascii") + b"\0")
+            size = 0
+            while chunk := stream.read(1024 * 1024):
+                size += len(chunk)
+                if size > info.st_size:
+                    raise MaterialError("MATERIAL_CHECKOUT_CONTENT_MISMATCH")
+                hasher.update(chunk)
+            if size != info.st_size or hasher.hexdigest() != object_id:
+                raise MaterialError("MATERIAL_CHECKOUT_CONTENT_MISMATCH")
+    except OSError:
+        raise MaterialError("MATERIAL_CHECKOUT_UNAVAILABLE") from None
 
 
 def build(args):
@@ -168,7 +213,12 @@ def main(argv=None):
     try:
         result = build(arguments) if arguments.command == "build" else query(arguments)
     except MaterialError as error:
-        print(json.dumps({"error": error.code}), file=sys.stderr)
+        result = {"error": error.code}
+        if error.code == "MATERIAL_CHECKOUT_CONTENT_MISMATCH":
+            result["hint"] = ("Build from the selected commit's original file bytes. "
+                              "A checkout changed by newline conversion or clean/smudge filters "
+                              "cannot be certified; no checkout files were changed.")
+        print(json.dumps(result), file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         print(json.dumps({"error": "MATERIAL_CANCELLED"}), file=sys.stderr)

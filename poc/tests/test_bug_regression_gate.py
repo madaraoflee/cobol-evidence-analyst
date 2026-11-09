@@ -172,7 +172,7 @@ class BugRegressionGateTests(unittest.TestCase):
             root = Path(directory)
             test = root / "sample.test.cjs"
             test.write_text("const test=require('node:test'); test.skip('old regression',()=>{});", encoding="utf-8")
-            result = subprocess.run(["node", "--test", "--test-reporter=" + str(ROOT / "tools/bug_browser_reporter.cjs"),
+            result = subprocess.run(["node", "--test", "--test-reporter=" + (ROOT / "tools/bug_browser_reporter.cjs").as_uri(),
                 str(test)], capture_output=True, text=True, check=True)
             events = [json.loads(line) for line in result.stdout.splitlines()]
             rows, errors = gate.browser_results(events, root, [test.name])

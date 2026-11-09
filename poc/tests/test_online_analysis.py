@@ -103,6 +103,7 @@ class OnlineAnalysisIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 2)
         self.assertFalse(self.output.exists())
         subprocess.run(["git", "init", "-q", str(self.source)], check=True)
+        subprocess.run(["git", "-C", str(self.source), "config", "core.autocrlf", "false"], check=True)
         subprocess.run(["git", "-C", str(self.source), "add", "."], check=True)
         subprocess.run(["git", "-C", str(self.source), "-c", "user.name=Test User",
                         "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
@@ -131,7 +132,7 @@ class OnlineAnalysisIntegrationTests(unittest.TestCase):
 
     def test_evidence_cli_reads_pinned_subdirectory_and_keeps_credentials_out_of_output(self):
         source = program("MAIN-ENTRY")
-        (self.source / "main.cbl").write_text(source)
+        (self.source / "main.cbl").write_bytes(source.encode("utf-8"))
         status, result = self.build("--subdirectory", "src")
         self.assertEqual(status, 0, result)
         with mock.patch.dict("os.environ", {"ONLINE_SOURCE_TOKEN": "private-test-token"}), \

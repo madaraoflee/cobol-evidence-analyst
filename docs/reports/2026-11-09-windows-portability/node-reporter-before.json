@@ -1,0 +1,5 @@
+{
+  "scope": "synthetic_windows_drive_reporter_argument_on_local_node",
+  "returncode": 7,
+  "stderr": "node:internal/test_runner/harness:122\n      throw err;\n      ^\n\nError [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only URLs with a scheme in: file, data, and node are supported by the default ESM loader. Received protocol 'd:'\n    at throwIfUnsupportedURLScheme (node:internal/modules/esm/load:195:11)\n    at defaultLoadSync (node:internal/modules/esm/load:142:3)\n    at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:779:12)\n    at #loadSync (node:internal/modules/esm/loader:799:49)\n    at ModuleLoader.load (node:internal/modules/esm/loader:765:26)\n    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:507:31)\n    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:558:36)\n    at afterResolve (node:internal/modules/esm/loader:606:52)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:612:12)\n    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:631:32) {\n  code: 'ERR_UNSUPPORTED_ESM_URL_SCHEME'\n}\n\nNode.js v26.0.0\n"
+}

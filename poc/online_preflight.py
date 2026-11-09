@@ -241,6 +241,10 @@ def main(argv=None):
         _repository(args.material_repository)
         _commit(args.commit)
         output = Path(args.output)
+        # Some platforms follow a dangling leaf link even in exclusive mode.
+        # Reject that link before opening a report or issuing metadata reads.
+        if output.is_symlink():
+            raise MaterialError("PREFLIGHT_REPORT_SYMLINK")
         # Reserve the report before any network operation, including detecting
         # inaccessible parents and concurrent attempts to use the same path.
         with output.open("x", encoding="utf-8") as stream:

@@ -6140,6 +6140,201 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "保留原四项模板测试的断言与身份，不跳过；平台工具选择和实际shell执行由源码回归验证，最终 Windows 执行另以 Actions 结果确认。"
+    },
+    {
+      "id": "BUG-20261109-009",
+      "title": "Windows 合成 Git 仓库的只读对象无法清理",
+      "symptom": "在线发布回归生成资料成功后，在删除合成 checkout 的只读 Git 对象时失败。",
+      "root_cause": "测试使用普通 rmtree，未兼容 Windows 只读普通文件的删除语义。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-windows-portability/README.md",
+        "poc/tests/test_online_fixture_cleanup.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_fixture_cleanup.py",
+          "test_id": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_readonly_git_object_tree_is_removed_and_sibling_is_preserved"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_fixture_cleanup.py",
+          "test_id": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_windows_permission_callback_makes_only_failed_readonly_file_writable"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_fixture_cleanup.py",
+          "test_id": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_permission_error_for_already_writable_file_remains_a_failure"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_fixture_cleanup.py",
+          "test_id": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_non_permission_error_is_not_ignored"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_fixture_cleanup.py",
+          "test_id": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_readonly_nonregular_path_never_changes_the_target_permissions"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_publish.SnapshotPublishTests.test_prepare_publish_and_read_snapshot_without_sync_integration",
+          "path": "poc/tests/test_online_publish.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-010",
+      "title": "在线测试夹具的换行字节与预期哈希不同",
+      "symptom": "Windows 下三个在线导出/取证测试因 CRLF 实际输入与 LF 预期不一致失败。",
+      "root_cause": "夹具默认文本写入受系统换行影响，而哈希和模拟远端使用固定 LF 字节；Git 测试也依赖宿主换行设置。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-windows-portability/README.md",
+        "poc/tests/test_online_material_export_newlines.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_material_export_newlines.py",
+          "test_id": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_digest_fixture_is_identical_under_windows_text_defaults"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_material_export_newlines.py",
+          "test_id": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_cli_evidence_preserves_windows_crlf_bytes_and_pinned_subdirectory"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_material_export_newlines.py",
+          "test_id": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_export_and_evidence_preserve_exact_lf_crlf_and_mixed_source_bytes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_material_export_newlines.py",
+          "test_id": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_newline_only_change_invalidates_the_original_index_hash"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_material_export.MaterialExportTests.test_real_index_exports_search_facts_reverse_relations_without_source_or_input_changes",
+          "path": "poc/tests/test_online_material_export.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_material_export.MaterialExportTests.test_read_transaction_does_not_mix_concurrent_index_updates",
+          "path": "poc/tests/test_online_material_export.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_analysis.OnlineAnalysisIntegrationTests.test_evidence_cli_reads_pinned_subdirectory_and_keeps_credentials_out_of_output",
+          "path": "poc/tests/test_online_analysis.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-011",
+      "title": "干净 Git 工作树的转换字节被误标为固定提交原文",
+      "symptom": "autocrlf 或 clean 过滤后的工作树可以通过 git diff 干净检查并生成 git_checked 资料，但按固定提交读原文时大小或哈希校验失败。",
+      "root_cause": "仅验证工作树相对索引的逻辑差异，没有核对所选提交的原始 blob 字节。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-windows-portability/README.md",
+        "poc/tests/test_online_git_identity.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_git_identity.py",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_git_identity.py",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_custom_clean_filter_cannot_certify_transformed_worktree_bytes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_git_identity.py",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_matching_lf_and_crlf_blobs_build_and_verify_for_sha1_and_sha256"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_git_identity.py",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_verification_uses_one_tree_query_for_many_selected_files"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_git_identity.py",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_large_source_blob_is_hashed_with_bounded_reads"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-012",
+      "title": "Windows 预检报告独占创建仍跟随悬空符号链接",
+      "symptom": "无效报告路径可能先创建链接目标并开始元数据检查，未按约定在网络前阻断。",
+      "root_cause": "仅依赖 open(x) 的平台行为，没有显式拒绝叶子符号链接。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-windows-portability/README.md",
+        "poc/tests/test_online_preflight_output_paths.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_preflight_output_paths.py",
+          "test_id": "test_online_preflight_output_paths.PreflightOutputPathTests.test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_preflight_output_paths.py",
+          "test_id": "test_online_preflight_output_paths.PreflightOutputPathTests.test_real_dangling_leaf_link_preserves_link_and_does_not_create_target"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_preflight_output_paths.py",
+          "test_id": "test_online_preflight_output_paths.PreflightOutputPathTests.test_report_open_failure_is_not_swallowed_and_never_starts_checks"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_preflight.CommandTests.test_existing_missing_parent_symlink_or_invalid_commit_do_not_issue_requests",
+          "path": "poc/tests/test_online_preflight.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-013",
+      "title": "Windows 维护回归的 Node 报告器路径被当作 URL 协议",
+      "symptom": "维护门禁的真实浏览器跳过检测在 Windows 不能启动，Node 返回退出码 7。",
+      "root_cause": "绝对盘符路径直接用作 ESM 报告器标识，盘符被解析成不支持的 URL scheme。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-windows-portability/README.md",
+        "poc/tests/test_bug_reporter_portability.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_bug_reporter_portability.py",
+          "test_id": "test_bug_reporter_portability.BugReporterPortabilityTests.test_reporter_file_url_handles_spaces_and_fragment_characters"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_bug_regression_gate.BugRegressionGateTests.test_real_browser_skip_is_not_reported_as_passing",
+          "path": "poc/tests/test_bug_regression_gate.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
     }
   ],
   "updated_at": "2026-11-09"

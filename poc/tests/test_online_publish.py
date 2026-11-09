@@ -4,7 +4,6 @@ from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,6 +16,7 @@ from online_material_format import canonical_json
 from online_material_reader import MaterialReader
 from online_publish import main, parser
 from test_online_distribution import MemoryClient
+from online_fixture_cleanup import remove_fixture_tree
 
 
 class SnapshotPublishTests(unittest.TestCase):
@@ -31,6 +31,7 @@ class SnapshotPublishTests(unittest.TestCase):
             'IDENTIFICATION DIVISION.\nPROGRAM-ID. ENTRY.\nPROCEDURE DIVISION.\n'
             'DISPLAY "SNAPSHOT-MARKER".\nGOBACK.\n', encoding="utf-8")
         subprocess.run(["git", "init", "-q", str(self.checkout)], check=True)
+        subprocess.run(["git", "-C", str(self.checkout), "config", "core.autocrlf", "false"], check=True)
         subprocess.run(["git", "-C", str(self.checkout), "add", "."], check=True)
         subprocess.run(["git", "-C", str(self.checkout), "-c", "user.name=Test User",
                         "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
@@ -57,7 +58,7 @@ class SnapshotPublishTests(unittest.TestCase):
         self.assertEqual(result["source_snapshot"]["sync_completeness"], "not_verified")
         self.assertNotIn("sync_receipt", result)
         client = MemoryClient()
-        shutil.rmtree(self.checkout)
+        remove_fixture_tree(self.checkout)
         with mock.patch("online_publish._client", return_value=client):
             status, published = self.invoke("publish", "--material", str(self.output), "--repository-snapshot",
                 "--workspace", "example", "--repository", "materials")
