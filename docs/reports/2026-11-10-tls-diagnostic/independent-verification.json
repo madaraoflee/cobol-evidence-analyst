@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-09T16:19:56.345392+00:00",
+  "source_commit": "9dae4b3e756eeaea5cd822d5fa8cc18d0ec16eae",
+  "report_path": "/private/tmp/cobol-tls-full-regression-retry-20261110/BUG-REGRESSION-REPORT.json",
+  "independent_checks_passed": true,
+  "report_sha256": "309c517ede4929a2c5e509652d3fd8e25c2afc6ccbcb8c14516d3746f2616b4b",
+  "raw_sha256_verified": {
+    "python-0.json": "5a7737f4e62b577cd023c003d5f436dc66d8cff60253cdd92954f12df8c5ee6a",
+    "python-1.json": "f4cd64f82e967479932682394a4bffc8115b58098f6eda052dd008505249c7da",
+    "python-2.json": "8cf8ed89b1ce204cf8287109b22352b6b1df2e516331aa8e6b6986b899aa9748",
+    "python-3.json": "7f9dbba851f789e6928964f517ce6f02387e388d1810549583041d877fc61955",
+    "python-tools.json": "2dba865b769b41f6dc0c93a4d2a5f6afec6feef1836fa0e1c60248c58394777a",
+    "browser.jsonl": "bcd7395a6e5d1f40ecc85c0edc2d1202dc55e400bd16a3271c135961d3275028"
+  },
+  "source_snapshot": "a3f10e116ebc4ad5c0a0745ed34e9df465e79aee2b641998af56db5318b6102e",
+  "source_files": 831,
+  "source_snapshot_matches_current_bytes_and_commit": true,
+  "same_source_and_snapshot_as_failed_attempt": true,
+  "worktree_status_at_verification": [
+    " M docs/reports/2026-11-10-tls-diagnostic/README.md",
+    "?? docs/reports/2026-11-10-tls-diagnostic/BUG-REGRESSION-REPORT.json",
+    "?? docs/reports/2026-11-10-tls-diagnostic/FIRST-REGRESSION-INPUT-FAILURE.zip",
+    "?? docs/reports/2026-11-10-tls-diagnostic/FULL-REGRESSION-REPORTS.zip",
+    "?? docs/reports/2026-11-10-tls-diagnostic/QUOTA-SCENARIO-RESULTS.json",
+    "?? docs/reports/2026-11-10-tls-diagnostic/first-regression-input-failure.json",
+    "?? docs/reports/2026-11-10-tls-diagnostic/quota-scenarios.log",
+    "?? docs/reports/2026-11-10-tls-diagnostic/reproduce_quota_scenarios.py",
+    "?? docs/reports/2026-11-10-tls-diagnostic/restored-public-input.json",
+    "?? docs/reports/2026-11-10-tls-diagnostic/verification-summary.json"
+  ],
+  "python": {
+    "tests": 5140,
+    "passed": 5140,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unique_once": true,
+    "baseline_and_discovery_exact": true,
+    "test_source_manifests_match": true,
+    "shards": [
+      {
+        "file": "python-0.json",
+        "tests": 1285,
+        "passed": 1285,
+        "skipped": 0,
+        "reported_source_dirty": true
+      },
+      {
+        "file": "python-1.json",
+        "tests": 1285,
+        "passed": 1285,
+        "skipped": 0,
+        "reported_source_dirty": true
+      },
+      {
+        "file": "python-2.json",
+        "tests": 1285,
+        "passed": 1285,
+        "skipped": 0,
+        "reported_source_dirty": true
+      },
+      {
+        "file": "python-3.json",
+        "tests": 1284,
+        "passed": 1284,
+        "skipped": 0,
+        "reported_source_dirty": true
+      },
+      {
+        "file": "python-tools.json",
+        "tests": 1,
+        "passed": 1,
+        "skipped": 0,
+        "reported_source_dirty": true
+      }
+    ]
+  },
+  "browser": {
+    "tests": 310,
+    "passed": 310,
+    "failures": 0,
+    "skipped": 0,
+    "todo": 0,
+    "unique_once": true,
+    "files": 19,
+    "baseline_exact": true
+  },
+  "ledger": {
+    "total": 258,
+    "passed": 252,
+    "unverified": 6,
+    "old_ids_evidence_and_regressions_preserved": true,
+    "old_baseline_preserved": true,
+    "new_python_ids": 2,
+    "new_browser_ids": 1,
+    "all_per_bug_checks_independently_reconstructed": true,
+    "tls_014": {
+      "id": "BUG-20261109-014",
+      "title": "TLS请求发送后的响应失败被说明成无法建立连接",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_classified_transport_failure_preserves_specific_safe_diagnosis",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_tls_phase_diagnostic.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    "unverified_bug_ids": [
+      "BUG-20261007-901",
+      "BUG-20261007-902",
+      "BUG-20261106-901",
+      "BUG-20261106-902",
+      "BUG-20261106-903",
+      "BUG-20261106-904"
+    ],
+    "all_remaining_open_are_field_revalidation": true
+  },
+  "external_public_input": {
+    "evidence_path": "/private/tmp/cobol-restored-public-input-20261110.json",
+    "evidence_sha256": "822079a302a7fcbfb09420a486f322ec49b6bd22ab770a9b58f4699076f3764e",
+    "source_root": "/private/tmp/cobol-public-regression-source-20261110",
+    "files": 8,
+    "all_current_bytes_match_pre_run_evidence_and_frozen_manifest": true,
+    "all_files_read_only": true,
+    "old_source_missing_cause": "not established"
+  },
+  "failed_attempt_preserved": {
+    "report_path": "/private/tmp/cobol-tls-full-regression-20261110/BUG-REGRESSION-REPORT.json",
+    "report_sha256": "25957b24308250c9b964fcf7da41d2ef6666e54708150ab465d3d9ead0ace482",
+    "raw_hashes_verified": true,
+    "failures": [
+      "test_file_question_obligations.FileQuestionObligationTests.test_actual_frozen_public_file_mapping_default_source_evidence_correct",
+      "test_public_business_acceptance.PublicBusinessAcceptanceTests.test_default_pipeline_uses_real_versioned_source_and_repairs_wrong_claims"
+    ],
+    "archive_path": "/private/tmp/cobol-open-defect-audit-20261109/docs/reports/2026-11-10-tls-diagnostic/FIRST-REGRESSION-INPUT-FAILURE.zip",
+    "archive_sha256": "5d374109b24ed37a6552d45a4d79d9adfe7b12b4931478ac63a39f25cac4e0cb",
+    "archive_entries_exactly_match_original_reports": true
+  },
+  "conclusion": {
+    "source_regressions_passed": true,
+    "overall_status": "blocked",
+    "all_recorded_bugs_verified": false,
+    "native_or_real_model_acceptance": false
+  },
+  "scope": "Independent read-only verification; no extra tests, model/build calls or repository edits. Raw reports retain source_dirty=true because report documents were present; all 831 bound source/test/gate files match the tested commit and both runs exactly."
+}

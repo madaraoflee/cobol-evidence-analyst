@@ -1,0 +1,25 @@
+{
+  "source_commit": "9dae4b3e756eeaea5cd822d5fa8cc18d0ec16eae",
+  "source_snapshot": "a3f10e116ebc4ad5c0a0745ed34e9df465e79aee2b641998af56db5318b6102e",
+  "status": "blocked",
+  "source_regressions_passed": false,
+  "errors": [
+    "Regression process returned a nonzero exit code",
+    "Python shard did not complete successfully",
+    "Python shard 0: errors is not empty",
+    "Python test did not pass",
+    "Python shard did not complete successfully",
+    "Python shard 2: failures is not empty",
+    "Python test did not pass"
+  ],
+  "python_tests": 5140,
+  "browser_tests": 310,
+  "archive": "FIRST-REGRESSION-INPUT-FAILURE.zip",
+  "archive_sha256": "5d374109b24ed37a6552d45a4d79d9adfe7b12b4931478ac63a39f25cac4e0cb",
+  "input_observation": "All eight fixed public fixture files were absent from the previous external directory; deletion cause not established.",
+  "product_test_or_contract_changed_before_retry": false,
+  "failed_test_ids": [
+    "test_file_question_obligations.FileQuestionObligationTests.test_actual_frozen_public_file_mapping_default_source_evidence_correct",
+    "test_public_business_acceptance.PublicBusinessAcceptanceTests.test_default_pipeline_uses_real_versioned_source_and_repairs_wrong_claims"
+  ]
+}

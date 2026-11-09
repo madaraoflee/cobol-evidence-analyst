@@ -1,0 +1,52 @@
+{
+  "source_root": "/private/tmp/cobol-public-regression-source-20261110",
+  "source": "previously_verified_office_kit_public_fixture_bytes",
+  "kit_sha256": "7fad3f7548772fca5dd950f2799ee676bb486453f10d6408c83703ac17660cb0",
+  "manifest_sha256": "e1ae2ff544272b524e7863dce0b9c972e29d1c35f2d93765fce2dc058012d81b",
+  "files": [
+    {
+      "path": "app/cbl/CBTRN02C.cbl",
+      "bytes": 58890,
+      "sha256": "708f3cadc555acab63f11e2f3238f5372ac7180e6b01197bf960d96bf0d2e83f"
+    },
+    {
+      "path": "app/cbl/CBACT04C.cbl",
+      "bytes": 52479,
+      "sha256": "5084bb8b0c9a0f0199f737487ae1863f12e43cabbdc459a62b6b67bedc683cc4"
+    },
+    {
+      "path": "app/cpy/CVTRA01Y.cpy",
+      "bytes": 898,
+      "sha256": "50637f13692c89b17a2fc60d249dc54e9eb3569d933afca3cdcf65b491a9d5ba"
+    },
+    {
+      "path": "app/cpy/CVACT03Y.cpy",
+      "bytes": 736,
+      "sha256": "ffc6079e09b28739e154bf6c1e1c36d408209faa91f6cf7008078dc596a1c370"
+    },
+    {
+      "path": "app/cpy/CVTRA02Y.cpy",
+      "bytes": 898,
+      "sha256": "7828fae489c59944b4310e223028a8d3a525ccf4ead113c062bcaff04b52bf9c"
+    },
+    {
+      "path": "app/cpy/CVACT01Y.cpy",
+      "bytes": 1125,
+      "sha256": "81a08bad15af5664326a6f0af3650f570821c4857ffdec3a6a39f91f07dca728"
+    },
+    {
+      "path": "app/cpy/CVTRA05Y.cpy",
+      "bytes": 1546,
+      "sha256": "d7bde0e78ff608497087b9909c889ed39e347269f964bda767b92b547fbb5fec"
+    },
+    {
+      "path": "app/cpy/CVTRA06Y.cpy",
+      "bytes": 1538,
+      "sha256": "c5c69f1b86c5a10156d3c5881d7cf387e6b925aae32825360f85bf4056a554a1"
+    }
+  ],
+  "all_match": true,
+  "read_only": true,
+  "old_source_missing_cause": "not established",
+  "no_product_or_test_change": true
+}
