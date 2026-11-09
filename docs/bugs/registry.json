@@ -922,11 +922,13 @@
       "root_cause": "缺少当前版本相同题目的真实重测与人工结案。",
       "status": "open",
       "evidence": [
-        "docs/reports/2026-10-07-detailed-business-correction.md"
+        "docs/reports/2026-10-07-detailed-business-correction.md",
+        "docs/reports/2026-11-09-open-defects/historical-quality-audit.json",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
-      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+      "limitations": "原始失败回答、评审及源码/题目SHA已复核，56份公开夹具与题目未改变；当前源码可完整构造审稿载荷，但这不证明实际检索或模型纠错。本轮没有调用真实模型；需当前版本同题重测并复核全文后才可关闭。"
     },
     {
       "id": "BUG-20261007-902",
@@ -935,11 +937,13 @@
       "root_cause": "缺少当前版本相同题目的真实重测与人工结案。",
       "status": "open",
       "evidence": [
-        "docs/reports/2026-10-07-detailed-business-correction.md"
+        "docs/reports/2026-10-07-detailed-business-correction.md",
+        "docs/reports/2026-11-09-open-defects/historical-quality-audit.json",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
-      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+      "limitations": "原始失败回答、评审及源码/题目SHA已复核，56份公开夹具与题目未改变；当前源码可完整构造审稿载荷，但这不证明实际检索或模型纠错。本轮没有调用真实模型；需当前版本同题重测并复核全文后才可关闭。"
     },
     {
       "id": "BUG-20261014-001",
@@ -2134,16 +2138,41 @@
     },
     {
       "id": "BUG-20261020-901",
-      "title": "历史前端一秒采样故障尚缺精确验收映射",
+      "title": "历史前端固定一秒采样的准确回归映射已补齐",
       "symptom": "历史修复记录涉及固定一秒采样遮蔽更新，目前尚未完成对应回归身份核对。",
-      "root_cause": "本次历史补录未建立足以逐条结案的测试映射。",
-      "status": "open",
+      "root_cause": "旧前端收到运行中快照后固定等待1000ms，遮蔽短时更新。历史补录误指向另一份live-ui报告；已追溯52469d6的修复及其修复前失败回放，补齐版本等待和后续SSE交付的精确回归。",
+      "status": "fixed",
       "evidence": [
-        "docs/reports/2026-10-20-live-ui/README.md"
+        "docs/reports/2026-10-20-live-ui/README.md",
+        "docs/reports/2026-10-20-business-framework-streaming.md",
+        "docs/reports/2026-11-09-open-defects/progress-audit.json",
+        "docs/reports/2026-11-09-open-defects/TARGETED-AUDIT-LOGS.zip",
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/52469d636103920371632429d56a78c6f62f4e09"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_workbench_progress_wait.ProgressWaitTests.test_preview_wakes_reader_before_generation_can_finish"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_workbench_progress_wait.ProgressWaitTests.test_native_stream_delta_reaches_waiter_before_the_next_response_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_web_job_stream.WebJobStreamTests.test_received_preview_arrives_while_job_is_still_running_then_terminal_closes"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_progress_wait.test.cjs"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_conversation.test.cjs"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+      "limitations": "仅验证已收到正文的本地进度交付与历史修复映射；不证明真实模型首片速度、全部瞬时事件逐项送达、总体分析时长或公司设备体验。原错误报告引用保留用于追溯，准确来源见新增证据。"
     },
     {
       "id": "BUG-20261021-101",
@@ -2239,16 +2268,51 @@
     },
     {
       "id": "BUG-20261021-901",
-      "title": "历史晚出现控制条件丢失尚缺精确验收映射",
-      "symptom": "历史记录涉及晚出现的控制条件及其边界原因丢失，尚未完成精确回归映射。",
-      "root_cause": "本次历史补录未建立足以逐条结案的测试映射。",
-      "status": "open",
+      "title": "静态控制原文已供应后仍残留缺源码原因的回归映射已补齐",
+      "symptom": "远处IF与CALL准确原文均已供应、scope_known=true，却仍输出cl_control_or_environment_source_not_supplied；历史补录尚未绑定准确回归。",
+      "root_cause": "旧scope_unknown_reason无条件保留缺源码字符串，旧原生验收也错误期待缺源码。8d37353已按静态控制证据是否充分清除此原因，同时保留运行状态未知；本次完成旧表达式回放和精确测试映射。",
+      "status": "fixed",
       "evidence": [
-        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/8d3735389c57b252e97c217f04ac80547af79b22"
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/8d3735389c57b252e97c217f04ac80547af79b22",
+        "docs/reports/2026-11-09-open-defects/late-control-audit.json",
+        "docs/reports/2026-11-09-open-defects/TARGETED-AUDIT-LOGS.zip"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_distant_guard_requires_source_and_preserves_runtime_unknown"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_missing_or_false_guard_cannot_pass_with_scope_flags_alone"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_old_missing_source_answer_is_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_source_guard_never_proves_runtime_or_object_binding"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_unknown_or_stale_activation_scope_cannot_pass"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+      "limitations": "仅结案静态控制源码已供应却残留缺源码原因的确定性机制；不代表运行调度、实际对象绑定、真实模型业务结论或公司设备已通过，也不泛化为全部多轮失忆已解决。"
     },
     {
       "id": "BUG-20261022-101",
@@ -5282,7 +5346,8 @@
       "root_cause": "已有启动与重复计算修复，但没有同包目标设备的现场耗时证据。",
       "status": "open",
       "evidence": [
-        "docs/bugs/audit-notes.md"
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -5295,7 +5360,8 @@
       "root_cause": "失败后记忆继承已有独立修复；截图中的服务端错误本身仍缺关联日志与准确阶段。",
       "status": "open",
       "evidence": [
-        "docs/bugs/audit-notes.md"
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -5308,7 +5374,8 @@
       "root_cause": "需在获准目标环境核对安全错误码及证书链；不能凭相邻诊断测试推断根因。",
       "status": "open",
       "evidence": [
-        "docs/bugs/audit-notes.md"
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -5321,7 +5388,8 @@
       "root_cause": "源码供证、累计分析和失败恢复机制已修复，但尚未取得该业务题的同包真实模型及人工复核。",
       "status": "open",
       "evidence": [
-        "docs/bugs/audit-notes.md"
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-open-defects/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -6335,6 +6403,22 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "首轮真实 Windows 失败报告与修前复现保留。本轮不改旧断言、不跳过；全部源码回归及第二轮 Windows 结果分别记录。源码测试不替代真实模型、公司部署和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-014",
+      "title": "TLS请求发送后的响应失败被说明成无法建立连接",
+      "symptom": "真实本机TLS握手成功且服务端收到完整POST后，损坏的TLS响应触发SSLError；安全诊断仍显示“无法建立安全连接”，误导故障阶段判断。",
+      "root_cause": "urllib.open同时包含握手、发送请求和读取响应头；opening_connection在拿到响应对象前始终为真。兼容枚举tls_handshake_failed对应的说明误将这一整个范围解释为连接未建立。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-09-open-defects/tls-phase-reproduction.json",
+        "docs/reports/2026-11-09-open-defects/reproduce_tls_phase.py",
+        "docs/reports/2026-11-09-open-defects/tls-compatibility-proposal.patch",
+        "docs/reports/2026-11-09-open-defects/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "已在本机TLS与合成HTTP请求复现，非公司现场根因结案。现有request_outcome保持unknown，未发现此文案触发自动重试。修复触及冻结公共本地诊断与一个错误文案测试预期，等待用户决定该最小例外，当前尚未应用。"
     }
   ],
   "updated_at": "2026-11-09"

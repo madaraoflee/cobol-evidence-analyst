@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "bug_id": "BUG-20261021-901",
+  "recommendation": "close_source_offline_after_mandatory_full_regression",
+  "source_commit": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "historical_fix_commit": "8d3735389c57b252e97c217f04ac80547af79b22",
+  "root_cause": "The CL caller had scope_known=true after exact control source was supplied, but scope_unknown_reason remained an unconditional missing-source string. The historical acceptance expected missing control even when the actual request supplied line 3 IF and line 304 CALL.",
+  "current_source_locations": {
+    "poc/activation_evidence.py": [
+      268,
+      275,
+      346,
+      349,
+      360
+    ],
+    "tools/desktop_acceptance_cases.py": [
+      324,
+      456,
+      468
+    ],
+    "poc/tests/test_activation_question_scope.py": [
+      148,
+      180,
+      199
+    ],
+    "poc/tests/test_desktop_cl_guard_acceptance.py": [
+      55,
+      59,
+      68,
+      80,
+      89
+    ]
+  },
+  "current_targeted_tests": {
+    "tests_run": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unexpected_successes": 0,
+    "test_results": [
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_overview_keeps_source_batch_entry_and_local_scheduler_limitation",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_distant_guard_requires_source_and_preserves_runtime_unknown",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_missing_or_false_guard_cannot_pass_with_scope_flags_alone",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_old_missing_source_answer_is_rejected",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_source_guard_never_proves_runtime_or_object_binding",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_unknown_or_stale_activation_scope_cannot_pass",
+        "outcome": "passed"
+      }
+    ]
+  },
+  "historical_expression_in_memory_replay": {
+    "tests_run": 3,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unexpected_successes": 0,
+    "test_results": [
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason",
+        "outcome": "failed"
+      },
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified",
+        "outcome": "passed"
+      },
+      {
+        "id": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope",
+        "outcome": "failed"
+      }
+    ]
+  },
+  "source_bytes_unchanged": true,
+  "source_sha256": {
+    "poc/activation_evidence.py": "1fa66c275554e5c061f0822d73c70686d594ba21108305ab8abc36f437f5a78e",
+    "poc/cl_context.py": "c4010174cf7570243c5868510e11e550d68e065ecf44f495ee609a8abc4fa01d",
+    "poc/batch_context_evidence.py": "8b0e6b85c9f5d4b288caa145fe690402862d285d6de84d62932067f26ff99665",
+    "poc/tests/test_activation_question_scope.py": "ce2cd8aca7d34b017310cf83f5659994fc6da3d9ab4abac94737da2901cd535e",
+    "poc/tests/test_desktop_cl_guard_acceptance.py": "e4a497a65876bb6ec3c7fa82682673df7e68c47d26a744ccb19a3209a9b2e8d2",
+    "tools/desktop_acceptance_cases.py": "7b27b78f8f86132399b58cb231e6d0733bcf1e77b11871603392b053fd6d63b6",
+    "docs/eval/desktop-joint-v1/manifest.json": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06"
+  },
+  "exact_regression_ids": [
+    "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason",
+    "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified",
+    "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope",
+    "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_distant_guard_requires_source_and_preserves_runtime_unknown",
+    "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_missing_or_false_guard_cannot_pass_with_scope_flags_alone",
+    "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_old_missing_source_answer_is_rejected",
+    "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_source_guard_never_proves_runtime_or_object_binding",
+    "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_unknown_or_stale_activation_scope_cannot_pass"
+  ],
+  "previous_native_synthetic_evidence": {
+    "path": "/private/tmp/cobol-final-candidate-20261109/COMPILED-ACCEPTANCE.json",
+    "sha256": "9441cbc3dc6b9cea0f021a968575ac57781ef04c5a6b9bdf5b0555a9da20f23f",
+    "source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+    "transport_kind": "synthetic",
+    "external_model_calls": 0,
+    "samples": [
+      {
+        "sample_index": 1,
+        "status": "passed",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        },
+        "caller_line": 304,
+        "guard_line": 3,
+        "scope_known": true,
+        "scope_unknown_reason": null,
+        "runtime_execution_verified": false
+      },
+      {
+        "sample_index": 2,
+        "status": "passed",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        },
+        "caller_line": 304,
+        "guard_line": 3,
+        "scope_known": true,
+        "scope_unknown_reason": null,
+        "runtime_execution_verified": false
+      },
+      {
+        "sample_index": 3,
+        "status": "passed",
+        "checks": {
+          "completeness_answer_recorded": true,
+          "evidence_supplied_hashes_match": true,
+          "evidence_visible_answer_matches": true,
+          "evidence_answer_ledger_hash": true,
+          "lifecycle_index_reused": true,
+          "completeness_reviewed_ranges_supplied": true,
+          "quality_cl_late_indexed_fact_bound": true,
+          "quality_cl_late_control_source_supplied": true,
+          "quality_cl_late_runtime_unknown": true,
+          "completeness_cl_no_repeated_read": true,
+          "completeness_cl_single_request": true
+        },
+        "caller_line": 304,
+        "guard_line": 3,
+        "scope_known": true,
+        "scope_unknown_reason": null,
+        "runtime_execution_verified": false
+      }
+    ]
+  },
+  "boundaries": [
+    "No production, tests or registry files changed.",
+    "Nine existing targeted source tests rerun; complete regression remains the parent task responsibility.",
+    "Historical mutation was an in-memory replay of one exact old expression, not a checkout rollback.",
+    "Prior native report is synthetic mechanism evidence, not real-model business quality or company-device acceptance."
+  ]
+}

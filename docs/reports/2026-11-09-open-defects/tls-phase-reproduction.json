@@ -1,0 +1,24 @@
+{
+  "tls_handshake_completed": true,
+  "http_post_received": true,
+  "body_bytes_received": 115,
+  "negotiated_tls_version": "TLSv1.3",
+  "actual_safe_error": {
+    "code": "TRANSPORT_ERROR",
+    "diagnostic": {
+      "schema_version": "safe-api-error/v1",
+      "category": "connection",
+      "reason": "无法建立安全连接，请联系管理员。",
+      "next_step": "检查网络、接口地址和服务连通性。",
+      "evidence_source": "local",
+      "request_id": "local-0943a460cec1460db05af004b288cfa8",
+      "request_id_source": "local",
+      "transport_reason": "tls_handshake_failed"
+    },
+    "transport_reason": "tls_handshake_failed"
+  },
+  "request_outcome": "unknown",
+  "thread_stopped": true,
+  "diagnostic_phase_misclassified": true,
+  "scope": "Native urllib and verified loopback TLS; synthetic request only, zero remote/model calls; not company TLS reproduction."
+}

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-09T16:01:28.070813+00:00",
+  "source_commit": "51f0c4e2a39de3f128a44dc390b6b9c0fbf7cbf5",
+  "compared_source_commit": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "report_path": "/private/tmp/cobol-open-defect-full-regression-20261109/BUG-REGRESSION-REPORT.json",
+  "independent_checks_passed": true,
+  "report_sha256": "c9384b2b20a2c78691cdbcc0b2fb1c490838b1808f7de855824c2c326b6f7e4d",
+  "raw_sha256_verified": {
+    "python-0.json": "10ae1766cbf43f88fdfdc8007a98cabfc6582dc970c32fa0e44db61c34f3baa5",
+    "python-1.json": "5df675b36961de59edae33ae06589b9b8be7d2a16ff1e97d81aff0c27192bc66",
+    "python-2.json": "7b4d113c3aed5ae6e85f5fa361b8a50bc0be6ebbaf6a8986e71e6aa5abe65b47",
+    "python-3.json": "248a6243da3786fabc619cdda6d1f17a169924642541d1c0650812347154f182",
+    "python-tools.json": "c71bc93dfcaca161bafd0b404ee99a55cfa594ad4ec8f0a7262219f2a13cb4f9",
+    "browser.jsonl": "3b7f31b30cd9b565ff2d332b8e09bf8ae7666adb420da0d6f7720bec0420593f"
+  },
+  "source_snapshot": "3be50194f0011da5bebf15d590487be96f83a03903cfd3acaf4256796915c3f1",
+  "source_snapshot_file_sha256": "e77bdadecfc58a9320883db747fbabb96879293a831d1badedd3706a02555780",
+  "source_files": 829,
+  "source_snapshot_matches_current_bytes": true,
+  "worktree_status_at_verification": [
+    " M docs/reports/2026-11-09-open-defects/README.md",
+    "?? docs/reports/2026-11-09-open-defects/BUG-REGRESSION-REPORT.json",
+    "?? docs/reports/2026-11-09-open-defects/FULL-REGRESSION-REPORTS.zip",
+    "?? docs/reports/2026-11-09-open-defects/verification-summary.json"
+  ],
+  "production_existing_tests_and_gate_unchanged": true,
+  "python": {
+    "tests": 5138,
+    "passed": 5138,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unique_once": true,
+    "baseline_and_discovery_exact": true,
+    "test_source_manifests_match": true,
+    "shards": [
+      {
+        "file": "python-0.json",
+        "tests": 1285,
+        "passed": 1285,
+        "skipped": 0
+      },
+      {
+        "file": "python-1.json",
+        "tests": 1284,
+        "passed": 1284,
+        "skipped": 0
+      },
+      {
+        "file": "python-2.json",
+        "tests": 1284,
+        "passed": 1284,
+        "skipped": 0
+      },
+      {
+        "file": "python-3.json",
+        "tests": 1284,
+        "passed": 1284,
+        "skipped": 0
+      },
+      {
+        "file": "python-tools.json",
+        "tests": 1,
+        "passed": 1,
+        "skipped": 0
+      }
+    ]
+  },
+  "browser": {
+    "tests": 309,
+    "passed": 309,
+    "failures": 0,
+    "skipped": 0,
+    "todo": 0,
+    "unique_once": true,
+    "files": 18,
+    "baseline_exact": true
+  },
+  "ledger": {
+    "old_ids_retained": 257,
+    "total": 258,
+    "passed": 251,
+    "unverified": 7,
+    "old_evidence_and_regressions_preserved": true,
+    "baseline_bytes_unchanged": true,
+    "all_per_bug_checks_independently_reconstructed": true,
+    "closed_source_offline": [
+      "BUG-20261020-901",
+      "BUG-20261021-901"
+    ],
+    "unverified_bug_ids": [
+      "BUG-20261007-901",
+      "BUG-20261007-902",
+      "BUG-20261106-901",
+      "BUG-20261106-902",
+      "BUG-20261106-903",
+      "BUG-20261106-904",
+      "BUG-20261109-014"
+    ],
+    "new_tls_kept_separate_from_field_903": true
+  },
+  "conclusion": {
+    "source_regressions_passed": true,
+    "overall_status": "blocked",
+    "all_recorded_bugs_verified": false,
+    "native_or_real_model_acceptance": false
+  },
+  "scope": "Read-only independent verification of existing raw reports. No tests rerun, model/build calls, or production/test/registry edits. Only report documents are being added by parent; proposed TLS patch remains unapplied."
+}

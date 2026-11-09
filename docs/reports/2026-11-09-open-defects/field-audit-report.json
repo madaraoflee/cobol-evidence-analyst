@@ -1,0 +1,118 @@
+{
+  "status": "read_only_audit_complete",
+  "source_commit": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "application_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+  "relevant_runtime_diff_from_candidate": false,
+  "repository_modified": false,
+  "real_model_calls": 0,
+  "company_network_calls": 0,
+  "build_or_release_performed": false,
+  "field_records": [
+    {
+      "id": "BUG-20261106-901",
+      "status": "open",
+      "root_cause_confirmed": false,
+      "closed_by_adjacent_tests": false
+    },
+    {
+      "id": "BUG-20261106-902",
+      "status": "open",
+      "root_cause_confirmed": false,
+      "closed_by_adjacent_tests": false
+    },
+    {
+      "id": "BUG-20261106-903",
+      "status": "open",
+      "root_cause_confirmed": false,
+      "closed_by_adjacent_tests": false
+    }
+  ],
+  "confirmed_independent_diagnostic_bug": {
+    "reproduction": {
+      "tls_handshake_completed": true,
+      "http_post_received": true,
+      "body_bytes_received": 115,
+      "negotiated_tls_version": "TLSv1.3",
+      "actual_safe_error": {
+        "code": "TRANSPORT_ERROR",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "connection",
+          "reason": "无法建立安全连接，请联系管理员。",
+          "next_step": "检查网络、接口地址和服务连通性。",
+          "evidence_source": "local",
+          "request_id": "local-0943a460cec1460db05af004b288cfa8",
+          "request_id_source": "local",
+          "transport_reason": "tls_handshake_failed"
+        },
+        "transport_reason": "tls_handshake_failed"
+      },
+      "request_outcome": "unknown",
+      "thread_stopped": true,
+      "diagnostic_phase_misclassified": true,
+      "scope": "Native urllib and verified loopback TLS; synthetic request only, zero remote/model calls; not company TLS reproduction."
+    },
+    "functional_retry_or_memory_regression_observed": false,
+    "is_company_tls_root_cause": false
+  },
+  "current_source_targeted_regressions": {
+    "executed": 102,
+    "success": true,
+    "skipped": [],
+    "full_regression_gate": false
+  },
+  "proposal": {
+    "path": "/private/tmp/cobol-field-audit-20261109/tls-compatibility-proposal.patch",
+    "applied_to_repository": false,
+    "git_apply_check_passed": true,
+    "production_behavior_change": "Explanatory text only; historical wire reason and unknown request outcome preserved.",
+    "old_assertion_migration": {
+      "file": "poc/tests/test_business_chat_response_recovery.py",
+      "line": 556,
+      "test_id": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_classified_transport_failure_preserves_specific_safe_diagnosis",
+      "change": "Only the one demonstrably incorrect TLS message expectation; all assertion statements and other cases preserved."
+    },
+    "isolated_preview_new_python_tests_passed": 2,
+    "isolated_preview_new_browser_tests_passed": 1,
+    "isolated_preview_migrated_existing_tests_passed": 1,
+    "requires_local_freeze_exception_and_assertion_migration_authorization": true
+  },
+  "artifacts": {
+    "README.md": {
+      "sha256": "da383e1c52208b3da0308d5b5d2914e6593a795ab6257ea4e5baf5250c58a96e",
+      "size": 7349
+    },
+    "tls-phase-reproduction.json": {
+      "sha256": "c3991000117e1fc78189255559d20b5491ee9900f0e356ac2065c3e5cf98895e",
+      "size": 903
+    },
+    "reproduce_tls_phase.py": {
+      "sha256": "ccdda38319a159aa1dbc5ffa7455403bafcae5fdcc5f507b97931a884372d188",
+      "size": 3359
+    },
+    "targeted-regressions.json": {
+      "sha256": "738cab29a56a4216f84320c64d4aea1b138eba961a4f4df0ba224f1750bb6ead",
+      "size": 13038
+    },
+    "targeted-regressions.log": {
+      "sha256": "e1dfcd7828edff1f6f04be865296434a4ec7fe4f1d64f1030b0202c9471c1501",
+      "size": 20618
+    },
+    "tls-compatibility-proposal.patch": {
+      "sha256": "1e0d41ea74db80556b5529b5b7915623f78d7d570db3fbdf8bedabae3da9c347",
+      "size": 12374
+    },
+    "proposed-python-regressions.log": {
+      "sha256": "982c11bdba15fb0d4f0aeaeccda0d12c3c3406a9e38a92a809874990b2c9f079",
+      "size": 548
+    },
+    "proposed-browser-regressions.log": {
+      "sha256": "cd68b3ec4b9bf564d501ae501f810a016e7a0ae6e6894cdb91d0f8df8f26da36",
+      "size": 243
+    },
+    "proposed-migrated-assertion.log": {
+      "sha256": "edab1e6d9002ce31e7fb4aa1f7f4ceaff20d3333536c0d1874d0cc92c865e0de",
+      "size": 313
+    }
+  }
+}
