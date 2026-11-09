@@ -37,6 +37,7 @@ class DeploymentTests(unittest.TestCase):
         ignored.mkdir()
         (ignored / "ignored.cbl").write_text("fixture", encoding="utf-8")
         subprocess.run(["git", "init", "-q", str(checkout)], check=True)
+        subprocess.run(["git", "-C", str(checkout), "config", "core.autocrlf", "false"], check=True)
         subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
         subprocess.run(["git", "-C", str(checkout), "-c", "user.name=Test User",
                         "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",

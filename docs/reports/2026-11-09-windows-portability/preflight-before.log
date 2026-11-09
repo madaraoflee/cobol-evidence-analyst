@@ -1,0 +1,44 @@
+test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it (test_online_preflight_output_paths.PreflightOutputPathTests.test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it) ... FAIL
+test_real_dangling_leaf_link_preserves_link_and_does_not_create_target (test_online_preflight_output_paths.PreflightOutputPathTests.test_real_dangling_leaf_link_preserves_link_and_does_not_create_target) ... FAIL
+test_report_open_failure_is_not_swallowed_and_never_starts_checks (test_online_preflight_output_paths.PreflightOutputPathTests.test_report_open_failure_is_not_swallowed_and_never_starts_checks) ... ok
+
+======================================================================
+FAIL: test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it (test_online_preflight_output_paths.PreflightOutputPathTests.test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_preflight_output_paths.py", line 47, in test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it
+    self.assertEqual((code, summary), (2, {"status": "blocked", "error": "PREFLIGHT_REPORT_SYMLINK"}))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (0, {'status': 'read_checks_passed', 'error': None}) != (2, {'status': 'blocked', 'error': 'PREFLIGHT_REPORT_SYMLINK'})
+
+First differing element 0:
+0
+2
+
+- (0, {'error': None, 'status': 'read_checks_passed'})
++ (2, {'error': 'PREFLIGHT_REPORT_SYMLINK', 'status': 'blocked'})
+
+======================================================================
+FAIL: test_real_dangling_leaf_link_preserves_link_and_does_not_create_target (test_online_preflight_output_paths.PreflightOutputPathTests.test_real_dangling_leaf_link_preserves_link_and_does_not_create_target)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_preflight_output_paths.py", line 57, in test_real_dangling_leaf_link_preserves_link_and_does_not_create_target
+    self.assertEqual((code, summary), (2, {"status": "blocked", "error": "PREFLIGHT_REPORT_SYMLINK"}))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (2, {'status': 'blocked', 'error': 'PREFLIGHT_REPORT_EXISTS'}) != (2, {'status': 'blocked', 'error': 'PREFLIGHT_REPORT_SYMLINK'})
+
+First differing element 1:
+{'status': 'blocked', 'error': 'PREFLIGHT_REPORT_EXISTS'}
+{'status': 'blocked', 'error': 'PREFLIGHT_REPORT_SYMLINK'}
+
+- (2, {'error': 'PREFLIGHT_REPORT_EXISTS', 'status': 'blocked'})
+?                                 ^^ ^^^
+
++ (2, {'error': 'PREFLIGHT_REPORT_SYMLINK', 'status': 'blocked'})
+?                                 ^^^^ ^^
+
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.003s
+
+FAILED (failures=2)

@@ -1,0 +1,8 @@
+test_real_index_exports_search_facts_reverse_relations_without_source_or_input_changes (test_online_material_export.MaterialExportTests.test_real_index_exports_search_facts_reverse_relations_without_source_or_input_changes) ... ok
+test_read_transaction_does_not_mix_concurrent_index_updates (test_online_material_export.MaterialExportTests.test_read_transaction_does_not_mix_concurrent_index_updates) ... ok
+test_evidence_cli_reads_pinned_subdirectory_and_keeps_credentials_out_of_output (test_online_analysis.OnlineAnalysisIntegrationTests.test_evidence_cli_reads_pinned_subdirectory_and_keeps_credentials_out_of_output) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.071s
+
+OK

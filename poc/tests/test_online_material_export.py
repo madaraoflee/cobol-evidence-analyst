@@ -32,8 +32,8 @@ class MaterialExportTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.source = self.root / "source"
         self.source.mkdir()
-        (self.source / "entry.cbl").write_text(SOURCE, encoding="utf-8")
-        (self.source / "RECORDS.cpy").write_text("01 INPUT-AMOUNT PIC 9(5).\n", encoding="utf-8")
+        (self.source / "entry.cbl").write_bytes(SOURCE.encode("utf-8"))
+        (self.source / "RECORDS.cpy").write_bytes(b"01 INPUT-AMOUNT PIC 9(5).\n")
         self.database = self.root / "index.sqlite"
         self.report = self.build(self.source, self.database)
 

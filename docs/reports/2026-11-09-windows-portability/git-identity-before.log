@@ -1,0 +1,50 @@
+test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes (test_online_git_identity.OnlineGitBlobIdentityTests.test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes) ... FAIL
+test_custom_clean_filter_cannot_certify_transformed_worktree_bytes (test_online_git_identity.OnlineGitBlobIdentityTests.test_custom_clean_filter_cannot_certify_transformed_worktree_bytes) ... FAIL
+test_matching_lf_and_crlf_blobs_build_and_verify_for_sha1_and_sha256 (test_online_git_identity.OnlineGitBlobIdentityTests.test_matching_lf_and_crlf_blobs_build_and_verify_for_sha1_and_sha256) ... ok
+test_verification_uses_one_tree_query_for_many_selected_files (test_online_git_identity.OnlineGitBlobIdentityTests.test_verification_uses_one_tree_query_for_many_selected_files) ... FAIL
+
+======================================================================
+FAIL: test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes (test_online_git_identity.OnlineGitBlobIdentityTests.test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_git_identity.py", line 72, in test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes
+    self.assertEqual((status, result.get("error")), (2, "MATERIAL_CHECKOUT_CONTENT_MISMATCH"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (0, None) != (2, 'MATERIAL_CHECKOUT_CONTENT_MISMATCH')
+
+First differing element 0:
+0
+2
+
+- (0, None)
++ (2, 'MATERIAL_CHECKOUT_CONTENT_MISMATCH')
+
+======================================================================
+FAIL: test_custom_clean_filter_cannot_certify_transformed_worktree_bytes (test_online_git_identity.OnlineGitBlobIdentityTests.test_custom_clean_filter_cannot_certify_transformed_worktree_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_git_identity.py", line 91, in test_custom_clean_filter_cannot_certify_transformed_worktree_bytes
+    self.assertEqual((status, result.get("error")), (2, "MATERIAL_CHECKOUT_CONTENT_MISMATCH"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (0, None) != (2, 'MATERIAL_CHECKOUT_CONTENT_MISMATCH')
+
+First differing element 0:
+0
+2
+
+- (0, None)
++ (2, 'MATERIAL_CHECKOUT_CONTENT_MISMATCH')
+
+======================================================================
+FAIL: test_verification_uses_one_tree_query_for_many_selected_files (test_online_git_identity.OnlineGitBlobIdentityTests.test_verification_uses_one_tree_query_for_many_selected_files)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_git_identity.py", line 124, in test_verification_uses_one_tree_query_for_many_selected_files
+    self.assertEqual(sum(call[0] == "ls-tree" for call in calls), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.264s
+
+FAILED (failures=3)

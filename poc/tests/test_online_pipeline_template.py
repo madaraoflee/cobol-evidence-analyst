@@ -75,6 +75,7 @@ class PipelineTemplateTests(unittest.TestCase):
         (self.source / "MEMBER").write_text(program.format(name="MEMBER"), encoding="utf-8")
         (self.source / "notes.md").write_text("Synthetic non-source fixture.\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q", str(self.checkout)], check=True)
+        subprocess.run(["git", "-C", str(self.checkout), "config", "core.autocrlf", "false"], check=True)
         subprocess.run(["git", "-C", str(self.checkout), "add", "."], check=True)
         subprocess.run(["git", "-C", str(self.checkout), "-c", "user.name=Test User",
                         "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
