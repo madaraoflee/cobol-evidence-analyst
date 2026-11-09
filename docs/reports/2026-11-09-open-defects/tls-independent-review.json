@@ -1,0 +1,38 @@
+{
+  "audited_head": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "head_after": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "git_status_after": "",
+  "tracked_files_changed": [],
+  "production_patch_applied": false,
+  "scratch_only_new_test_files_applied": true,
+  "old_production_tests": {
+    "python": {
+      "tests": 2,
+      "failures": 2,
+      "errors": 0,
+      "skip": 0,
+      "log": "old-production-python-loopback.log",
+      "native_failure_assertion_line": 80,
+      "native_prerequisite_assertions_passed": [
+        "no server exception",
+        "handshake completed",
+        "complete POST received",
+        "legacy transport_reason preserved",
+        "last_request_outcome unknown"
+      ],
+      "initial_sandbox_denial_log": "old-production-python.log"
+    },
+    "browser": {
+      "tests": 1,
+      "failures": 1,
+      "skip": 0,
+      "log": "old-production-browser.tap",
+      "failure_assertion_line": 31,
+      "prerequisite_assertions_passed": [
+        "legacy transport_reason preserved",
+        "request outcome unknown"
+      ]
+    }
+  },
+  "conclusion": "Confirmed inaccurate error-stage explanation, not transport retry/state failure; new tests fail on diagnostic text rather than harness. No repaired-code test run because production patch is not approved/applied."
+}

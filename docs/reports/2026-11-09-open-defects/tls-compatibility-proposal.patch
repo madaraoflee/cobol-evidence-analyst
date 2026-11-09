@@ -1,0 +1,202 @@
+--- a/poc/api_error_details.py
++++ b/poc/api_error_details.py
+@@ -87,7 +87,8 @@
+ TRANSPORT_EXPLANATIONS = {
+     "dns_resolution_failed": "找不到接口地址，请检查网络或地址。",
+     "tls_certificate_invalid": "连接验证失败，请联系管理员检查证书。",
+-    "tls_handshake_failed": "无法建立安全连接，请联系管理员。",
++    # The historical wire value is compatible; it does not prove a handshake phase.
++    "tls_handshake_failed": "安全连接的 TLS 通信失败，具体阶段尚未确认，请联系管理员。",
+     "connection_refused": "接口拒绝连接，请确认服务已启动。",
+     "connection_reset": "接口连接中断，请稍后重试。",
+     "network_unreachable": "无法连上接口网络，请检查网络连接。",
+@@ -96,7 +97,7 @@
+ _TRANSPORT_EXPLANATIONS_EN = {
+     "dns_resolution_failed": "The API address could not be found. Check the network or address.",
+     "tls_certificate_invalid": "Connection verification failed. Contact an administrator to check the certificate.",
+-    "tls_handshake_failed": "A secure connection could not be established. Contact an administrator.",
++    "tls_handshake_failed": "TLS communication failed on the secure connection; the failing phase is unconfirmed. Contact an administrator.",
+     "connection_refused": "The API refused the connection. Confirm that the service is running.",
+     "connection_reset": "The API connection was interrupted. Try again later.",
+     "network_unreachable": "The API network could not be reached. Check the network connection.",
+--- a/poc/company_api.py
++++ b/poc/company_api.py
+@@ -190,7 +190,9 @@
+     elif isinstance(error, ssl.SSLCertVerificationError):
+         reason = "tls_certificate_invalid"
+     elif isinstance(error, ssl.SSLError):
+-        # A TLS read failure after opening is not necessarily a handshake failure.
++        # urllib.open includes reading response headers after sending the request.
++        # This legacy wire category does not establish the failing TLS phase.
++        # Keep the existing request outcome unknown for a generic SSL failure.
+         reason = "tls_handshake_failed" if opening_connection else None
+     elif isinstance(error, (socket.gaierror, socket.herror)):
+         reason = "dns_resolution_failed"
+--- a/poc/web/app.js
++++ b/poc/web/app.js
+@@ -454,7 +454,7 @@
+ const SAFE_TRANSPORT_EXPLANATIONS={
+   dns_resolution_failed:'找不到接口地址，請檢查網路或地址。',
+   tls_certificate_invalid:'連線驗證失敗，請聯絡管理員檢查憑證。',
+-  tls_handshake_failed:'無法建立安全連線，請聯絡管理員。',
++  tls_handshake_failed:'安全連線的 TLS 通訊失敗，具體階段尚未確認，請聯絡管理員。',
+   connection_refused:'接口拒絕連線，請確認服務已啟動。',
+   connection_reset:'接口連線中斷，請稍後重試。',
+   network_unreachable:'無法連上接口網路，請檢查網路連線。',
+--- a/poc/web/i18n.js
++++ b/poc/web/i18n.js
+@@ -321,7 +321,7 @@
+ 接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
+ 找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
+ 連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
+-無法建立安全連線，請聯絡管理員。|无法建立安全连接，请联系管理员。|Could not establish a secure connection; contact an administrator.
++安全連線的 TLS 通訊失敗，具體階段尚未確認，請聯絡管理員。|安全连接的 TLS 通信失败，具体阶段尚未确认，请联系管理员。|TLS communication failed on the secure connection; the failing phase is unconfirmed. Contact an administrator.
+ 接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
+ 接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
+ 無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.
+--- /dev/null
++++ b/poc/tests/test_tls_phase_diagnostic.py
+@@ -0,0 +1,93 @@
++"""TLS communication failures must not assert an unobserved handshake phase."""
++from pathlib import Path
++import os
++import socket
++import ssl
++import sys
++import threading
++import unittest
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "poc"))
++from api_error_details import format_diagnostic
++from company_api import APIClientError, CompanyAPIConfig, OpenAICompatibleChatClient
++
++
++class TLSPhaseDiagnosticTests(unittest.TestCase):
++    def test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown(self):
++        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
++        context.load_cert_chain(str(ROOT / "tools/fixtures/loopback-server.crt"),
++                                str(ROOT / "tools/fixtures/loopback-server.key"))
++        listener = socket.socket()
++        self.addCleanup(listener.close)
++        listener.bind(("127.0.0.1", 0))
++        listener.listen(1)
++        listener.settimeout(5)
++        observed = {}
++
++        def respond():
++            try:
++                raw, _ = listener.accept()
++                raw.settimeout(5)
++                with context.wrap_socket(raw, server_side=True) as tls:
++                    observed["handshake_completed"] = True
++                    data = b""
++                    while b"\r\n\r\n" not in data:
++                        chunk = tls.recv(4096)
++                        if not chunk:
++                            raise AssertionError("incomplete synthetic HTTP headers")
++                        data += chunk
++                    head, body = data.split(b"\r\n\r\n", 1)
++                    length = next(int(row.split(b":", 1)[1]) for row in head.split(b"\r\n")
++                                  if row.lower().startswith(b"content-length:"))
++                    while len(body) < length:
++                        chunk = tls.recv(length - len(body))
++                        if not chunk:
++                            raise AssertionError("incomplete synthetic HTTP body")
++                        body += chunk
++                    observed["post_received"] = head.startswith(b"POST /v1/chat/completions HTTP/1.1")
++                    observed["body_complete"] = len(body) == length and length > 0
++                    # Deliberately corrupt the TLS response only after the verified
++                    # handshake and complete request, using no external endpoint.
++                    with socket.socket(fileno=tls.detach()) as plain:
++                        plain.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}")
++            except BaseException as error:
++                observed["server_error"] = type(error).__name__
++            finally:
++                listener.close()
++
++        thread = threading.Thread(target=respond, daemon=True)
++        thread.start()
++        self.addCleanup(lambda: thread.join(6))
++        environment = {"SSL_CERT_FILE": str(ROOT / "tools/fixtures/loopback-server.crt"),
++                       "NO_PROXY": "*", "no_proxy": "*"}
++        with patch.dict(os.environ, environment):
++            client = OpenAICompatibleChatClient(CompanyAPIConfig(
++                base_url=f"https://127.0.0.1:{listener.getsockname()[1]}/v1",
++                chat_model="offline-model", api_key="neutral-fixture-key", timeout_seconds=5),
++                allow_network=True)
++            with self.assertRaises(APIClientError) as caught:
++                client.complete(messages=[{"role": "user", "content": "Synthetic loopback diagnostic."}])
++        thread.join(6)
++        self.assertFalse(thread.is_alive())
++        self.assertNotIn("server_error", observed)
++        self.assertTrue(observed.get("handshake_completed"))
++        self.assertTrue(observed.get("post_received"))
++        self.assertTrue(observed.get("body_complete"))
++        self.assertEqual(caught.exception.transport_reason, "tls_handshake_failed")
++        self.assertEqual(client.last_request_outcome, "unknown")
++        self.assertIn("具体阶段尚未确认", caught.exception.diagnostic["reason"])
++        self.assertNotIn("无法建立安全连接", caught.exception.diagnostic["reason"])
++
++    def test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages(self):
++        error = APIClientError("TRANSPORT_ERROR", transport_reason="tls_handshake_failed")
++        self.assertEqual(error.to_safe_dict()["transport_reason"], "tls_handshake_failed")
++        self.assertIn("具体阶段尚未确认", format_diagnostic(error.diagnostic, language="zh-CN"))
++        english = format_diagnostic(error.diagnostic, language="en")
++        self.assertIn("failing phase is unconfirmed", english)
++        self.assertNotIn("could not be established", english)
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ b/poc/tests/web_tls_phase_diagnostic.test.cjs
+@@ -0,0 +1,36 @@
++'use strict';
++const {test}=require('node:test');
++const assert=require('node:assert/strict');
++const fs=require('node:fs');
++const path=require('node:path');
++const vm=require('node:vm');
++const root=path.join(__dirname,'../web');
++
++function harness(locale){
++  const elements=new Map();
++  const get=id=>{if(!elements.has(id))elements.set(id,{value:'',addEventListener:()=>{}});return elements.get(id);};
++  const context=vm.createContext({
++    document:{documentElement:{},createTreeWalker:()=>({nextNode:()=>false}),querySelectorAll:()=>[],querySelector:()=>null,getElementById:get,addEventListener:()=>{}},
++    NodeFilter:{SHOW_TEXT:4},localStorage:{getItem:()=>locale,setItem:()=>{}},setTimeout,clearTimeout,
++  });
++  for(const file of ['i18n.js','marked.umd.js','markdown.js','app.js'])
++    vm.runInContext(fs.readFileSync(path.join(root,file),'utf8').replace(/render\(\);initialize\(\);\s*$/,''),context);
++  return code=>vm.runInContext(code,context);
++}
++
++test('legacy TLS classification states an unconfirmed phase and preserves unknown request outcome in every language',()=>{
++  const expected={'zh-CN':/具体阶段尚未确认/,'zh-HK':/具體階段尚未確認/,en:/failing phase is unconfirmed/};
++  const failure={stage:'provider_request',diagnostic:{schema_version:'safe-api-error/v1',
++    category:'connection',evidence_source:'local',request_id:'local-'+'a'.repeat(32),
++    transport_reason:'tls_handshake_failed'},request_context:{request_outcome:'unknown'}};
++  for(const locale of Object.keys(expected)){
++    const run=harness(locale);
++    const safe=run(`safeFailureDiagnostics({diagnostics:[${JSON.stringify(failure)}]})`)[0];
++    assert.equal(safe.transport_reason,'tls_handshake_failed');
++    assert.equal(safe.request_context.request_outcome,'unknown');
++    assert.match(safe.reason,expected[locale]);
++    assert.doesNotMatch(safe.reason,/无法建立安全连接|無法建立安全連線|could not be established|Could not establish/);
++    const html=run(`failureDiagnosticsView({diagnostics:[${JSON.stringify(failure)}]})`);
++    assert.match(html,expected[locale]);
++  }
++});
+--- a/poc/tests/test_business_chat_response_recovery.py
++++ b/poc/tests/test_business_chat_response_recovery.py
+@@ -553,7 +553,7 @@
+     def test_classified_transport_failure_preserves_specific_safe_diagnosis(self):
+         for reason, text in (("dns_resolution_failed", "找不到接口地址"),
+                              ("tls_certificate_invalid", "连接验证失败"),
+-                             ("tls_handshake_failed", "无法建立安全连接"),
++                             ("tls_handshake_failed", "安全连接的 TLS 通信失败，具体阶段尚未确认"),
+                              ("connection_refused", "接口拒绝连接"),
+                              ("connection_reset", "接口连接中断"),
+                              ("network_unreachable", "无法连上接口网络")):

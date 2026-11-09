@@ -1,0 +1,39 @@
+{
+  "issue": "BUG-20261020-901",
+  "audited_head": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "head_after": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "tracked_files_changed_during_audit": [],
+  "git_status_after": "",
+  "current_tests": [
+    {
+      "command": "python3 -m unittest poc.tests.test_workbench_progress_wait poc.tests.test_web_job_stream -v",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0,
+      "log": "python-progress.log"
+    },
+    {
+      "command": "node --test poc/tests/web_progress_wait.test.cjs poc/tests/web_conversation.test.cjs",
+      "tests": 89,
+      "passed": 89,
+      "failed": 0,
+      "skipped": 0,
+      "exit_code": 0,
+      "log": "browser-progress.tap"
+    }
+  ],
+  "historical_reproduction": {
+    "fix_commit": "52469d636103920371632429d56a78c6f62f4e09",
+    "before_commit": "70c55e61b45ae341d99508738b597efedac2f086",
+    "test_id": "poc/tests/web_progress_wait.test.cjs::question renders changed snapshots immediately and waits using the latest revision",
+    "outcome": "Expected failure on exact old code: 1000 !== 0",
+    "exit_code": 1,
+    "tests": 1,
+    "failed": 1,
+    "skipped": 0,
+    "log": "before-fix-reproduction.tap"
+  },
+  "scope": "read-only targeted source-offline review; no repository edits, models, builds, final EXE or device acceptance; full ledger regression remains parent task"
+}

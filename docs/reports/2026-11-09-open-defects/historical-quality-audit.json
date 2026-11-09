@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "audited_source_commit": "58775e330340fb3b4306f1d971b3f6dcf4a8fa01",
+  "historical_source_commit": "9cb884f8c89ebc928d56179ce5cb2874f38508a6",
+  "scope": "Historical raw-answer verification and current offline review construction only",
+  "current_model_revalidated": false,
+  "human_business_approval": false,
+  "review_sha256": "35eb00eb1b3900e1a7ddebec9d68f02bb3a75b95873bd7752c0de2005577a4b9",
+  "fixture_manifest_sha256": "3f645e08b67f90e68c52d7c2cc608100e7935f30278f19704496296fcc8876a8",
+  "unchanged_fixture_and_case_files": 56,
+  "original_reports": {
+    "neutral/live-business-eval.json": "9f32d33a8a8d2d136625839029b7b7e5e8ce072f331f024b252d0d7a598aa15a",
+    "request-operations/live-business-eval.json": "a7898fec0c65c9a570386ca527e103355e87a4bc506589d72ea4e1faa2e2ebb6",
+    "probe-complex/live-business-eval.json": "dfc3393b8165c79543988d905e3082666d65a4d6289725c27d1271a08fd95206"
+  },
+  "cases": [
+    {
+      "id": "request-decision-example",
+      "bug_id": "BUG-20261007-901",
+      "question": "When does the service request move to review, and what happens before saving it?",
+      "archived_answer": "## 结论\n\n服务请求进入 **REVIEW（复核）** 状态，只发生在 `SERVICEENTRY` 的 **3000-UPDATE** 段落中，触发条件是：**RESTORE 调用返回 OK，并且从屏幕取回的金额大于 5000**。这一状态赋值发生在 `IO-FUNCTION = \"SAVE\"` 的保存调用**之前**，因此保存请求带出的是已经改写为 \"REVIEW\" 的 REQUEST-RECORD。[ev_page_8d5d27af7000e84388fb209b][ev_page_a80880451470e5f01c991cc8][ev_page_31cd17b434cb92cc043b3026]\n\n## 进入 3000-UPDATE 的门槛\n\n`SERVICEENTRY` 通过 `ONLINE-FLOW` 控制主流程：先执行 1000-INITIALISE，然后循环执行 2000-SCREEN-EDIT，直到 EDIT-STATE 变为 \"ACCEPT\"、\"CANCEL\" 或 \"ERROR\"；**只有 EDIT-STATE = \"ACCEPT\" 才会执行 3000-UPDATE**，CANCEL 和 ERROR 直接跳到 4000-WHERE-NEXT。[ev_page_19145b77d139ee7a70b367f7]\n\n而 2000-SCREEN-EDIT 中产生 \"ACCEPT\" 需要两个条件同时满足：SCREENCHANNEL 返回的 SCREEN-STATUS = \"OK\"，且 SCREEN-AMOUNT 大于零；若金额不大于零，则写 SCREEN-ERROR = \"AMOUNT-REQUIRED\" 并把 EDIT-STATE 置为 \"RETRY\"，重新回到输入循环，3000-UPDATE 不会执行。[ev_page_ea7f8f6aefab5ef6a455100b][ev_page_283e3396fadd9828cc4498a9][ev_page_8184299ffb6abdf95be22b2f]\n\n## 保存之前发生了什么（3000-UPDATE 内的顺序）\n\n1. **先发 RESTORE 请求**：把 IO-FUNCTION 置为 \"RESTORE\"，以 IO-PARAMETERS 和 REQUEST-RECORD 作为引用参数调用 REQUESTSTORE，随后执行 9000-CHECK-IO。[ev_page_2b803e67bfcc1c6a8ead9bc7][ev_page_0f837fc7f48a80a284e86abb]\n2. **只有该调用返回 OK 才继续**：`IF IO-STATUS = \"OK\"` 成立时，才把 SCREEN-AMOUNT 移入 REQUEST-AMOUNT。[ev_page_0e8d852e1b8b5854378efca6][ev_page_11c7ed86a84a81ef7ef15427]\n3. **按金额分档决定状态**：REQUEST-AMOUNT **小于等于 5000** 置为 \"APPROVED\"；**大于 5000**（含 5000.01 起）走 ELSE 分支置为 \"REVIEW\"。[ev_page_a80880451470e5f01c991cc8][ev_page_8d5d27af7000e84388fb209b][ev_page_2cecf61c3e54ea5f1ea8b5f8]\n4. **再发 SAVE 请求**：状态写入 REQUEST-RECORD 之后，才把 IO-FUNCTION 置为 \"SAVE\"，再次调用 REQUESTSTORE 传出 IO-PARAMETERS 和 REQUEST-RECORD，并再次执行 9000-CHECK-IO。[ev_page_31cd17b434cb92cc043b3026][ev_page_ab5f888db959f705bc299d3a]\n\n也就是说，\"REVIEW\" 是**先于保存**写在请求记录上的，SAVE 调用是该值第一次向外传出。\n\n## 关键条件与异常分支\n\n| 条件 | 结果 |\n| --- | --- |\n| 2000 中 SCREEN-AMOUNT ≤ 0 | AMOUNT-REQUIRED + RETRY，不进入 3000，更不会产生 REVIEW |\n| 2000 中 SCREEN-STATUS = \"CANCEL\" | EDIT-STATE = \"CANCEL\"，跳过 3000，不保存 |\n| 3000 中 RESTORE 返回非 OK | 9000-CHECK-IO 设置 FINAL-ERROR 与 EDIT-STATE = \"ERROR\"，金额判断与 SAVE 调用**均不执行**，REVIEW 不会被写入 |\n| RESTORE 返回 OK，REQUEST-AMOUNT ≤ 5000 | 置 \"APPROVED\" 后发出 SAVE |\n| RESTORE 返回 OK，REQUEST-AMOUNT > 5000 | 置 \"REVIEW\" 后发出 SAVE |\n| SAVE 返回非 OK | 9000-CHECK-IO 置 FINAL-ERROR 和 EDIT-STATE = \"ERROR\"，后续路由转向错误页 |\n\n9000-CHECK-IO 的规则是：只要 IO-STATUS 不为 \"OK\"，若 ORIGINAL-ERROR 仍为空格则记录该状态，随后把 IO-STATUS 写入 FINAL-ERROR，并把 EDIT-STATE 置为 \"ERROR\"。[ev_page_d4d4e4af1ca2e7b7e058cd88]\n\n## 保存之后的路由\n\n4000-WHERE-NEXT 用 EVALUATE TRUE 按优先级判断，**FINAL-ERROR 非空最先命中**，其次是 EDIT-STATE = \"CANCEL\"：[ev_page_24a73bea29bb23fc881b57e6][ev_page_11cb97859c94b7a2016bdc7a]\n\n1. FINAL-ERROR 非空格 → NEXT-PROGRAM = \"ERRORPAGE\"；\n2. 否则 EDIT-STATE = \"CANCEL\" → \"REQUESTLIST\"；\n3. 否则 **REQUEST-STATE = \"REVIEW\" → NEXT-PROGRAM = \"SCREENCONTROL\"**；[ev_page_b444d9158cd56762cc835d07]\n4. 其余情况 → \"REQUESTSUMMARY\"。\n\n因此金额超限的请求保存后被送到 `SCREENCONTROL`，进入复核环节；`SCREENCONTROL` 会用 SECTION-NUMBER 调用 `SERVICEMAINLINE` 分段执行。[ev_page_0794502a78a08ee23ed08b08][ev_page_5d05d2a36572e980609312da]\n\n## 需要区分的另一条路径\n\n`SERVICEMAINLINE` 自己的 3000-UPDATE **不会产生 \"REVIEW\"**：它按 SCREEN-DECISION 是 \"APPROVE\" 还是其他值，分别置 REQUEST-STATE 为 \"APPROVED\" 或 \"REJECTED\"，再发 LOCK 和 SAVE。[ev_page_5d05d2a36572e980609312da] 所以 \"REVIEW\" 是 SERVICEENTRY 这条在线录入路径的专属结果，它把超限请求转交给 SCREENCONTROL/SERVICEMAINLINE 去完成复核决定。\n\n## 无法从现有材料确认的部分\n\n`REQUESTSTORE` 的实现未提供（调用关系标记为 unresolved），所以 RESTORE 与 SAVE 请求在文件或数据库层面的实际读写、锁定与提交效果无法确认；从调用方可见的事实只是：设置了 IO-FUNCTION 操作码、以引用方式传入 IO-PARAMETERS 和 REQUEST-RECORD、检查返回的 IO-STATUS，并据此选择后续分支。[ev_page_0f837fc7f48a80a284e86abb][ev_page_ab5f888db959f705bc299d3a] 同样，RESTORE 返回 OK 但 RESTORE 本身是否刷新 REQUEST-STATE，材料未说明，故本答案只以 3000-UPDATE 中明确的 MOVE 赋值作为 REVIEW 的来源。[ev_page_8d5d27af7000e84388fb209b]",
+      "answer_sha256": "52405c4efed8200e7bd41844901665b6e034e10d0eb89c45f03d56357b420b35",
+      "original_report_sha256": "9f32d33a8a8d2d136625839029b7b7e5e8ce072f331f024b252d0d7a598aa15a",
+      "gold_file": "docs/eval/neutral-example.json",
+      "gold_sha256": "b86d47c7087c8fee14ddff05189b8666e1c09b4a0f6449607da516b9fdadce80",
+      "historical_overall_answer_status": "fail",
+      "historical_agent_findings": [
+        {
+          "id": "amount-threshold-assumed-post-save-route",
+          "status": "fail",
+          "description": "把SAVE前金额门槛直接推成保存后的复核去向。",
+          "answer_excerpt": "因此金额超限的请求保存后被送到 `SCREENCONTROL`，进入复核环节",
+          "rationale": "前文列出的条件路由正确，但此总结没有SAVE返回状态、最终错误和返回后REQUEST-STATE条件；引用传参不保证保存后保持REVIEW。",
+          "supporting_ranges": [
+            {
+              "path": "programs/service-entry.cbl",
+              "start_line": 66,
+              "end_line": 84
+            }
+          ]
+        },
+        {
+          "id": "screen-amount-retry-missing-status-guard",
+          "status": "fail",
+          "description": "条件表把金额不大于零单独当成RETRY条件。",
+          "answer_excerpt": "| 2000 中 SCREEN-AMOUNT ≤ 0 | AMOUNT-REQUIRED + RETRY，不进入 3000，更不会产生 REVIEW |",
+          "rationale": "金额检查处于WHEN SCREEN-STATUS=OK内部；CANCEL或其他状态即使金额0也不会进入RETRY。正文提过OK条件，但表格单独列的触发条件未保留该guard。",
+          "supporting_ranges": [
+            {
+              "path": "programs/service-entry.cbl",
+              "start_line": 37,
+              "end_line": 50
+            }
+          ]
+        }
+      ],
+      "current_offline_review_assembly": {
+        "status": "reviewable",
+        "answer_preserved_exactly": true,
+        "units": 19,
+        "evidence_items": 11,
+        "semantic_verification": false,
+        "real_review_model_called": false,
+        "scope": "Constructed from complete unchanged public fixtures; not proof of current runtime retrieval or model judgment."
+      }
+    },
+    {
+      "id": "screen-amount-after-restore",
+      "bug_id": "BUG-20261007-901",
+      "question": "在 SERVICEENTRY 确认6000元改动时，RESTORE、新金额赋值、SAVE 是什么先后关系？假设 RESTORE 返回OK，发出 SAVE 时会用屏幕上的6000元，还是恢复后的旧金额，审批状态又是什么？",
+      "archived_answer": "**结论：** 在 6000 元确认场景下，SERVICEENTRY 先发出 **RESTORE**；只有 RESTORE 返回 `IO-STATUS = \"OK\"` 后，才把屏幕上的 **6000** 赋给 `REQUEST-AMOUNT`；随后因 `6000 > 5000` 把 `REQUEST-STATE` 设为 **`REVIEW`**；最后才发出 **SAVE**。因此 SAVE 调用使用的是屏幕上的 6000 元和 `REVIEW`，不是 RESTORE 恢复出来的旧金额或旧审批状态。\n\n**执行顺序与取值**\n\n1. 进入 `3000-UPDATE` 前，流程已由 `ONLINE-CONTROL` 控制：先初始化，再循环执行屏幕编辑；只有 `EDIT-STATE = \"ACCEPT\"` 时才执行更新段 [ev_page_19145b77d139ee7a70b367f7]。在 `2000-SCREEN-EDIT` 中，若 `SCREEN-STATUS = \"OK\"` 且 `SCREEN-AMOUNT > 0`，就设置 `EDIT-STATE = \"ACCEPT\"`；因此“确认 6000 元”意味着此时 `SCREEN-AMOUNT = 6000`，后续会进入 UPDATE [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_17bd21d365bed1370dc267e8]。\n\n2. 进入 `3000-UPDATE` 后，第一步是 `MOVE \"RESTORE\" TO IO-FUNCTION`，然后 `CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD`，再执行 `9000-CHECK-IO` [ev_page_d4d4e4af1ca2e7b7e058cd88]。从调用方可见的动作看，这一步是发出 RESTORE 请求，并检查返回的 `IO-STATUS`。RESTORE 的实参只有 `IO-PARAMETERS` 和 `REQUEST-RECORD`，并不包含屏幕字段 `SCREEN-FIELDS`，所以 RESTORE 即使恢复或改写 `REQUEST-RECORD`，也不会直接改变 `SCREEN-AMOUNT` 中的 6000 [ev_page_eee50f2e3fed9305936344fa][ev_page_13773b5837a6de5195b8256a][ev_page_17bd21d365bed1370dc267e8]。\n\n3. 假设 RESTORE 返回 `IO-STATUS = \"OK\"`，则进入 `IF IO-STATUS = \"OK\"` 分支。此时先执行 `MOVE SCREEN-AMOUNT TO REQUEST-AMOUNT`，即用屏幕上的 6000 覆盖 `REQUEST-RECORD` 中的金额字段。接着判断 `REQUEST-AMOUNT <= 5000`：6000 不满足，因此执行 ELSE 分支，`MOVE \"REVIEW\" TO REQUEST-STATE` [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_13773b5837a6de5195b8256a]。因此，RESTORE 恢复出来的旧金额即使一度进入 `REQUEST-AMOUNT`，也会被 6000 覆盖；旧审批状态即使一度进入 `REQUEST-STATE`，也会被 `REVIEW` 覆盖。\n\n4. 金额和审批状态设置完成后，才执行 `MOVE \"SAVE\" TO IO-FUNCTION`，并再次 `CALL \"REQUESTSTORE\" USING IO-PARAMETERS REQUEST-RECORD`，最后再 `PERFORM 9000-CHECK-IO` [ev_page_d4d4e4af1ca2e7b7e058cd88]。所以在 SAVE 发出的那一时点，传入的请求记录中：\n\n| 字段/参数 | SAVE 发出时的值 | 来源 |\n|---|---:|---|\n| `IO-FUNCTION` | `SAVE` | UPDATE 段显式设置 [ev_page_d4d4e4af1ca2e7b7e058cd88] |\n| `REQUEST-AMOUNT` | `6000` | 由 `SCREEN-AMOUNT` 赋值而来 [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_17bd21d365bed1370dc267e8] |\n| `REQUEST-STATE` | `REVIEW` | 6000 大于 5000，走 ELSE 分支 [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_13773b5837a6de5195b8256a] |\n| `REQUEST-ID`、`REQUEST-CATEGORY`、`REQUEST-DELETED` 等 | 由 RESTORE 后的记录内容继续传入 | 调用方未在 UPDATE 段改写这些字段 [ev_page_13773b5837a6de5195b8256a] |\n\n**SAVE 之后的结果**\n\n`9000-CHECK-IO` 只在 `IO-STATUS NOT = \"OK\"` 时设置错误：若 `ORIGINAL-ERROR` 为空则写入 `IO-STATUS`，再把 `IO-STATUS` 写入 `FINAL-ERROR`，并把 `EDIT-STATE` 设为 `\"ERROR\"` [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_f64c3d741305c7cdf285bbaa]。\n\n之后 `4000-WHERE-NEXT` 按顺序判断：\n\n- 若 `FINAL-ERROR NOT = SPACES`，`NEXT-PROGRAM = \"ERRORPAGE\"`。\n- 否则若 `EDIT-STATE = \"CANC- …否则若 `EDIT-STATE = \"CANCEL\"`，`NEXT-PROGRAM = \"REQUESTLIST\"`。\n- …否则若 `REQUEST-STATE = \"REVIEW\"`，`NEXT-PROGRAM = \"SCREENCONTROL\"`。\n- …否则 `NEXT-PROGRAM = \"REQUESTSUMMARY\"`。\n\n这段判断是按顺序命中的：前面的 `WHEN` 一旦成立，后面的分支就不再检查 [ev_page_d4d4e4af1ca2e7b7e058cd88]。\n\n**本场景（6000 元、RESTORE 返回 OK）的出口**\n\n在“6000 元被接受更新”这一路径上，假设 SAVE 也返回成功，则 `FINAL-ERROR` 仍为空、`EDIT-STATE` 已由屏幕编辑段置为 `\"ACCEPT\"`，而 `REQUEST-STATE` 刚被置为 `\"REVIEW\"`。因此：\n\n- `FINAL-ERROR NOT = SPACES` 不成立；\n- `EDIT-STATE = \"CANCEL\"` 不成立（`EDIT-STATE = \"ACCEPT\"`）；\n- `REQUEST-STATE = \"REVIEW\"` 成立。\n\n于是 `NEXT-PROGRAM` 被置为 `\"SCREENCONTROL\"`，接着 `ADD 1 TO CURRENT-STEP`，流程以 `GOBACK` 结束 [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_f64c3d741305c7cdf285bbaa][ev_page_19145b77d139ee7a70b367f7]。也就是说，6000 元这一笔会把下一站导向复核界面，而不是汇总页；只有金额不超过 5000、审批状态为 `APPROVED` 时才会落到 `\"REQUESTSUMMARY\"` [ev_page_d4d4e4af1ca2e7b7e058cd88]。\n\n**RESTORE 不返回 OK 时的对照**\n\n上面的顺序有一道硬门槛：RESTORE 之后立即执行 `9000-CHECK-IO`，紧接着判断 `IF IO-STATUS = \"OK\"` [ev_page_d4d4e4af1ca2e7b7e058cd88]。若 RESTORE 返回非 OK：\n\n- 屏幕上的 6000 不会被赋给 `REQUEST-AMOUNT`，6000 至多停留在屏幕字段里；\n- `REQUEST-STATE` 不会被改成 `REVIEW` 或 `APPROVED`；\n- 根本不会执行 `MOVE \"SAVE\" TO IO-FUNCTION`，即不会发出 SAVE 请求。\n\n此时 `9000-CHECK-IO` 会把 `IO-STATUS` 写入 `ORIGINAL-ERROR`（若其原本为空）和 `FINAL-ERROR`，并把 `EDIT-STATE` 置为 `\"ERROR\"`；随后 `4000-WHERE-NEXT` 第一个 `WHEN` 因 `FINAL-ERROR NOT = SPACES` 成立，`NEXT-PROGRAM = \"ERRORPAGE\"` [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_f64c3d741305c7cdf285bbaa]。\n\n**SAVE 本身返回非 OK 时**\n\n即使 RESTORE 成功、金额与状态都已按 6000 设好、SAVE 也已发出，若 SAVE 返回非 OK，则 SAVE 之后的 `9000-CHECK-IO` 同样会设置 `ORIGINAL-ERROR`、`FINAL-ERROR` 并把 `EDIT-STATE` 改为 `\"ERROR\"`；此时 `4000-WHERE-NEXT` 优先命中错误分支，`NEXT-PROGRAM = \"ERRORPAGE\"`，而不会因为 `REQUEST-STATE = \"REVIEW\"` 去往 `SCREENCONTROL` [ev_page_d4d4e4af1ca2e7b7e058cd88]。\n\n**需要限定的部分**\n\n调用方只能确定这些：先设置 `IO-FUNCTION` 为 `RESTORE` 或 `SAVE`，传入 `IO-PARAMETERS` 与 `REQUEST-RECORD`，再检查返回的 `IO-STATUS` 并据此选择分支 [ev_page_d4d4e4af1ca2e7b7e058cd88][ev_page_eee50f2e3fed9305936344fa][ev_page_13773b5837a6de5195b8256a]。RESTORE 具体恢复了哪些字段、是否会把旧金额或旧审批状态写回 `REQUEST-RECORD`，SAVE 具体以什么方式落库，都取决于 REQUESTSTORE 的实现，当前资料未提供，所以不作推断；但在本场景下，旧金额和旧审批状态即便一度被恢复进 `REQUEST-RECORD`，也会在 RESTORE 之后的两次 `MOVE` 中被屏幕上的 6000 和 `REVIEW` 覆盖，随后才发出 SAVE [ev_page_d4d4e4af1ca2e7b7e058cd88]。同理，`REQUEST-ID`、`REQUEST-CATEGORY`、`REQUEST-DELETED` 等字段在 UPDATE 段没有被本地改写，SAVE 发出时它们仍是 RESTORE 之后 `REQUEST-RECORD` 中的内容，其具体取值同样取决于 REQUESTSTORE 的返回效果 [ev_page_13773b5837a6de5195b8256a]。",
+      "answer_sha256": "ed85640777f2fbd23b8b761385f708279afc4264aa46bb2d5f62a9ef824cbe53",
+      "original_report_sha256": "a7898fec0c65c9a570386ca527e103355e87a4bc506589d72ea4e1faa2e2ebb6",
+      "gold_file": "docs/eval/quality-corrections-v1/request-operations.json",
+      "gold_sha256": "e67fb53036d6846745e255af087557f49e7298929d29a3603a3524df3aaa2233",
+      "historical_overall_answer_status": "fail",
+      "historical_agent_findings": [
+        {
+          "id": "post-save-route-guarantee-without-return-state",
+          "status": "fail",
+          "description": "额外出口推导把SAVE成功和SAVE前REVIEW推成调用后的SCREENCONTROL。",
+          "answer_excerpt": "假设 SAVE 也返回成功，则 `FINAL-ERROR` 仍为空、`EDIT-STATE` 已由屏幕编辑段置为 `\"ACCEPT\"`，而 `REQUEST-STATE` 刚被置为 `\"REVIEW\"`。",
+          "rationale": "题目只给RESTORE OK和发出SAVE时点；SAVE返回OK并不保证按引用传入的REQUEST-STATE保持REVIEW。且仅SCREEN ACCEPT并不保证此前FINAL-ERROR为空。必须以SAVE返回后的状态及错误区条件判断去向。",
+          "supporting_ranges": [
+            {
+              "path": "programs/service-entry.cbl",
+              "start_line": 55,
+              "end_line": 84
+            }
+          ]
+        },
+        {
+          "id": "summary-route-incorrect-only-if",
+          "status": "fail",
+          "description": "把WHEN OTHER的摘要去向缩成金额≤5000且APPROVED的必要条件。",
+          "answer_excerpt": "只有金额不超过 5000、审批状态为 `APPROVED` 时才会落到 `\"REQUESTSUMMARY\"`",
+          "rationale": "4000并不检查金额或APPROVED，只要求前面的错误/CANCEL/REVIEW条件都不命中；外部SAVE可以回写其他REQUEST-STATE。",
+          "supporting_ranges": [
+            {
+              "path": "programs/service-entry.cbl",
+              "start_line": 74,
+              "end_line": 84
+            }
+          ]
+        },
+        {
+          "id": "pre-save-other-fields-not-assumed-initial",
+          "status": "pass",
+          "description": "其他记录字段按RESTORE返回后的内容继续传入，没有把初始化IO-KEY等写成固定SAVE输入。",
+          "answer_excerpt": "其具体取值同样取决于 REQUESTSTORE 的返回效果",
+          "rationale": "金额/审批状态的后置本地MOVE与其他未赋值字段明确区分。"
+        }
+      ],
+      "current_offline_review_assembly": {
+        "status": "reviewable",
+        "answer_preserved_exactly": true,
+        "units": 24,
+        "evidence_items": 11,
+        "semantic_verification": false,
+        "real_review_model_called": false,
+        "scope": "Constructed from complete unchanged public fixtures; not proof of current runtime retrieval or model judgment."
+      }
+    },
+    {
+      "id": "route-failure-stage-comparison",
+      "bug_id": "BUG-20261007-902",
+      "question": "有两笔交易都没有得到计算金额：甲在路由查询时返回 SQLCODE=100；乙成功查到非空程序名，随后加载这个计算程序失败。假设此前各步骤成功，RESULTMP 也正常完成。两笔最终返回的状态、错误阶段、错误码和金额分别是什么？它们在处理流程中停在同一步吗？",
+      "archived_answer": "## 结论\n\n两笔交易的最终结果**不相同，也停在不同的处理步骤**：\n\n| 场景 | RESULT-STATUS | RESULT-ERROR-STAGE | RESULT-ERROR-CODE | RESULT-AMOUNT | RESULT-ANNUAL |\n|---|---|---|---|---|---|\n| 甲（路由查询 SQLCODE=100） | **71** | **ROUTE-LOOKUP** | **ROUTE-MISSING** | **0** | **0** |\n| 乙（路由命中但计算程序加载失败） | **92** | **ROUTE-CALL** | **PROGRAM-UNAVAILABLE** | **0** | **0** |\n\n甲在“路由查询”这一步就中止，根本没走到调用计算程序；乙越过了路由查询，失败发生在“按路由结果调用计算程序”那一次动态 CALL 的加载阶段。[ev_page_814cccc5ed4d9cedd754795e] [ev_page_115ef8d88877117d87e605be] [ev_page_d734bd07418be9a85dbccd37]\n\n## 共同的起点\n\n按题目假设，两笔在进入路由环节之前都成功：TXNENTRY 先 `INITIALIZE CALC-AREA ERROR-AREA RESULT-AREA`，再调用 TXNCORE；TXNCORE 内输入校验通过后依次调用 BASECALC、ITEMSUM、ADJUST，`PROCESS-STATUS` 一直保持 0。[ev_page_e0e99a9afd5b3883b431110b] [ev_page_814cccc5ed4d9cedd754795e]\n\n因此两笔进入 `CALL 'ROUTESEL'` 时状态都是 0。注意这一次调用把 **INPUT-PRODUCT、INPUT-DATE 按 BY CONTENT 传入**，把 **CALC-ROUTE-PROGRAM 和 ERROR-AREA 按 BY REFERENCE 传入**——路由结果与被调方写入的状态、错误阶段、错误码都通过这两个引用参数回到 TXNCORE。[ev_page_814cccc5ed4d9cedd754795e]\n\n## 甲：路由查询返回 SQLCODE=100\n\nROUTESEL 先 `MOVE SPACES TO ROUTE-OUTPUT`，然后执行按 `PRODUCT_CODE` 加生效区间匹配 `ROUTE_CONFIG` 的查询，把 `PROGRAM_NAME` 取入 `ROUTE-OUTPUT`。[ev_page_115ef8d88877117d87e605be]\n\nSQLCODE=100 表示没有取到行，于是：\n\n1. 先把 `ERROR-STAGE` 置为 **'ROUTE-LOOKUP'**；\n2. 在 `EVALUATE SQLCODE` 中命中 `WHEN 100` 分支，把 `PROCESS-STATUS` 置为 **71**、`ERROR-CODE` 置为 **'ROUTE-MISSING'**。[ev_page_115ef8d88877117d87e605be]\n\n随后的空程序名兜底检查不会执行：它的前置条件是 `PROCESS-STATUS = ZERO AND ROUTE-OUTPUT = SPACES`，而此处状态已是 71，条件不成立。[ev_page_115ef8d88877117d87e605be]\n\n回到 TXNCORE 后，`PROCESS-STATUS` 非零，因此后面两个判断——`CALL CALC-ROUTE-PROGRAM` 之前的 `IF PROCESS-STATUS = ZERO`——都不成立，**动态计算程序这一调用被整段跳过，未执行**，程序直接 GOBACK。[ev_page_814cccc5ed4d9cedd754795e]\n\nRESULTMP 收到该状态后，无条件把状态/阶段/码映射出去，并因为 `PROCESS-STATUS NOT = ZERO` 走清零分支：[ev_page_d734bd07418be9a85dbccd37]\n- `RESULT-STATUS` ← 71\n- `RESULT-ERROR-STAGE` ← 'ROUTE-LOOKUP'\n- `RESULT-ERROR-CODE` ← 'ROUTE-MISSING'\n- `RESULT-AMOUNT`、`RESULT-ANNUAL` ← ZERO\n\n期间 CALC-AREA 中由 BASECALC/ADJUST 算出的 `CALC-INSTALMENT`、`CALC-ANNUAL` 并没有被清零，只是**没有映射到结果区**。[ev_page_df25101c6d49138df6b98f93] [ev_page_927ed2f18bbcb110b9dc1b51]\n\n## 乙：路由命中，但计算程序加载失败\n\nROUTESEL 的查询返回非空 `PROGRAM_NAME`，SQLCODE 为 0，`PROCESS-STATUS` 保持 0；空程序名兜底检查也因 `ROUTE-OUTPUT = SPACES` 不成立而不触发。于是 `CALC-ROUTE-PROGRAM` 里保存了有效程序名并回传给 TXNCORE。[ev_page_115ef8d88877117d87e605be]\n\nTXNCORE 中 `IF PROCESS-STATUS = ZERO` 成立，执行 `CALL CALC-ROUTE-PROGRAM USING BY CONTENT REQUEST-AREA BY REFERENCE CALC-AREA ERROR-AREA`。题目给定该计算程序加载失败，因此走的是**这一段 CALL 自己的 ON EXCEPTION 处理器**（与前一调用点的处理器不同）：\n\n- `PROCESS-STATUS` ← **92**\n- `ERROR-STAGE` ← **'ROUTE-CALL'**\n- `ERROR-CODE` ← **'PROGRAM-UNAVAILABLE'** [ev_page_814cccc5ed4d9cedd754795e]\n\n这里要区分：同段的 ROUTESEL 调用失败时用的是 91/`ROUTE-SELECT`，而动态计算调用失败用的是 **92/`ROUTE-CALL`**，所以乙的错误码来自被调程序加载阶段，不是路由查询本身。[ev_page_814cccc5ed4d9cedd754795e]\n\nTXNCORE 随后 GOBACK。RESULTMP 按同样的映射规则输出 92 / 'ROUTE-CALL' / 'PROGRAM-UNAVAILABLE'，并因状态非零把 `RESULT-AMOUNT`、`RESULT-ANNUAL` 清零。[ev_page_d734bd07418be9a85dbccd37]\n\n## 关键差异\n\n| 对比项 | 甲 | 乙 |\n|---|---|---|\n| 失败所在环节 | ROUTESEL 内部的路由查询 | TXNCORE 对 CALC-ROUTE-PROGRAM 的动态调用 |\n| 是否执行到动态计算调用 | 否（前置状态非零被跳过） | 是（发起后被调程序未能加载） |\n| 状态产生位置 | 被调方 ROUTESEL 写入 ERRAREA | 调用方 TXNCORE 的 ON EXCEPTION 分支 |\n| 状态码 | 71 | 92 |\n\n两者的**共同点**只有一点：由于 `PROCESS-STATUS` 均非零，RESULTMP 都执行 `MOVE ZERO TO RESULT-AMOUNT RESULT-ANNUAL`，所以对外返回的金额一律为 0，即便甲在失败前已经算出过基础金额和调整金额。[ev_page_d734bd07418be9a85dbccd37]\n\n需要说明的是，乙这条路径下 `CALC-AREA` 在动态调用失败后的具体内容取决于该被调程序的返回效果；本轮源码未提供 `CALC-ROUTE-PROGRAM` 的实现，无法据此断定其内部对 CALC-AREA 的改动。但这不影响最终结果——RESULTMP 在状态非零时直接把两个金额字段置零。[ev_page_d734bd07418be9a85dbccd37]",
+      "answer_sha256": "a0a47809703425cd8b2376132f54aafceea92aa39141c179da39a759e74c2fde",
+      "original_report_sha256": "dfc3393b8165c79543988d905e3082666d65a4d6289725c27d1271a08fd95206",
+      "gold_file": "docs/eval/quality-corrections-v1/complex-main.json",
+      "gold_sha256": "ae02f8b77e828b7aba46bf76114db3c8251be67cf29bb8a3ffa12a478a82948d",
+      "historical_overall_answer_status": "fail",
+      "historical_agent_findings": [
+        {
+          "id": "pre-route-programs-attributed-final-calculation",
+          "status": "fail",
+          "description": "把前置程序已经计算的字段错写成CALC-INSTALMENT/CALC-ANNUAL。",
+          "answer_excerpt": "期间 CALC-AREA 中由 BASECALC/ADJUST 算出的 `CALC-INSTALMENT`、`CALC-ANNUAL` 并没有被清零，只是**没有映射到结果区**。",
+          "rationale": "TXNENTRY初始化CALC-AREA；BASECALC与ADJUST不计算CALC-INSTALMENT或CALC-ANNUAL，两字段由动态计算器CALCSTD/CALCALT才计算。甲路由查询失败，计算器未调用，所以不是既算出最终金额仅拒绝映射。源码支持已算出基础/调整金额，不支持正文所列两个最终字段。",
+          "supporting_ranges": [
+            {
+              "path": "programs/TXNENTRY.cbl",
+              "start_line": 12,
+              "end_line": 27
+            },
+            {
+              "path": "programs/BASECALC.cbl",
+              "start_line": 10,
+              "end_line": 27
+            },
+            {
+              "path": "programs/ADJUST.cbl",
+              "start_line": 9,
+              "end_line": 53
+            },
+            {
+              "path": "programs/CALCSTD.cbl",
+              "start_line": 10,
+              "end_line": 27
+            }
+          ]
+        },
+        {
+          "id": "load-failure-invented-return-effects",
+          "status": "fail",
+          "description": "给定计算器加载失败，却把其内部返回效果列成CALC-AREA的不确定来源。",
+          "answer_excerpt": "乙这条路径下 `CALC-AREA` 在动态调用失败后的具体内容取决于该被调程序的返回效果",
+          "rationale": "本题明确为目标程序加载失败并由调用方ON EXCEPTION设置92；不能将未能进入的计算器写回作为字段来源。通用未知CALL的保守边界不应覆盖题设明确的失败时点。",
+          "supporting_ranges": [
+            {
+              "path": "programs/TXNCORE.cbl",
+              "start_line": 48,
+              "end_line": 57
+            }
+          ]
+        }
+      ],
+      "current_offline_review_assembly": {
+        "status": "reviewable",
+        "answer_preserved_exactly": true,
+        "units": 25,
+        "evidence_items": 18,
+        "semantic_verification": false,
+        "real_review_model_called": false,
+        "scope": "Constructed from complete unchanged public fixtures; not proof of current runtime retrieval or model judgment."
+      }
+    }
+  ]
+}
