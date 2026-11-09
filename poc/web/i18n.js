@@ -321,7 +321,7 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 接口回應逾時，請稍後重試。|接口响应超时，请稍后重试。|The API request timed out; please retry later.
 找不到接口地址，請檢查網路或地址。|找不到接口地址，请检查网络或地址。|Endpoint address not found; check the network or address.
 連線驗證失敗，請聯絡管理員檢查憑證。|连接验证失败，请联系管理员检查证书。|Connection verification failed; ask an administrator to check the certificate.
-無法建立安全連線，請聯絡管理員。|无法建立安全连接，请联系管理员。|Could not establish a secure connection; contact an administrator.
+安全連線的 TLS 通訊失敗，具體階段尚未確認，請聯絡管理員。|安全连接的 TLS 通信失败，具体阶段尚未确认，请联系管理员。|TLS communication failed on the secure connection; the failing phase is unconfirmed. Contact an administrator.
 接口拒絕連線，請確認服務已啟動。|接口拒绝连接，请确认服务已启动。|The endpoint refused the connection; check that the service is running.
 接口連線中斷，請稍後重試。|接口连接中断，请稍后重试。|The endpoint connection was interrupted; please retry later.
 無法連上接口網路，請檢查網路連線。|无法连上接口网络，请检查网络连接。|The endpoint network is unreachable; check your network connection.

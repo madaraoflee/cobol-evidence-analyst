@@ -1,0 +1,163 @@
+{
+  "schema_version": "offline-quota-evidence/v1",
+  "started_at_utc": "2026-11-09T16:11:38.544911+00:00",
+  "source_root": "/private/tmp/cobol-open-defect-audit-20261109",
+  "source_commit": "9dae4b3e756eeaea5cd822d5fa8cc18d0ec16eae",
+  "source_status_before": "",
+  "source_files_before": {
+    "poc/company_api.py": "71f072ec814749583dfad973a69e8f7f05f3ba85d6bf89c0a97fbc92cd2bd57e",
+    "poc/api_error_details.py": "cfbab56b9dadca7a0eab2486699f4720af2569fc119011cb78b65a97b7298fff",
+    "poc/answer_diagnostics.py": "6cf59828534fb6e60d57d4ea56df573cebb746060e99ac200a9995dacb7eb2b8",
+    "poc/business_chat.py": "2ba9ea105506e35cc5a90f200d2bc89a66df9c365d72b1f5b673b4708cbe6383",
+    "poc/web_app.py": "0ac7beb2cb136e1e9ab0dbfa62cd29e5dec1bd0cce8e95e56dafcba9ced63a1d",
+    "poc/conversation_analysis_handoff.py": "89067f5253ef5270e3887afc665e9a4b5013f348f30596d98a6520e3208ff30f",
+    "poc/tests/test_business_chat_api_errors.py": "370704447f9f159122c429c7e1b34587b29e4519be9cd24fa4e3f4c8abd73a93",
+    "poc/tests/test_workbench_failed_handoff.py": "177798278ffc61dd7068491756f44302275552af735bbe75f2fad968220f9c21"
+  },
+  "scope": "Only seven supplemental synthetic scenarios; the previous 54-test batch is not rerun.",
+  "external_api_calls": 0,
+  "real_model_calls": 0,
+  "repository_files_modified_by_this_run": false,
+  "transport_boundary": "Mocked urllib opener errors and injected responses; network connections are blocked.",
+  "scenarios": [
+    {
+      "id": "quota-format-1",
+      "injected_http_status": 500,
+      "injected_response_body": {
+        "error": {
+          "code": "insufficient_quota"
+        }
+      },
+      "category": "quota_exhausted",
+      "provider_code": "insufficient_quota",
+      "evidence_source": "provider_code",
+      "mocked_opener_calls": 1,
+      "request_outcome": "response_received",
+      "status": "passed"
+    },
+    {
+      "id": "quota-format-2",
+      "injected_http_status": 500,
+      "injected_response_body": {
+        "error": {
+          "code": "quota_exceeded"
+        }
+      },
+      "category": "quota_exhausted",
+      "provider_code": "quota_exceeded",
+      "evidence_source": "provider_code",
+      "mocked_opener_calls": 1,
+      "request_outcome": "response_received",
+      "status": "passed"
+    },
+    {
+      "id": "quota-format-3",
+      "injected_http_status": 500,
+      "injected_response_body": {
+        "error": {
+          "code": "billing_hard_limit_reached"
+        }
+      },
+      "category": "quota_exhausted",
+      "provider_code": "billing_hard_limit_reached",
+      "evidence_source": "provider_code",
+      "mocked_opener_calls": 1,
+      "request_outcome": "response_received",
+      "status": "passed"
+    },
+    {
+      "id": "quota-format-4",
+      "injected_http_status": 500,
+      "injected_response_body": {
+        "error": {
+          "code": "internal_error",
+          "type": "insufficient_quota"
+        }
+      },
+      "category": "quota_exhausted",
+      "provider_code": "insufficient_quota",
+      "evidence_source": "provider_code",
+      "mocked_opener_calls": 1,
+      "request_outcome": "response_received",
+      "status": "passed"
+    },
+    {
+      "id": "quota-format-5",
+      "injected_http_status": 500,
+      "injected_response_body": {
+        "error": {
+          "code": "internal_error",
+          "message": "insufficient quota"
+        }
+      },
+      "category": "quota_exhausted",
+      "provider_code": null,
+      "evidence_source": "provider_message",
+      "mocked_opener_calls": 1,
+      "request_outcome": "response_received",
+      "status": "passed"
+    },
+    {
+      "id": "quota-continuation-preserves-answer",
+      "injected_response_sequence": [
+        {
+          "http_status": 200,
+          "finish_reason": "length"
+        },
+        {
+          "http_status": 500,
+          "body": {
+            "error": {
+              "code": "insufficient_quota"
+            }
+          }
+        }
+      ],
+      "injected_transport_calls": 2,
+      "automatic_retries": 0,
+      "original_answer_unchanged": true,
+      "provider_code_retained_in_result_and_summary": true,
+      "status": "passed"
+    },
+    {
+      "id": "quota-failed-turn-preserves-two-generations",
+      "existing_test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_actual_http500_diagnostic_does_not_hide_two_generations_from_next_question",
+      "existing_test_file_modified": false,
+      "synthetic_response_overrides": [
+        {
+          "original_http_status": 500,
+          "original_body": "{}",
+          "replacement_body": {
+            "error": {
+              "code": "insufficient_quota"
+            }
+          }
+        }
+      ],
+      "existing_assertions_preserved": true,
+      "executed_existing_test_count": 1,
+      "generation_two_in_next_question": true,
+      "early_condition_and_archived_citation_preserved": true,
+      "previous_saved_generation_unchanged": true,
+      "status": "passed"
+    }
+  ],
+  "status": "passed",
+  "blocked_network_function_calls": 0,
+  "source_commit_after": "9dae4b3e756eeaea5cd822d5fa8cc18d0ec16eae",
+  "source_status_after": "",
+  "source_files_after": {
+    "poc/company_api.py": "71f072ec814749583dfad973a69e8f7f05f3ba85d6bf89c0a97fbc92cd2bd57e",
+    "poc/api_error_details.py": "cfbab56b9dadca7a0eab2486699f4720af2569fc119011cb78b65a97b7298fff",
+    "poc/answer_diagnostics.py": "6cf59828534fb6e60d57d4ea56df573cebb746060e99ac200a9995dacb7eb2b8",
+    "poc/business_chat.py": "2ba9ea105506e35cc5a90f200d2bc89a66df9c365d72b1f5b673b4708cbe6383",
+    "poc/web_app.py": "0ac7beb2cb136e1e9ab0dbfa62cd29e5dec1bd0cce8e95e56dafcba9ced63a1d",
+    "poc/conversation_analysis_handoff.py": "89067f5253ef5270e3887afc665e9a4b5013f348f30596d98a6520e3208ff30f",
+    "poc/tests/test_business_chat_api_errors.py": "370704447f9f159122c429c7e1b34587b29e4519be9cd24fa4e3f4c8abd73a93",
+    "poc/tests/test_workbench_failed_handoff.py": "177798278ffc61dd7068491756f44302275552af735bbe75f2fad968220f9c21"
+  },
+  "source_unchanged_during_run": true,
+  "completed_at_utc": "2026-11-09T16:11:39.070912+00:00",
+  "scenario_count": 7,
+  "script_sha256": "0bec3d4bce94d1c1ad665f8cf804749d1cf838ccf62dd19646912492fc590e71"
+}

@@ -190,7 +190,9 @@ def _transport_failure(
     elif isinstance(error, ssl.SSLCertVerificationError):
         reason = "tls_certificate_invalid"
     elif isinstance(error, ssl.SSLError):
-        # A TLS read failure after opening is not necessarily a handshake failure.
+        # urllib.open includes reading response headers after sending the request.
+        # This legacy wire category does not establish the failing TLS phase.
+        # Keep the existing request outcome unknown for a generic SSL failure.
         reason = "tls_handshake_failed" if opening_connection else None
     elif isinstance(error, (socket.gaierror, socket.herror)):
         reason = "dns_resolution_failed"

@@ -1,0 +1,67 @@
+{
+  "review": "approved TLS diagnostic patch applied review",
+  "worktree": "/private/tmp/cobol-open-defect-audit-20261109",
+  "base": "e59a88eb81818d4d8b5036894011338a7617dd53",
+  "branch": "codex/tls-phase-diagnostic-20261110",
+  "production_patch_exact_match": {
+    "poc/api_error_details.py": true,
+    "poc/company_api.py": true,
+    "poc/web/app.js": true,
+    "poc/web/i18n.js": true,
+    "poc/tests/test_tls_phase_diagnostic.py": true,
+    "poc/tests/web_tls_phase_diagnostic.test.cjs": true,
+    "poc/tests/test_business_chat_response_recovery.py": true
+  },
+  "company_api_runtime_ast_unchanged": true,
+  "existing_recovery_test": {
+    "test_ids_preserved": true,
+    "test_count": 27,
+    "assertion_ast_preserved": true,
+    "assertion_count": 181,
+    "only_one_approved_expected_text_changed": true
+  },
+  "baseline": {
+    "python_ids": {
+      "before": 5138,
+      "after": 5140,
+      "old_prefix_unchanged": true,
+      "removed": [],
+      "added": [
+        "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages",
+        "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown"
+      ],
+      "duplicates": 0
+    },
+    "browser_ids": {
+      "before": 309,
+      "after": 310,
+      "old_prefix_unchanged": true,
+      "removed": [],
+      "added": [
+        "poc/tests/web_tls_phase_diagnostic.test.cjs::legacy TLS classification states an unconfirmed phase and preserves unknown request outcome in every language"
+      ],
+      "duplicates": 0
+    }
+  },
+  "registry": {
+    "removed_ids": [],
+    "changed_entries": [
+      "BUG-20261106-902",
+      "BUG-20261109-014"
+    ],
+    "BUG-20261109-014_status": "fixed",
+    "field_903_entries": [
+      {
+        "id": "BUG-20261106-903",
+        "status": "open",
+        "verification_scope": "field_revalidation",
+        "unchanged": true
+      }
+    ],
+    "note": "The separate HTTP500 field entry keeps open and adds the user quota lead as unconfirmed."
+  },
+  "unexpected_runtime_or_test_changes": [],
+  "tests_reexecuted": false,
+  "scope": "Read-only diff/AST/contract review; no files in any worktree modified; full execution belongs to root.",
+  "review_passed": true
+}

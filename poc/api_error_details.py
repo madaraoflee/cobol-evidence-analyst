@@ -87,7 +87,8 @@ _EXPLANATIONS_EN = {
 TRANSPORT_EXPLANATIONS = {
     "dns_resolution_failed": "找不到接口地址，请检查网络或地址。",
     "tls_certificate_invalid": "连接验证失败，请联系管理员检查证书。",
-    "tls_handshake_failed": "无法建立安全连接，请联系管理员。",
+    # The historical wire value is compatible; it does not prove a handshake phase.
+    "tls_handshake_failed": "安全连接的 TLS 通信失败，具体阶段尚未确认，请联系管理员。",
     "connection_refused": "接口拒绝连接，请确认服务已启动。",
     "connection_reset": "接口连接中断，请稍后重试。",
     "network_unreachable": "无法连上接口网络，请检查网络连接。",
@@ -96,7 +97,7 @@ TRANSPORT_EXPLANATIONS = {
 _TRANSPORT_EXPLANATIONS_EN = {
     "dns_resolution_failed": "The API address could not be found. Check the network or address.",
     "tls_certificate_invalid": "Connection verification failed. Contact an administrator to check the certificate.",
-    "tls_handshake_failed": "A secure connection could not be established. Contact an administrator.",
+    "tls_handshake_failed": "TLS communication failed on the secure connection; the failing phase is unconfirmed. Contact an administrator.",
     "connection_refused": "The API refused the connection. Confirm that the service is running.",
     "connection_reset": "The API connection was interrupted. Try again later.",
     "network_unreachable": "The API network could not be reached. Check the network connection.",

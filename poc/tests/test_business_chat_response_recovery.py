@@ -553,7 +553,7 @@ class BusinessChatResponseRecoveryTests(unittest.TestCase):
     def test_classified_transport_failure_preserves_specific_safe_diagnosis(self):
         for reason, text in (("dns_resolution_failed", "找不到接口地址"),
                              ("tls_certificate_invalid", "连接验证失败"),
-                             ("tls_handshake_failed", "无法建立安全连接"),
+                             ("tls_handshake_failed", "安全连接的 TLS 通信失败，具体阶段尚未确认"),
                              ("connection_refused", "接口拒绝连接"),
                              ("connection_reset", "接口连接中断"),
                              ("network_unreachable", "无法连上接口网络")):

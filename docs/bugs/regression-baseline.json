@@ -5139,7 +5139,9 @@
     "test_workspace_upgrade.WorkspaceUpgradeTests.test_unrepresentable_extensionless_scope_requires_manual_recovery",
     "test_workspace_upgrade.WorkspaceUpgradeTests.test_upgrade_integrity_scan_can_be_cancelled_between_database_pages",
     "test_workspace_upgrade.WorkspaceUpgradeTests.test_user_source_setting_changes_are_not_silently_applied",
-    "test_workspace_upgrade.WorkspaceUpgradeTests.test_worker_rejects_changed_upgrade_identity_before_any_backup_or_parse"
+    "test_workspace_upgrade.WorkspaceUpgradeTests.test_worker_rejects_changed_upgrade_identity_before_any_backup_or_parse",
+    "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages",
+    "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown"
   ],
   "browser_ids": [
     "poc/tests/web_answer_instructions.test.cjs::a failed reset keeps both the saved requirement and the current unsaved draft",
@@ -5450,8 +5452,9 @@
     "poc/tests/web_source_updates.test.cjs::unchanged source retains its version and shows the new check time without inventing a history entry",
     "poc/tests/web_source_updates.test.cjs::version history is scoped to the current source root and capped, with actual change counts",
     "poc/tests/web_theme_contrast.test.cjs:::root text, statuses and controls meet readable contrast",
-    "poc/tests/web_theme_contrast.test.cjs::html[data-theme=\"dark\"] text, statuses and controls meet readable contrast"
+    "poc/tests/web_theme_contrast.test.cjs::html[data-theme=\"dark\"] text, statuses and controls meet readable contrast",
+    "poc/tests/web_tls_phase_diagnostic.test.cjs::legacy TLS classification states an unconfirmed phase and preserves unknown request outcome in every language"
   ],
   "note": "Append-only minimum; every current test also runs. Test count is not a count of defects.",
-  "updated_at": "2026-11-09"
+  "updated_at": "2026-11-10"
 }
