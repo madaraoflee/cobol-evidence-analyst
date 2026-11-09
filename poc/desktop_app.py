@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import threading
 import webbrowser
 
@@ -282,9 +283,34 @@ def show_startup_error():
             print(message, file=sys.stderr)
 
 
+def _self_test_online_state(service, connection, session_token):
+    """Check compiled online imports and SQLite only in a disposable profile."""
+    from online_distribution import load_release
+    from online_investigation import run_investigation
+    from online_workspace import OnlineWorkbench
+
+    if not callable(load_release) or not callable(run_investigation):
+        raise RuntimeError("DESKTOP_ONLINE_IMPORT_FAILED")
+    with tempfile.TemporaryDirectory(prefix="workbench-online-self-test-") as directory:
+        online = OnlineWorkbench(Path(directory) / "online")
+        service.server.online_app = online
+        try:
+            connection.request("GET", "/api/online/state", headers={"X-Session-Token": session_token})
+            response = connection.getresponse()
+            state = json.loads(response.read())
+            if (response.status != 200 or state.get("workspaces") != []
+                    or state.get("conversations") != [] or state.get("conversation") is not None
+                    or state.get("active_job") is not None or state.get("error") is not None
+                    or not online.store.path.is_file()):
+                raise RuntimeError("DESKTOP_ONLINE_STATE_HTTP_FAILED")
+        finally:
+            online.close()
+            service.server.online_app = None
+
+
 def self_test() -> dict:
     """Verify the packaged resources and HTTP server without a GUI or model call."""
-    from web_app import STATIC_FILES, WorkbenchState
+    from web_app import ONLINE_STATIC_FILES, STATIC_FILES, WorkbenchState
 
     # Semantic IR and request assembly are JSON-heavy. Packaging must preserve
     # the interpreter's accelerator instead of silently using Python fallbacks.
@@ -297,6 +323,10 @@ def self_test() -> dict:
         path = RESOURCE_ROOT / "web" / name
         if path.is_symlink() or not path.is_file() or not path.stat().st_size:
             raise RuntimeError("DESKTOP_WEB_RESOURCE_MISSING")
+    for name in set(ONLINE_STATIC_FILES.values()):
+        path = RESOURCE_ROOT / "web" / name
+        if path.is_symlink() or not path.is_file() or not path.stat().st_size:
+            raise RuntimeError("DESKTOP_ONLINE_WEB_RESOURCE_MISSING")
     fixture = RESOURCE_ROOT / "fixtures" / "framework-workbench"
     if not (fixture / "manifest.json").is_file() or not (fixture / "source").is_dir():
         raise RuntimeError("DESKTOP_DEMO_RESOURCE_MISSING")
@@ -310,11 +340,17 @@ def self_test() -> dict:
                 response = connection.getresponse()
                 if response.status != 200 or not response.read():
                     raise RuntimeError("DESKTOP_STATIC_HTTP_FAILED")
+            for route in ONLINE_STATIC_FILES:
+                connection.request("GET", route)
+                response = connection.getresponse()
+                if response.status != 200 or not response.read():
+                    raise RuntimeError("DESKTOP_ONLINE_STATIC_HTTP_FAILED")
             connection.request("GET", "/api/state")
             response = connection.getresponse()
             state = json.loads(response.read())
             if response.status != 200 or not state.get("session_token"):
                 raise RuntimeError("DESKTOP_STATE_HTTP_FAILED")
+            _self_test_online_state(service, connection, state["session_token"])
         finally:
             connection.close()
     finally:
@@ -322,6 +358,8 @@ def self_test() -> dict:
     if service.thread.is_alive():
         raise RuntimeError("DESKTOP_SERVER_SHUTDOWN_FAILED")
     return {"ok": True, "static_files": len(set(STATIC_FILES.values())),
+            "online_static_files": len(set(ONLINE_STATIC_FILES.values())),
+            "online_state_http": True,
             "loopback_server": True, "server_stopped": True, "model_calls": 0,
             "json_accelerated": accelerated}
 

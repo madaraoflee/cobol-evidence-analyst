@@ -1,0 +1,143 @@
+{
+  "schema_version": "online-material-benchmark/v1",
+  "kind": "synthetic_offline_only",
+  "network_calls": 0,
+  "model_calls": 0,
+  "business_programs_executed": false,
+  "producer_source_and_database_removed_before_queries": true,
+  "environment": {
+    "python": "3.14.4",
+    "platform": "darwin",
+    "machine": "arm64",
+    "sqlite": "3.53.2"
+  },
+  "reproduction": {
+    "programs": 2000,
+    "copybooks": 200,
+    "script_sha256": "6b9da63b590a6cc74404867c9ec92bba44f21fb286bb96c7d642a071df42c584",
+    "module_sha256": {
+      "online_analysis.py": "d8e129b283cdf4083ac92978cb30c1b9b680d58de0d464427b084632c95a41ef",
+      "online_material_export.py": "e7610fdcc9d1451ad283c2d88b8659b81ee453f54bfaf224c713d714a03eba0a",
+      "online_material_format.py": "2340c8702199ab4476a8230cb6f097687d4756ce3087b961903b1043685ef78a",
+      "online_material_query.py": "c85b4a04ec9863146320bc7c392455cfc50c6ab606aecbc676a231dd6ffac3c9",
+      "online_material_reader.py": "aeac6fd6ee824e07a5283578e4f9a45a829292fe8192da6cb9d94ce03f644457",
+      "online_source_client.py": "39972d29a772a37ac5ddaa0904acd423ff287b97ed74c9171ed6bfaad6f2ef52"
+    }
+  },
+  "source": {
+    "programs": 2000,
+    "copybooks": 200,
+    "files": 2200,
+    "bytes": 19051664,
+    "largest_file_bytes": 655496,
+    "source_fingerprint": "2deb07ba175321cf63731f72924699938d84a5d29d303a546cea3bdc0b95a647",
+    "shape": "Free-format programs, static CALL ring, shared COPY fields, repeated comments; no execution."
+  },
+  "build": {
+    "seconds": 2.834891,
+    "database_bytes_with_sidecars": 29196288,
+    "index_kind": "business_sparse",
+    "indexed_files": 2200,
+    "coverage": {
+      "kind": "full_directory",
+      "mode": "business_sparse_directory",
+      "index_kind": "business_sparse",
+      "file_count": 2200,
+      "selected_file_count": 2200,
+      "catalog_file_count": 2200,
+      "selected_source_bytes": 19051664,
+      "total_scope_bytes": 19051664,
+      "max_files": null,
+      "max_depth": null,
+      "max_total_source_bytes": null,
+      "complete_dependency_closure": true,
+      "input_coverage_complete": true,
+      "boundaries": [],
+      "truncated": false,
+      "runtime_paths_verified": false,
+      "budget_kind": "streaming_sparse_facts",
+      "full_statement_analysis_performed": false,
+      "source_text_buffer_bounded": true,
+      "memory_usage_bounded": false
+    },
+    "dependency_scan_entries": 2200
+  },
+  "export": {
+    "seconds": 7.5926,
+    "objects": 21565,
+    "object_bytes": 17499383,
+    "manifest_bytes": 141717,
+    "material_total_bytes": 17641100,
+    "object_kinds": {
+      "postings": {
+        "objects": 18597,
+        "bytes": 3315043
+      },
+      "references": {
+        "objects": 256,
+        "bytes": 485648
+      },
+      "facts": {
+        "objects": 2200,
+        "bytes": 9307602
+      },
+      "terms": {
+        "objects": 256,
+        "bytes": 3534719
+      },
+      "files": {
+        "objects": 256,
+        "bytes": 856371
+      }
+    },
+    "revision": "1129f2f3c89d869650356e4e2772152e2ab0911c0632f43e7cd5f85c4c198c7d"
+  },
+  "cold_program_search": {
+    "query": "ENTRY-0199",
+    "seconds": 0.009888,
+    "returned_paths": [
+      "entry-0198.cbl",
+      "entry-0199.cbl",
+      "entry-0000.cbl"
+    ],
+    "target_rank": 2,
+    "total_matches": 2000,
+    "truncated": true,
+    "fetched_objects_excluding_manifest": 16,
+    "fetched_requests_including_manifest": 17,
+    "fetched_bytes_including_manifest": 234585,
+    "material_bytes_fraction": 0.01329764
+  },
+  "warm_program_search": {
+    "seconds": 0.004046,
+    "same_result": true,
+    "additional_requests": 0,
+    "additional_bytes": 0
+  },
+  "relationship_checks": {
+    "incoming_call_path": "entry-0198.cbl",
+    "copy_status": "confirmed"
+  },
+  "fake_source_evidence": {
+    "requests": 1,
+    "bytes": 9032,
+    "citation": {
+      "revision": "1129f2f3c89d869650356e4e2772152e2ab0911c0632f43e7cd5f85c4c198c7d",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "path": "entry-0199.cbl",
+      "hash": "8e2107be493a57098a8c5007f589a9f1ffab627b741b9de570a8f162f41946e2",
+      "start": 1,
+      "end": 2
+    }
+  },
+  "total_seconds": 11.725525,
+  "peak_process_rss_bytes": 94404608,
+  "limitations": [
+    "Repeated synthetic comments make this unsuitable for extrapolating production compression or GB-scale time.",
+    "Directory object reads measure lazy fetch size, not HTTP latency, service quotas, or cloud performance.",
+    "The exact program query is any-term lexical retrieval, not business-language understanding.",
+    "The named program and its caller both contain the identifier; lexical ranking need not place the declaration first.",
+    "The offline caller declares the commit; no remote or Git commit correspondence was checked.",
+    "Full semantic analysis, model answer quality, Windows behavior, and deployment remain untested."
+  ]
+}

@@ -1,0 +1,80 @@
+# Template only. This file is not an active pipeline.
+# Use only after this environment is approved to access source and Downloads.
+# Hosted runners must meet the existing network and account policy; an approved
+# existing batch environment is an alternative. No sync-host access is required.
+# Stage reviewed producer Python sources using online_deployment.py stage and
+# place that output, including producer-manifest.json, under tooling/analysis/poc.
+# The selected source subdirectory must exclude tools and synthetic test fixtures.
+# For repository-root scope, keep tools outside the checkout and use the documented
+# commands in an approved independent batch environment instead of this template.
+# Required secured variable: ONLINE_PUBLISH_TOKEN. Set ONLINE_PUBLISH_USERNAME
+# only when the approved credential uses username/token authentication.
+# Required configuration: MATERIAL_WORKSPACE, MATERIAL_REPOSITORY,
+# SOURCE_SUBDIRECTORY, SOURCE_ENCODING, SOURCE_FORMAT (auto/fixed/free),
+# INCLUDE_EXTENSIONLESS (0/1), MINIMUM_FREE_BYTES (nonnegative integer).
+# Choose encoding, format, member inclusion, and the disk floor from actual source
+# and resource review. The floor and 60-minute limit are not capacity guarantees.
+# Run this custom pipeline manually first. Configure any schedule only after real
+# acceptance. BITBUCKET_COMMIT fixes a snapshot, not upstream sync completeness.
+image: python:3.13
+pipelines:
+  custom:
+    publish-online-analysis:
+      - step:
+          name: Verify, prepare and publish analysis data
+          max-time: 60
+          script:
+            - |
+              set -eu
+              : "${BITBUCKET_CLONE_DIR:?Missing checkout directory}"
+              : "${BITBUCKET_COMMIT:?Missing fixed commit}"
+              : "${BITBUCKET_REPO_FULL_NAME:?Missing source repository}"
+              : "${MATERIAL_WORKSPACE:?Missing material workspace}"
+              : "${MATERIAL_REPOSITORY:?Missing material repository}"
+              : "${ONLINE_PUBLISH_TOKEN:?Missing publication credential}"
+              : "${SOURCE_SUBDIRECTORY:?Choose a source subdirectory}"
+              : "${SOURCE_ENCODING:?Choose a source encoding}"
+              : "${SOURCE_FORMAT:?Choose a source format}"
+              : "${INCLUDE_EXTENSIONLESS:?Choose 0 or 1 explicitly}"
+              : "${MINIMUM_FREE_BYTES:?Choose a disk space floor}"
+              case "$SOURCE_FORMAT" in
+                auto|fixed|free) ;;
+                *) printf '%s\n' 'Invalid SOURCE_FORMAT' >&2; exit 2 ;;
+              esac
+              case "$INCLUDE_EXTENSIONLESS" in
+                0|1) ;;
+                *) printf '%s\n' 'Invalid INCLUDE_EXTENSIONLESS' >&2; exit 2 ;;
+              esac
+              case "$MINIMUM_FREE_BYTES" in
+                *[!0-9]*) printf '%s\n' 'Invalid MINIMUM_FREE_BYTES' >&2; exit 2 ;;
+              esac
+              case "$SOURCE_SUBDIRECTORY" in
+                /*|*\\*) printf '%s\n' 'Invalid SOURCE_SUBDIRECTORY' >&2; exit 2 ;;
+              esac
+              case "/$SOURCE_SUBDIRECTORY/" in
+                */../*|*/./*|*//*) printf '%s\n' 'Invalid SOURCE_SUBDIRECTORY' >&2; exit 2 ;;
+              esac
+              analysis_tool_dir="$(cd "$BITBUCKET_CLONE_DIR/tooling/analysis/poc" && pwd -P)"
+              analysis_source_dir="$(cd "$BITBUCKET_CLONE_DIR/$SOURCE_SUBDIRECTORY" && pwd -P)"
+              case "$analysis_tool_dir/" in
+                "$analysis_source_dir/"*) printf '%s\n' 'Source scope includes tools' >&2; exit 2 ;;
+              esac
+              case "$analysis_source_dir/" in
+                "$analysis_tool_dir/"*) printf '%s\n' 'Source scope is inside tools' >&2; exit 2 ;;
+              esac
+              export PYTHONDONTWRITEBYTECODE=1
+              python "$analysis_tool_dir/online_deployment.py" verify --directory "$analysis_tool_dir"
+              analysis_run_dir="$(mktemp -d /tmp/analysis-run.XXXXXX)"
+              trap 'rm -rf -- "$analysis_run_dir"' EXIT
+              analysis_run_dir="$(cd "$analysis_run_dir" && pwd -P)"
+              mkdir "$analysis_run_dir/temporary" "$analysis_run_dir/output"
+              TMPDIR="$analysis_run_dir/temporary"
+              export TMPDIR
+              python "$analysis_tool_dir/online_deployment.py" runtime --temporary-directory "$TMPDIR" --output-directory "$analysis_run_dir/output" --minimum-free-bytes "$MINIMUM_FREE_BYTES"
+              set --
+              if [ "$INCLUDE_EXTENSIONLESS" = 1 ]; then
+                set -- --include-extensionless
+              fi
+              python "$analysis_tool_dir/online_deployment.py" inventory --source "$analysis_source_dir" --commit "$BITBUCKET_COMMIT" --subdirectory "$SOURCE_SUBDIRECTORY" "$@"
+              python "$analysis_tool_dir/online_publish.py" prepare --repository-snapshot --source-repository "$BITBUCKET_REPO_FULL_NAME" --commit "$BITBUCKET_COMMIT" --subdirectory "$SOURCE_SUBDIRECTORY" --source "$analysis_source_dir" --output "$analysis_run_dir/output/material" --encoding "$SOURCE_ENCODING" --source-format "$SOURCE_FORMAT" "$@"
+              python "$analysis_tool_dir/online_publish.py" publish --repository-snapshot --material "$analysis_run_dir/output/material" --workspace "$MATERIAL_WORKSPACE" --repository "$MATERIAL_REPOSITORY"

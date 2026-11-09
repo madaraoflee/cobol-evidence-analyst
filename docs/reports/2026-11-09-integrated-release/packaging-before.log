@@ -1,0 +1,107 @@
+FEFFFFF.FFF
+======================================================================
+ERROR: test_self_test_preserves_local_count_and_reports_online_checks_separately (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_preserves_local_count_and_reports_online_checks_separately)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 100, in test_self_test_preserves_local_count_and_reports_online_checks_separately
+    result = desktop_app.self_test()
+  File "/private/tmp/cobol-integrated-release-20261109/poc/desktop_app.py", line 299, in self_test
+    raise RuntimeError("DESKTOP_WEB_RESOURCE_MISSING")
+RuntimeError: DESKTOP_WEB_RESOURCE_MISSING
+
+======================================================================
+FAIL: test_online_routes_do_not_change_the_local_static_contract (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_online_routes_do_not_change_the_local_static_contract)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 44, in test_online_routes_do_not_change_the_local_static_contract
+    self.assertEqual(set(web_app.STATIC_FILES.values()), {
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "index.html", "app.js", "i18n.js", "styles.css", "appearance.css",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "theme.js", "layout.js", "markdown.js", "marked.umd.js"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the first set but not the second:
+'online.js'
+'online.css'
+'online.html'
+
+======================================================================
+FAIL: test_self_test_rejects_missing_online_resource_before_starting_server (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_rejects_missing_online_resource_before_starting_server)
+----------------------------------------------------------------------
+RuntimeError: DESKTOP_WEB_RESOURCE_MISSING
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 72, in test_self_test_rejects_missing_online_resource_before_starting_server
+    with self.assertRaisesRegex(RuntimeError, "DESKTOP_ONLINE_WEB_RESOURCE_MISSING"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "DESKTOP_ONLINE_WEB_RESOURCE_MISSING" does not match "DESKTOP_WEB_RESOURCE_MISSING"
+
+======================================================================
+FAIL: test_staged_online_routes_are_served_without_initializing_remote_state (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state) (route='/online')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 87, in test_staged_online_routes_are_served_without_initializing_remote_state
+    self.assertEqual(response.status, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_staged_online_routes_are_served_without_initializing_remote_state (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state) (route='/online.html')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 87, in test_staged_online_routes_are_served_without_initializing_remote_state
+    self.assertEqual(response.status, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_staged_online_routes_are_served_without_initializing_remote_state (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state) (route='/online.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 87, in test_staged_online_routes_are_served_without_initializing_remote_state
+    self.assertEqual(response.status, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_staged_online_routes_are_served_without_initializing_remote_state (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state) (route='/online.css')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 87, in test_staged_online_routes_are_served_without_initializing_remote_state
+    self.assertEqual(response.status, 200)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 404 != 200
+
+======================================================================
+FAIL: test_staging_contains_each_online_resource_with_original_bytes (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staging_contains_each_online_resource_with_original_bytes) (name='online.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 40, in test_staging_contains_each_online_resource_with_original_bytes
+    self.assertTrue(target.is_file(), name)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : online.js
+
+======================================================================
+FAIL: test_staging_contains_each_online_resource_with_original_bytes (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staging_contains_each_online_resource_with_original_bytes) (name='online.css')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 40, in test_staging_contains_each_online_resource_with_original_bytes
+    self.assertTrue(target.is_file(), name)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : online.css
+
+======================================================================
+FAIL: test_staging_contains_each_online_resource_with_original_bytes (test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staging_contains_each_online_resource_with_original_bytes) (name='online.html')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-integrated-release-20261109/poc/tests/test_online_desktop_packaging.py", line 40, in test_staging_contains_each_online_resource_with_original_bytes
+    self.assertTrue(target.is_file(), name)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : online.html
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.493s
+
+FAILED (failures=9, errors=1)

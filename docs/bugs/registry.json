@@ -5583,13 +5583,564 @@
       "title": "在线开发工作目录尚未包含最新本地修复",
       "symptom": "原工作目录当前基于 aa6b89b，而最新候选基于 3d01ef7；后续记忆恢复修复尚未合入该开发分支。",
       "root_cause": "并行开发分支采用较早基线；不能将其误当成已验证的最新候选源码。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
-        "docs/bugs/audit-notes.md"
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-integrated-release/README.md"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_analysis_compaction_deferred_retry.py",
+          "test_id": "test_analysis_compaction_deferred_retry.DeferredCompactionSelectionTests.test_visible_small_deferred_page_requires_explicit_retry"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_analysis_compaction_deferred_retry.py",
+          "test_id": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_explicit_continue_represents_small_deferred_source_and_preserves_originals"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_analysis_compaction_deferred_retry.py",
+          "test_id": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_still_deferred_explicit_retry_does_not_loop"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_conversation_analysis_handoff_multiturn.py",
+          "test_id": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_three_messages_accumulate_new_generations_and_retain_original_source_proofs"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_conversation_analysis_handoff_multiturn.py",
+          "test_id": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_cancelled_third_message_retains_previous_memory_for_next_ordinary_message"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_conversation_analysis_handoff_multiturn.py",
+          "test_id": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_changed_early_source_after_two_messages_invalidates_all_inherited_candidates"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_source_memory_restore_efficiency.py",
+          "test_id": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_restore_looks_up_each_history_record_once_instead_of_per_page"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_source_memory_restore_efficiency.py",
+          "test_id": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_reset_round_numbers_still_select_the_exact_request_hash"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_source_memory_restore_efficiency.py",
+          "test_id": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_duplicate_request_keys_keep_the_first_record_proof"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_source_memory_restore_efficiency.py",
+          "test_id": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_effective_pages_validate_each_archive_once_and_revalidate_next_call"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_source_memory_restore_cancellation.py",
+          "test_id": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_ordinary_handoff_stops_between_archives_without_replacing_old_checkpoint"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_source_memory_restore_cancellation.py",
+          "test_id": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_same_question_resumes_after_cancellation_inside_memory_restore"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_actual_http500_diagnostic_does_not_hide_two_generations_from_next_question"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_latest_available_partial_remains_authoritative_and_older_forged_handle_is_rejected"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_reset_cannot_carry_previous_topic_into_a_deictic_question"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_deictic_question_inherits_only_with_its_verified_same_object_lineage"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_deictic_question_without_lineage_does_not_guess_an_old_subject"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_missing_or_malformed_failed_lineage_is_rejected_without_an_exception"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_question_cannot_borrow_a_different_failed_turns_lineage"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_other_object_cannot_carry_previous_topic_into_a_deictic_question"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_skipped_diagnostic_with_unknown_remote_outcome_blocks_inheritance"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_unknown_outcome_on_retained_partial_answer_blocks_its_old_handle"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_workbench_failed_handoff.py",
+          "test_id": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_latest_eligible_answer_without_handle_does_not_fall_back_to_older_memory"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+      "limitations": "本次用户明确授权整合后，以包含全部已发布本地修复的 3d01ef7 为候选基底。原 aa6b89b 工作区作为捕获输入保留，不能从该旧分支直接打包；本记录验证整合交付分支及以下23项历史回归，不宣称现场业务质量通过。"
+    },
+    {
+      "id": "BUG-20261107-007",
+      "title": "在线资料地址变化继承了旧地址凭据",
+      "symptom": "切换资料下载地址后，旧地址凭据可能被带到新地址。",
+      "root_cause": "凭据继承未按资料访问范围比较地址，仅依据资料身份复用。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-07-online-materials/README.md",
+        "poc/tests/test_online_workspace.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_changed_material_location_never_inherits_old_credentials_implicitly",
+          "path": "poc/tests/test_online_workspace.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_explicit_empty_material_fields_clear_them_and_preserve_source_scope",
+          "path": "poc/tests/test_online_workspace.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261107-008",
+      "title": "在线凭据保护改写带哈希的原文与检查点",
+      "symptom": "用户名与仓库或源码文本重合时，脱敏替换会破坏已核验内容和哈希。",
+      "root_cause": "对结构化证据进行通用文本替换，未区分账号名称与秘密令牌。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-07-online-materials/README.md",
+        "poc/tests/test_online_workspace.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_account_name_in_repository_and_evidence_is_never_rewritten",
+          "path": "poc/tests/test_online_workspace.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_credentials_never_persist_when_investigator_echoes_them_in_result",
+          "path": "poc/tests/test_online_workspace.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261107-009",
+      "title": "在线发布回执丢失被误判为未发布",
+      "symptom": "最终发布对象已写入但响应丢失时，调用者可能误认为从未发布并重试。",
+      "root_cause": "发布提交点未区分确定失败和远端结果未知。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-07-online-materials/README.md",
+        "poc/tests/test_online_distribution.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_distribution.PublicationTests.test_final_upload_unknown_outcome_is_reconciled_by_immutable_name",
+          "path": "poc/tests/test_online_distribution.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_distribution.PublicationTests.test_cli_reports_unknown_publication_without_losing_release_identity",
+          "path": "poc/tests/test_online_distribution.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261107-010",
+      "title": "在线追问缺少前轮引用的源码定位线索",
+      "symptom": "连续追问只看到历史回答，不能可靠定位前轮引用并重新取证。",
+      "root_cause": "历史传递没有保留固定提交、路径与行号的有界导航线索。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-07-online-materials/README.md",
+        "poc/tests/test_online_investigation.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation.OnlineInvestigationTests.test_followup_uses_prior_citation_location_and_reads_source_again",
+          "path": "poc/tests/test_online_investigation.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation.OnlineInvestigationTests.test_prior_citation_id_cannot_be_reused_without_current_source_read",
+          "path": "poc/tests/test_online_investigation.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation.OnlineInvestigationTests.test_history_hint_from_another_commit_or_revision_is_rejected_before_model",
+          "path": "poc/tests/test_online_investigation.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261108-005",
+      "title": "在线生成端部署工具缺少完整依赖清单",
+      "symptom": "只复制入口脚本到独立执行环境时可能缺少静态或惰性导入模块。",
+      "root_cause": "部署材料没有可核对的源码依赖闭包清单。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-08-online-deployment/README.md",
+        "poc/tests/test_online_deployment.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_deployment.DeploymentTests.test_staged_producer_builds_with_original_code_unavailable",
+          "path": "poc/tests/test_online_deployment.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deployment.DeploymentTests.test_manifest_cannot_hide_missing_static_dependency_or_add_unreachable_code",
+          "path": "poc/tests/test_online_deployment.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deployment.DeploymentTests.test_verify_rejects_tamper_extra_missing_and_symlink",
+          "path": "poc/tests/test_online_deployment.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261108-006",
+      "title": "在线索引模板没有显式选择无扩展名成员",
+      "symptom": "部署默认扩展名过滤可能遗漏无扩展名源码，而部署者未作明确选择。",
+      "root_cause": "模板沿用默认文件选择，没有要求显式提供无扩展名成员配置。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-08-online-deployment/README.md",
+        "poc/tests/test_online_pipeline_template.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_pipeline_template.PipelineTemplateTests.test_script_prepares_and_publishes_selected_extensionless_members",
+          "path": "poc/tests/test_online_pipeline_template.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_pipeline_template.PipelineTemplateTests.test_invalid_configuration_stops_before_publication",
+          "path": "poc/tests/test_online_pipeline_template.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "从另一对话已有实现和报告补录；本次整合执行全部回归。合成传输与源码测试不能代替真实公司部署、模型和目标设备验收。"
+    },
+    {
+      "id": "BUG-20261109-001",
+      "title": "在线页面遗漏打包并改变本地自检资源计数",
+      "symptom": "源码在线路由存在但桌面暂存缺在线资源，最终应用无法加载；合并到本地资源表又破坏原自检契约。",
+      "root_cause": "桌面资源白名单未随在线入口增加，在线资源也未与本地静态契约隔离。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/test_online_desktop_packaging.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staging_contains_each_online_resource_with_original_bytes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_online_routes_do_not_change_the_local_static_contract"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_runtime_and_cli_import_without_the_source_checkout"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_rejects_missing_online_resource_before_starting_server"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_preserves_local_count_and_reports_online_checks_separately"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_desktop_packaging.py",
+          "test_id": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_online_state_probe_cleans_its_profile_after_failed_http"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-002",
+      "title": "在线分页返回的后续位置无法执行",
+      "symptom": "调用者超过一页、搜索或关系超过千条时，下一页偏移被拒绝或读取不到后续结果。",
+      "root_cause": "调查动作偏移限制与返回的 next_offset 不一致，底层查询先截断前部结果且缺少分页偏移。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/test_online_investigation_recovery_paging.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_continues_after_first_hundred_matches"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_can_reach_matches_after_one_thousand"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_cli_exposes_offset_with_backward_compatible_default"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_relation_tail_remains_reachable_after_one_thousand"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-003",
+      "title": "已落盘答案恢复绕过引用原文复核",
+      "symptom": "answer_ready 检查点已保存后进程中断，恢复时源码权限撤回或内容改变仍直接交付旧答案。",
+      "root_cause": "answered 检查点在取消检查和原文校验之前提前返回。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/test_online_investigation_recovery_paging.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_revalidates_without_repeating_model_request"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_investigation_recovery_paging.py",
+          "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_obeys_cancellation_before_source_read"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-004",
+      "title": "在线状态轮询一次失败后永久停更",
+      "symptom": "瞬时状态请求失败后，后台即使完成也不显示，界面仍处于忙碌状态。",
+      "root_cause": "仅在成功获取状态后安排下一次轮询，异常分支只显示错误。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/web_online.test.cjs"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-005",
+      "title": "在线旧状态晚返回覆盖新的取消或选择结果",
+      "symptom": "取消或切换工作区后，旧状态请求晚返回会覆盖用户刚完成的状态。",
+      "root_cause": "没有用请求代次隔离过期响应，旧响应还可重新安排轮询。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/web_online.test.cjs"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-006",
+      "title": "在线操作响应丢失后没有核对服务端状态",
+      "symptom": "操作可能已被服务端接收，但响应失败后界面不知道任务已启动或结束。",
+      "root_cause": "操作异常跳过后续读取状态，使用户仅看到旧状态；不能安全自动重发操作。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/web_online.test.cjs"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-007",
+      "title": "在线恢复失败重复追加同一部分答案",
+      "symptom": "同一问题重复恢复失败会再次插入已经保存的部分答案，挤占历史并混淆调查进展。",
+      "root_cause": "完成处理不区分失败结果携带的历史答案与本轮新回答。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/test_online_recovery_answer_history.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_cancelled_recovery_preserves_original_answer_without_another_copy"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_actual_completion_with_identical_text_is_a_new_answer"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_new_partial_delivery_is_preserved_even_with_identical_text"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_changed_answer_or_citations_or_evidence_or_coverage_is_not_discarded"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_recovery_answer_history.py",
+          "test_id": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_identical_answer_for_a_new_question_is_not_deduplicated"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+    },
+    {
+      "id": "BUG-20261109-008",
+      "title": "在线部署模板测试无法在 Windows 执行",
+      "symptom": "Windows Python 不能执行固定 /bin/sh 路径及 Python shebang 包装器，且文本模式会改变 shell 换行。",
+      "root_cause": "合成模板测试假定 POSIX 路径和进程启动规则，未考虑 Windows Git Bash。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-09-integrated-release/README.md",
+        "poc/tests/test_online_pipeline_portability.py",
+        "poc/tests/test_online_pipeline_template.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_pipeline_portability.py",
+          "test_id": "test_online_pipeline_portability.PipelinePortabilityTests.test_windows_uses_discovered_git_bash_without_a_posix_absolute_executable"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_pipeline_portability.py",
+          "test_id": "test_online_pipeline_portability.PipelinePortabilityTests.test_missing_shell_is_a_failure_and_never_a_skip"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_pipeline_portability.py",
+          "test_id": "test_online_pipeline_portability.PipelinePortabilityTests.test_windows_paths_keep_spaces_and_use_shell_compatible_separators"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_pipeline_portability.py",
+          "test_id": "test_online_pipeline_portability.PipelinePortabilityTests.test_shell_receives_unmodified_template_as_lf_bytes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_pipeline_portability.py",
+          "test_id": "test_online_pipeline_portability.PipelinePortabilityTests.test_actual_shell_runs_python_wrapper_with_spaces_and_literal_arguments"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "保留原四项模板测试的断言与身份，不跳过；平台工具选择和实际shell执行由源码回归验证，最终 Windows 执行另以 Actions 结果确认。"
     }
-  ]
+  ],
+  "updated_at": "2026-11-09"
 }

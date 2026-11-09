@@ -1,0 +1,157 @@
+{
+  "schema_version": "online-scale-benchmark/v1",
+  "started_at": "2026-11-06T19:02:54.184250+00:00",
+  "network_calls": 0,
+  "model_calls": 0,
+  "business_programs_executed": false,
+  "transport": "disk_backed_in_process_protocol_simulation",
+  "status": "passed",
+  "failed_limits": [],
+  "disk": {
+    "initial_free_bytes": 11755520000,
+    "required_free_bytes": 6746701824,
+    "final_free_bytes": 12779520000
+  },
+  "environment": {
+    "python": "3.14.4",
+    "platform": "darwin",
+    "machine": "arm64",
+    "sqlite": "3.53.2"
+  },
+  "script_sha256": "3713a9aa5a6604a85940a91591e40bf1c75013f2c3341f42669ca26bf97f262f",
+  "module_sha256": {
+    "online_acceptance.py": "c393ab778c7c7f49d4b0785c4a6e06a10c2b3ec0e23e72dde676e1306cbbd4df",
+    "online_analysis.py": "c6ba2aece8e95c79666d62f6892d4d6d127e92e2ccccbe1b7c7634613ccc5289",
+    "online_distribution.py": "7bab537fd67659ffecab550224e41ff73bbb60273d18f4155eb19d80bbc5af8a",
+    "online_investigation.py": "14560fb9ad3be82bd0e0f61d4f58531592eecf792c40e5b8ae6d5361ade6074b",
+    "online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "online_material_query.py": "c8651a597c01981a7f98b525dde48dcab849a76418d52a52d5292a6eb1cfdcda",
+    "online_material_reader.py": "6799088afa463eac00949b27c0d62b05db8beacf6968af75dc448b437eb3ef12",
+    "online_publish.py": "468274647d13243b65b60dacc6efc0beaca9015bb8a261cfe4ebc7348d48cddb",
+    "online_source_client.py": "39972d29a772a37ac5ddaa0904acd423ff287b97ed74c9171ed6bfaad6f2ef52",
+    "online_state.py": "276a7fc06dc4875267baadd7fa7fee4a62325e26078c10039971e4196716ac65",
+    "online_web_bridge.py": "cc340e5c604cdde85fea1255983083e163f6e116c2752f40f622d104f0eeff25",
+    "online_workspace.py": "96c58e0201000e5067768ba45ec6f13218784477f61df2944ffe54f8137dd921"
+  },
+  "limitations": [
+    "Comment padding is reported and does not reproduce production semantic density.",
+    "Protocol requests are simulated; no real cloud latency, quota, network or enterprise authentication is measured.",
+    "This run tests physical GiB and file count, not business answer accuracy or production runtime behavior.",
+    "Machine load is not controlled; elapsed times are observations, not service guarantees."
+  ],
+  "source": {
+    "programs": 10000,
+    "copybooks": 1000,
+    "files": 11000,
+    "bytes": 1134592000,
+    "gib": 1.056671,
+    "program_bytes_each": 112640,
+    "copybook_bytes_each": 8192,
+    "body_bytes": 15491961,
+    "comment_padding_bytes": 1119100039,
+    "comment_padding_fraction": 0.98634579,
+    "source_fingerprint": "843d4fe8b2c46730ed3d1bf96a6180b2398cf0af27d1d0411ad4bf07bc678156",
+    "shape": "Each program has a static CALL ring, shared COPY, eight IF/COMPUTE rules and a result paragraph; repeated comments fill target bytes."
+  },
+  "generation_seconds": 2.708632,
+  "git_snapshot_seconds": 17.653884,
+  "build": {
+    "seconds": 63.720348,
+    "database_bytes": 376520704,
+    "database_counts": {
+      "source_files": 11000,
+      "code_units": 166000,
+      "symbols": 126000,
+      "relations": 30000,
+      "evidence_spans": 165000
+    },
+    "coverage": {
+      "kind": "full_directory",
+      "mode": "business_sparse_directory",
+      "index_kind": "business_sparse",
+      "file_count": 11000,
+      "selected_file_count": 11000,
+      "catalog_file_count": 11000,
+      "selected_source_bytes": 1134592000,
+      "total_scope_bytes": 1134592000,
+      "max_files": null,
+      "max_depth": null,
+      "max_total_source_bytes": null,
+      "complete_dependency_closure": true,
+      "input_coverage_complete": true,
+      "boundaries": [],
+      "truncated": false,
+      "runtime_paths_verified": false,
+      "budget_kind": "streaming_sparse_facts",
+      "full_statement_analysis_performed": false,
+      "source_text_buffer_bounded": true,
+      "memory_usage_bounded": false
+    },
+    "input_skips": []
+  },
+  "export": {
+    "seconds": 274.326135,
+    "objects": 15551,
+    "object_bytes": 132438359,
+    "manifest_bytes": 141986,
+    "object_kinds": {
+      "facts": {
+        "objects": 11000,
+        "bytes": 104802000
+      },
+      "postings": {
+        "objects": 3783,
+        "bytes": 15247573
+      },
+      "terms": {
+        "objects": 256,
+        "bytes": 7243170
+      },
+      "references": {
+        "objects": 256,
+        "bytes": 839448
+      },
+      "files": {
+        "objects": 256,
+        "bytes": 4306168
+      }
+    },
+    "revision": "4ebd65232062eac6643ed48a8956d8fdb462724e676e6546a16bdaf22b8cf314"
+  },
+  "publication": {
+    "seconds_simulated": 7.04121,
+    "bundles": 256,
+    "artifacts": 258,
+    "artifact_bytes": 133703775,
+    "largest_bundle_bytes": 711953,
+    "protocol_requests": 793,
+    "api_requests": 535,
+    "cdn_requests": 258,
+    "upload_requests": 19
+  },
+  "producer_source_database_and_material_removed_before_query": true,
+  "cold_query": {
+    "seconds_simulated": 0.020668,
+    "query": "ledgeranchor00199",
+    "returned_paths": [
+      "entry-00199.cbl"
+    ],
+    "total_matches": 1,
+    "logical_material_bytes": 191851,
+    "actual_protocol_body_bytes": 1102346,
+    "protocol_requests": 8
+  },
+  "warm_query_additional_bytes": 0,
+  "relationship_and_evidence_checks": {
+    "incoming_call_path": "entry-00198.cbl",
+    "copy_status": "confirmed",
+    "source_reads": 1,
+    "source_bytes": 112640,
+    "citation_verified": true,
+    "cumulative_protocol_body_bytes": 3180779
+  },
+  "total_seconds": 370.042253,
+  "peak_process_rss_bytes": 258129920,
+  "finished_at": "2026-11-06T19:09:04.227571+00:00"
+}

@@ -1,0 +1,70 @@
+{
+  "exercise": "synthetic_fake_transport",
+  "result": {
+    "schema_version": "online-deployment-preflight/v1",
+    "status": "incomplete",
+    "source_repository": "example/source",
+    "commit": "8d3247e302b46bc9703b3656f090d0323d12d29a",
+    "material_repository": "example/materials",
+    "checks": [
+      {
+        "check": "source_repository",
+        "status": "pass",
+        "code": "PREFLIGHT_READ_CONFIRMED"
+      },
+      {
+        "check": "source_commit",
+        "status": "pass",
+        "code": "PREFLIGHT_READ_CONFIRMED"
+      },
+      {
+        "check": "material_repository",
+        "status": "pass",
+        "code": "PREFLIGHT_READ_CONFIRMED"
+      },
+      {
+        "check": "downloads_read",
+        "status": "pass",
+        "code": "PREFLIGHT_READ_CONFIRMED"
+      },
+      {
+        "check": "pipelines_enabled",
+        "status": "unknown",
+        "code": "PREFLIGHT_FORBIDDEN"
+      }
+    ],
+    "pending_gates": [
+      {
+        "check": "hosted_runner_connectivity",
+        "status": "not_assessed"
+      },
+      {
+        "check": "plan_quota_and_storage_retention",
+        "status": "not_assessed"
+      },
+      {
+        "check": "publishing_write_and_readback",
+        "status": "not_assessed"
+      },
+      {
+        "check": "execution_resources",
+        "status": "not_assessed"
+      },
+      {
+        "check": "actual_source_acceptance",
+        "status": "not_assessed"
+      },
+      {
+        "check": "model_and_business_acceptance",
+        "status": "not_assessed"
+      }
+    ],
+    "metrics": {
+      "requests": 5,
+      "metadata_bytes": 131
+    },
+    "source_content_read": false,
+    "write_performed": false,
+    "model_called": false
+  }
+}

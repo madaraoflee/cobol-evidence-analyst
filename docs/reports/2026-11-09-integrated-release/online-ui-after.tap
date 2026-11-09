@@ -1,0 +1,21 @@
+✔ repository identity accepts exact Cloud repository and rejects credentials, alternate hosts and paths (1.897917ms)
+✔ page uses guarded online endpoints and no model request before explicit source consent (13.801125ms)
+✔ source switching clears prior answers and fixed citation keys are escaped (1.126291ms)
+✔ unknown outcome is an explicit retry action and uses saved investigation (0.912125ms)
+✔ connection payload keeps separate credentials in request only and clears form (1.310084ms)
+✔ oversized UTF-8 questions fail before posting and retain the editable question (0.815916ms)
+✔ partial input coverage remains visible even when details were omitted (0.5885ms)
+✔ snapshot, HTTPS and old workspace views keep weekly sync completion unknown (1.796375ms)
+✔ release preview and selected view distinguish synchronizer attestation from snapshot (0.989375ms)
+✔ online status polling recovers from a transient failure without repeating a question (0.822459ms)
+✔ online status retry delay is bounded and invalid sessions stop polling (1.147583ms)
+✔ late online status responses cannot overwrite cancellation or workspace selection (1.051458ms)
+✔ online failed actions refresh status without retrying the mutation (0.834625ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.700916

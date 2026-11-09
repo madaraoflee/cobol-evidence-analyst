@@ -1,0 +1,94 @@
+{
+  "schema_version": "online-deployment-preparation-verification/v1",
+  "date": "2026-11-08",
+  "status": "source_preparation_and_synthetic_tests_passed",
+  "production_acceptance": "pending_company_environment",
+  "plan": "../../21-bitbucket-deployment-readiness.md",
+  "tests": {
+    "online_python": {
+      "passed": 224,
+      "failed": 0,
+      "seconds": 16.408
+    },
+    "new_deployment_subset": 12,
+    "new_preflight_subset": 20,
+    "new_template_subset": 4,
+    "previous_web_javascript": {
+      "passed": 305,
+      "rerun": false,
+      "code_unchanged": true
+    }
+  },
+  "freeze_audit": {
+    "baseline_files": 770,
+    "unchanged": 768,
+    "allowed_shell_changes": [
+      "poc/web/index.html",
+      "poc/web_app.py"
+    ],
+    "core_modified": false,
+    "original_tests_modified": false,
+    "workflow_modified": false
+  },
+  "producer": {
+    "files": 33,
+    "source_bytes": 918287,
+    "manifest_sha256": "f1d0216dab4ade36bb051042151f51a8edc0bb20e70a4737db9354e428098124",
+    "isolated_prepare": "passed"
+  },
+  "environment": {
+    "python": "3.14.4",
+    "system": "Darwin",
+    "machine": "arm64",
+    "container_tested": false
+  },
+  "syntax_files": 30,
+  "documentation_links": "passed",
+  "diff_check": "passed",
+  "external_source_access": false,
+  "real_model_access": false,
+  "cloud_deployment_executed": false,
+  "desktop_build_executed": false,
+  "network_policy_modified": false,
+  "scale_benchmark_rerun": false,
+  "files_sha256": {
+    "docs/templates/online-material-pipeline.yml.example": "76aef10b9d42878fbf5214830b4fa84a29d4d115ba3274d71531c37f161581ab",
+    "poc/online_acceptance.py": "c393ab778c7c7f49d4b0785c4a6e06a10c2b3ec0e23e72dde676e1306cbbd4df",
+    "poc/online_analysis.py": "c6ba2aece8e95c79666d62f6892d4d6d127e92e2ccccbe1b7c7634613ccc5289",
+    "poc/online_deployment.py": "b01fec777e0323acf08a99ddcdf71315908d70f9ceadd43eff5835b5c3b70aa4",
+    "poc/online_distribution.py": "53ddd8a1e1788fc74b8199ac58950f34c3d56c2e3b8cf2d1eb135e858ffedecc",
+    "poc/online_investigation.py": "2c1a5fba187e412ba8d97e664e3fc4fb6e6d0a6ce62491bb3956d036fcb6c40b",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "poc/online_material_query.py": "c8651a597c01981a7f98b525dde48dcab849a76418d52a52d5292a6eb1cfdcda",
+    "poc/online_material_reader.py": "6799088afa463eac00949b27c0d62b05db8beacf6968af75dc448b437eb3ef12",
+    "poc/online_preflight.py": "7432be4d3f63373e512a9f8bc6a75a8118f6917fb3fd897f4a862f4b30813216",
+    "poc/online_publish.py": "f95916000e9ec259e422755fc54ea940ee254e64c2623c88d022f28e85ab51d2",
+    "poc/online_source_client.py": "39972d29a772a37ac5ddaa0904acd423ff287b97ed74c9171ed6bfaad6f2ef52",
+    "poc/online_state.py": "276a7fc06dc4875267baadd7fa7fee4a62325e26078c10039971e4196716ac65",
+    "poc/online_web_bridge.py": "cc340e5c604cdde85fea1255983083e163f6e116c2752f40f622d104f0eeff25",
+    "poc/online_workspace.py": "30412356c461850abf8c42a7fcd99d5ec3cd69952585c6a6ed633a586bef562a",
+    "poc/tests/online_http_fixture.py": "cc95963964e73a435b9c73dfbe1089541913599f3c44905a47e598bade6b2335",
+    "poc/tests/test_online_acceptance.py": "372dfde984a22ca98e1d3e13e7cbc86d09c0d7e4e7adc425ed040fcd54bfd9d0",
+    "poc/tests/test_online_analysis.py": "edc44a388f6f2a869b8fc3b3896791767f88ceaf446c6656c9b35d0a99c4ec43",
+    "poc/tests/test_online_deployment.py": "04dadb53b14c1a25408d7b797501dd026a8bc2e16b16250a89dafbffbcbca3c7",
+    "poc/tests/test_online_distribution.py": "beb27bd4e3276c62e984e6c6484b100279db2a677087b026e189b59b2183aa54",
+    "poc/tests/test_online_investigation.py": "b9937338f8fbea6a5d2990eb0415129c089e39eb4c955c409aa2ca04e67501f7",
+    "poc/tests/test_online_material_export.py": "62bbbf39c2fdb6d35747e14ba41d042a241c5e7c8dc1d671912733309f590ea6",
+    "poc/tests/test_online_material_format.py": "c36da7900d901d5eaad0e47078a6d2387fd75f176e4f56e57edf73e22ad5e1e0",
+    "poc/tests/test_online_material_query.py": "50ea556538ba03acee7e79f342af70a6cac6350b21306a989020e36923b598c3",
+    "poc/tests/test_online_material_reader.py": "53be04732d7832e2378cd07fba17f4b558f05f11719ffb39d18f188061b73bbc",
+    "poc/tests/test_online_pipeline_template.py": "7aff34345d0526fc9fef512bd23d1408ea5a4ef628c99db7d7fff1ce68afa7a3",
+    "poc/tests/test_online_preflight.py": "087c6f0cd862400b17e7d1ae568001475c77ca7efd404f79af0d8bb546a3a72c",
+    "poc/tests/test_online_publish.py": "a78b69a43624e4c2406442479cfd626b63fee138d0edd6941d023cb998b20547",
+    "poc/tests/test_online_source_client.py": "a38ceb010d70fe9549b7baef4c331819951d4346451bf499851aaf0b9e476117",
+    "poc/tests/test_online_web.py": "6da17b415e946a482197299278623e115c782aea0cfe35f664a91fd7429d8b39",
+    "poc/tests/test_online_workspace.py": "0cb6b17ee1d052e7c6c7da75fd23cfd6867d3c083615dbf40803a63f3a4084e8",
+    "poc/tests/web_online.test.cjs": "56bef1c5ec394a7b5b6a51ac76c82dc2c4958407f02066b32b756c65d7b72d74",
+    "poc/web/index.html": "392a40df9993bb06df1e0c756c6df6e0b00ce5b8ef0dcd963a5ed8d7877c9332",
+    "poc/web/online.css": "f2cd15f3b7bdea35f0a07df78a5a69fd998d21e01f9adbdc8302792f060cf616",
+    "poc/web/online.html": "61415459d6404036de8b1e0c191a0cd49ca3249e0832f0e097c3f59f54919c51",
+    "poc/web/online.js": "226d60f694fe6864cf786220b9961c54fc3fac693c035dc4029ef707de47a469",
+    "poc/web_app.py": "dc4d1441de9c5a165179046a20070e9aec5cf76d52784e88642a036a1e5857e9"
+  }
+}
