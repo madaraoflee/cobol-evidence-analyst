@@ -10,6 +10,19 @@
 
 所有现有 Python 与浏览器测试须由 `tools/verify_bug_regressions.py` 重新执行；旧条目和旧测试集合不得删除，未验证的现场事项继续保持 open。源码通过、已登记缺陷是否全部闭环、最终 EXE 离线通过和真实业务/公司设备验收分别报告。候选发布不替代同包正式验收，也不替换现有正式版本。
 
-本轮全部 5,120 项 Python 与 309 项浏览器测试实际通过，零失败、零错误、零跳过。252 条缺陷记录中，244 条源码修复映射通过；8 条历史/现场事项仍未闭环，因此总状态保持 `blocked`，`source_regressions_passed=true`，`all_recorded_bugs_verified=false`。不能写作所有 bug 已解决。精确测试结果、哈希和源码快照见本目录报告与原始结果压缩包。
+首轮整合回归的全部 5,120 项 Python 与 309 项浏览器测试实际通过，零失败、零错误、零跳过。252 条缺陷记录中，244 条源码修复映射通过；8 条历史/现场事项仍未闭环，因此总状态保持 `blocked`，`source_regressions_passed=true`，`all_recorded_bugs_verified=false`。不能写作所有 bug 已解决。精确测试结果、哈希和源码快照见本目录报告与原始结果压缩包。
 
-源码冻结提交见 verification-summary.json。Windows 最终包、EXE 与候选发布将另存同包记录，不把这次源码结果当作真实模型或公司设备验收。公司仓库和模型未访问，没有改变网络策略、同步任务或进行真实部署。
+首轮源码冻结提交见 verification-summary.json。首轮 Windows 实测发现的后续问题与第二轮完整回归保存在 [Windows 修复记录](../2026-11-09-windows-portability/README.md)，不覆盖首轮证据。公司仓库和模型未访问，没有改变网络策略、同步任务或进行真实部署。
+
+
+## 最终候选交付
+
+[v2026.11.09.1-rc.1](https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.09.1-rc.1) 已发布为 Pre-release，应用提交固定为 `d1fa964daec550dda29462f800e8346df2d55486`，不替换正式 latest `v2026.10.14.2`。PR #15 整合两段研发工作，PR #16 修复首轮 Windows 实测问题；此次记录提交只追加报告，不重新生成应用。
+
+第二轮完整源码门禁运行 5,138 项 Python 和 309 项浏览器测试，全部通过且零跳过；257 条缺陷逐条核对，其中 249 条修复机制通过，8 条历史/现场事项仍待验证。Windows 分片另运行 5,137 项，5,135 通过、2 项原有 POSIX 专用测试跳过；这两项在完整源码回归中通过，不能把 Windows 的跳过写成通过。
+
+[桌面 run 42551742917](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42551742917) 对最终 EXE 完成 25 个案例、79 个离线样本和 55 项连续性检查。候选包外层 GitHub artifact、内层 ZIP、EXE、应用输入、8 个发布附件及标签提交均独立复核；桌面自检确认原 9 个资源、在线 3 个资源和在线状态接口齐全。完整核对结果见 `windows-candidate-verification.json`，GitHub 发布后的逐资产回执见 `github-release.json`。
+
+原工作区的并行改动完整保存在本轮整合输入清单和 Git stash `6d0a154271bce0c0b72441cfe6427f2b88f5f846`，随后原分支已快进到整合应用提交。备份仍保留；不应再重复应用到已整合源码。
+
+候选门禁通过，正式门禁仍为 `REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED`。最终 EXE 的合成接口结果不证明真实模型的业务准确率或速度，也未关闭超过一小时的公司现场启动、截图 HTTP 500、TLS 线索及复杂业务回答质量等待验证事项。
