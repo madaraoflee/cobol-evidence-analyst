@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-09T16:58:34.511744+00:00",
+  "source_commit": "45add3726904c5e90fff740b3da49cef42bbfec0",
+  "workflow_run_id": 42656491361,
+  "workflow_run_attempt": 1,
+  "status": "passed",
+  "scope": "windows_source_test_identity_and_outcomes_not_compiled_exe_or_company_acceptance",
+  "artifact_archives": [
+    {
+      "id": 13693586107,
+      "name": "python-regressions-45add3726904c5e90fff740b3da49cef42bbfec0-1-0",
+      "bytes": 244690,
+      "sha256": "438194c5596aa05809b3a7d31e52577a974abc6956e88da9b9f034e832756791",
+      "report": "python-regressions-0.json",
+      "report_sha256": "f11b181bcd9017f4c5a47198f9efc311eff52ba056249e2799bc12037ccbfb2b"
+    },
+    {
+      "id": 13693148961,
+      "name": "python-regressions-summary-45add3726904c5e90fff740b3da49cef42bbfec0-1",
+      "bytes": 427896,
+      "sha256": "119be79f9c6b10bc14b726e267bae6d30d4b5814b62d2ce586cd916044ed1759",
+      "report": "python-regressions-summary.json",
+      "report_sha256": "4fcdb1ca25568e12b094fac4cdca21050c1d38ed15092b307996f482a6b49976"
+    },
+    {
+      "id": 13692803373,
+      "name": "python-regressions-45add3726904c5e90fff740b3da49cef42bbfec0-1-3",
+      "bytes": 244176,
+      "sha256": "782d7227838e2fe10d47fa034fdb42dbb7f1228cf388b5d51ed22253c685bfa5",
+      "report": "python-regressions-3.json",
+      "report_sha256": "cf489c71af98dd909a3917d1651d9443921c4d185827d21860b3620a14768fa3"
+    },
+    {
+      "id": 13692488316,
+      "name": "python-regressions-45add3726904c5e90fff740b3da49cef42bbfec0-1-1",
+      "bytes": 245810,
+      "sha256": "ee81cdc6bf9227710407bbcee2c72222358fcc88704b8a7f47d59d69b1062fe1",
+      "report": "python-regressions-1.json",
+      "report_sha256": "fc2245af8edb2ce00d23e0e1feef611f694098d943f7b6c21cc2972ad49d2101"
+    },
+    {
+      "id": 13692254167,
+      "name": "python-regressions-45add3726904c5e90fff740b3da49cef42bbfec0-1-2",
+      "bytes": 245567,
+      "sha256": "b0aec689c6c2ca0e1e554fe6e3c15e7ca1c036053e07bc902a4f881dd5d36cc1",
+      "report": "python-regressions-2.json",
+      "report_sha256": "df02de4f4f7b4495fabae1b2472c87e2234c0c66dc703b394149655809c9cbc1"
+    }
+  ],
+  "all_artifact_and_extracted_report_hashes_match": true,
+  "all_current_poc_tests_exactly_once": true,
+  "discovery_and_test_source_hashes_match_same_commit_local_run": true,
+  "python_tests": 5139,
+  "python_passed": 5137,
+  "python_skipped": 2,
+  "python_failures": 0,
+  "python_errors": 0,
+  "python_expected_failures": 0,
+  "skipped_tests_with_same_commit_local_pass": [
+    {
+      "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+      "reason": "Real source permissions require a non-root POSIX user.",
+      "shard_index": 0,
+      "same_commit_local_outcome": "passed"
+    },
+    {
+      "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+      "reason": "Real directory permission failures require a non-root POSIX user.",
+      "shard_index": 1,
+      "same_commit_local_outcome": "passed"
+    }
+  ],
+  "tls_phase_tests": [
+    {
+      "id": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages",
+      "seconds": 0.000109,
+      "outcome": "passed"
+    },
+    {
+      "id": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown",
+      "seconds": 0.060809,
+      "outcome": "passed"
+    }
+  ],
+  "shards": [
+    {
+      "shard_index": 0,
+      "tests": 1285,
+      "passed": 1284,
+      "skipped": 1,
+      "report_sha256": "f11b181bcd9017f4c5a47198f9efc311eff52ba056249e2799bc12037ccbfb2b"
+    },
+    {
+      "shard_index": 1,
+      "tests": 1285,
+      "passed": 1284,
+      "skipped": 1,
+      "report_sha256": "fc2245af8edb2ce00d23e0e1feef611f694098d943f7b6c21cc2972ad49d2101"
+    },
+    {
+      "shard_index": 2,
+      "tests": 1285,
+      "passed": 1285,
+      "skipped": 0,
+      "report_sha256": "df02de4f4f7b4495fabae1b2472c87e2234c0c66dc703b394149655809c9cbc1"
+    },
+    {
+      "shard_index": 3,
+      "tests": 1284,
+      "passed": 1284,
+      "skipped": 0,
+      "report_sha256": "cf489c71af98dd909a3917d1651d9443921c4d185827d21860b3620a14768fa3"
+    }
+  ],
+  "summary_reconstructed_exactly": true,
+  "raw_archive": "/private/tmp/cobol-candidate-records-20261110/WINDOWS-REGRESSION-REPORTS.zip",
+  "raw_archive_sha256": "f8da7ef0251ff34479190a94c93e830cc391e81867ead6469aaf3534a9156777",
+  "raw_report_sha256": {
+    "python-regressions-0.json": "f11b181bcd9017f4c5a47198f9efc311eff52ba056249e2799bc12037ccbfb2b",
+    "python-regressions-1.json": "fc2245af8edb2ce00d23e0e1feef611f694098d943f7b6c21cc2972ad49d2101",
+    "python-regressions-2.json": "df02de4f4f7b4495fabae1b2472c87e2234c0c66dc703b394149655809c9cbc1",
+    "python-regressions-3.json": "cf489c71af98dd909a3917d1651d9443921c4d185827d21860b3620a14768fa3",
+    "python-regressions-summary.json": "4fcdb1ca25568e12b094fac4cdca21050c1d38ed15092b307996f482a6b49976"
+  },
+  "six_field_issues_still_unverified": true,
+  "real_model_or_company_device_acceptance": false
+}
