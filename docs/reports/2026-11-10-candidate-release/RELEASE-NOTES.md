@@ -23,4 +23,3 @@
 Windows ZIP SHA-256：`c4631c7f9a5d61d31454b1f7f226b7e205203ec649a551777cf75318e0bf581b`。
 
 [本次 Windows 构建和验证](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42656491361)。
-
