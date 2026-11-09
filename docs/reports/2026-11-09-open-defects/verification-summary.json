@@ -1,0 +1,36 @@
+{
+  "source_commit": "51f0c4e2a39de3f128a44dc390b6b9c0fbf7cbf5",
+  "source_snapshot": "3be50194f0011da5bebf15d590487be96f83a03903cfd3acaf4256796915c3f1",
+  "status": "blocked",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "python_tests": 5138,
+  "browser_tests": 309,
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261109-014"
+  ],
+  "started_at": "2026-11-09T15:55:14.932215+00:00",
+  "finished_at": "2026-11-09T15:57:15.492677+00:00",
+  "report_sha256": {
+    "python-0.json": "10ae1766cbf43f88fdfdc8007a98cabfc6582dc970c32fa0e44db61c34f3baa5",
+    "python-1.json": "5df675b36961de59edae33ae06589b9b8be7d2a16ff1e97d81aff0c27192bc66",
+    "python-2.json": "7b4d113c3aed5ae6e85f5fa361b8a50bc0be6ebbaf6a8986e71e6aa5abe65b47",
+    "python-3.json": "248a6243da3786fabc619cdda6d1f17a169924642541d1c0650812347154f182",
+    "python-tools.json": "c71bc93dfcaca161bafd0b404ee99a55cfa594ad4ec8f0a7262219f2a13cb4f9",
+    "browser.jsonl": "3b7f31b30cd9b565ff2d332b8e09bf8ae7666adb420da0d6f7720bec0420593f"
+  },
+  "recorded_bug_results": {
+    "passed": 251,
+    "unverified": 7
+  },
+  "raw_archive_sha256": "f839d10aad185d585d4325ffdf76e17eb27a9ec1a256c0155fef5fd1823d4be3",
+  "real_model_and_target_device_verified": false,
+  "production_code_changed": false,
+  "tls_proposal_applied": false
+}
