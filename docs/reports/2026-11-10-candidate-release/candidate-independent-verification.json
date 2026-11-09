@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-09T17:19:25.275445+00:00",
+  "status": "passed",
+  "source_commit": "45add3726904c5e90fff740b3da49cef42bbfec0",
+  "workflow_run_id": 42656491361,
+  "artifact_id": 13695606798,
+  "artifact_sha256": "ee24739f2e0ad3e1d106a5bc8e1c18a2673cd231f11d289403d7fa4f57d3fe75",
+  "exactly_eight_whitelisted_assets": true,
+  "outer_archive_matches_github_metadata_and_extracted_bytes": true,
+  "assets": {
+    "ACCEPTANCE-MANIFEST.json": {
+      "bytes": 47542,
+      "sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06"
+    },
+    "BUILD-INFO.json": {
+      "bytes": 1212,
+      "sha256": "3b00be55247fc3fa31508d44ef5fbe4cf097c92c2e5e3ed9ef538e60487cacc6"
+    },
+    "CANDIDATE-GATE.json": {
+      "bytes": 10700,
+      "sha256": "9b3a9ba288cf6616aedcc2921069a06a91a183aef496d68f67ac9aea761f0b44"
+    },
+    "CANDIDATE-POLICY.json": {
+      "bytes": 198,
+      "sha256": "b138eed6a2325fdf9b099dd74dc38baf038c4d78262831e5054d7c7528d46ae8"
+    },
+    "COBOLWorkbench-windows-x64.zip": {
+      "bytes": 22169943,
+      "sha256": "c4631c7f9a5d61d31454b1f7f226b7e205203ec649a551777cf75318e0bf581b"
+    },
+    "COBOLWorkbench-windows-x64.zip.sha256": {
+      "bytes": 98,
+      "sha256": "7ebac3812facf66b5f9df71bbc7c52f03c60a5ea48fb1f523b5bfad52b2ca9f0"
+    },
+    "COMPILED-ACCEPTANCE.json": {
+      "bytes": 13154466,
+      "sha256": "725140592343e1515f67809baafdc2c4791e5f745f9aadfb56a55f89319a7ec5"
+    },
+    "INVESTIGATION-CONTINUITY.json": {
+      "bytes": 16555,
+      "sha256": "f6f570c5dbc52c785fdbdd6147c0bb65646ac9553f8a745b64368da19544555c"
+    }
+  },
+  "package_sha256": "c4631c7f9a5d61d31454b1f7f226b7e205203ec649a551777cf75318e0bf581b",
+  "binary_sha256": "daf4eb25f13de25673e97e870e668136d9b89417f6e82ddc049b5f10884830a3",
+  "application_sha256": "ca85bff734827165a2cc864037fc217b0525e0a57bd1415ac303918c7efb708a",
+  "build_and_reports_bind_same_frozen_package": true,
+  "candidate_gate_recomputed_exactly": true,
+  "candidate_allowed": true,
+  "formal_publish_allowed": false,
+  "formal_gate_reasons": [
+    {
+      "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+    }
+  ],
+  "native_cases": 25,
+  "native_samples": 79,
+  "continuity_checks": 55,
+  "tls_static_resources": {
+    "app.js": {
+      "member": "COBOLWorkbench/COBOLWorkbench/web/app.js",
+      "packaged_sha256": "2eb593c9be417472c3fc507ab8c68097c31ede2c55ff80178dc3a6b28315488b",
+      "frozen_source_sha256": "bf457f5f7b20f98fa4230af8c373da5271767ebbf5b8b4994ee6ed1c1569ecd5",
+      "comparison": "exact_after_lf_crlf_normalization",
+      "contains_phase_unconfirmed_tls_text": true
+    },
+    "i18n.js": {
+      "member": "COBOLWorkbench/COBOLWorkbench/web/i18n.js",
+      "packaged_sha256": "b759da8d47bb060bc67d05b4fd20cf3486042e6c461f50a23b3296bdd06833fa",
+      "frozen_source_sha256": "efb68d90df0a18c7bcf1dbe93cd0fd5def853628952e6d4317c00460cd5a14a6",
+      "comparison": "exact_after_lf_crlf_normalization",
+      "contains_phase_unconfirmed_tls_text": true
+    }
+  },
+  "executables_or_tests_run_during_this_audit": false,
+  "real_model_or_company_device_acceptance": false,
+  "six_field_issues_still_unverified": true
+}
