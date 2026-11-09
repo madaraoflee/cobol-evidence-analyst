@@ -454,7 +454,7 @@ const SAFE_PROVIDER_CODES=['request_too_large','payload_too_large','context_leng
 const SAFE_TRANSPORT_EXPLANATIONS={
   dns_resolution_failed:'找不到接口地址，請檢查網路或地址。',
   tls_certificate_invalid:'連線驗證失敗，請聯絡管理員檢查憑證。',
-  tls_handshake_failed:'無法建立安全連線，請聯絡管理員。',
+  tls_handshake_failed:'安全連線的 TLS 通訊失敗，具體階段尚未確認，請聯絡管理員。',
   connection_refused:'接口拒絕連線，請確認服務已啟動。',
   connection_reset:'接口連線中斷，請稍後重試。',
   network_unreachable:'無法連上接口網路，請檢查網路連線。',

@@ -5357,11 +5357,12 @@
       "id": "BUG-20261106-902",
       "title": "现场 HTTP 500 的服务端根因尚待确认",
       "symptom": "用户截图显示 HTTP 500 并保留了不完整回答。",
-      "root_cause": "失败后记忆继承已有独立修复；截图中的服务端错误本身仍缺关联日志与准确阶段。",
+      "root_cause": "截图中的服务端错误缺关联日志与准确阶段。用户于2026-11-10提供公司API可能有额度限制的线索，作为优先待核实原因；仅凭HTTP500不能确认额度不足，失败后记忆继承已有独立修复。",
       "status": "open",
       "evidence": [
         "docs/bugs/audit-notes.md",
-        "docs/reports/2026-11-09-open-defects/README.md"
+        "docs/reports/2026-11-09-open-defects/README.md",
+        "docs/reports/2026-11-10-tls-diagnostic/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -6409,17 +6410,35 @@
       "title": "TLS请求发送后的响应失败被说明成无法建立连接",
       "symptom": "真实本机TLS握手成功且服务端收到完整POST后，损坏的TLS响应触发SSLError；安全诊断仍显示“无法建立安全连接”，误导故障阶段判断。",
       "root_cause": "urllib.open同时包含握手、发送请求和读取响应头；opening_connection在拿到响应对象前始终为真。兼容枚举tls_handshake_failed对应的说明误将这一整个范围解释为连接未建立。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-09-open-defects/tls-phase-reproduction.json",
         "docs/reports/2026-11-09-open-defects/reproduce_tls_phase.py",
         "docs/reports/2026-11-09-open-defects/tls-compatibility-proposal.patch",
-        "docs/reports/2026-11-09-open-defects/README.md"
+        "docs/reports/2026-11-09-open-defects/README.md",
+        "docs/reports/2026-11-10-tls-diagnostic/README.md"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_classified_transport_failure_preserves_specific_safe_diagnosis"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_tls_phase_diagnostic.test.cjs"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "已在本机TLS与合成HTTP请求复现，非公司现场根因结案。现有request_outcome保持unknown，未发现此文案触发自动重试。修复触及冻结公共本地诊断与一个错误文案测试预期，等待用户决定该最小例外，当前尚未应用。"
+      "limitations": "用户于2026-11-10明确批准最小本地诊断修复及唯一旧文案预期更正。只纠正中英繁中文案与兼容注释，保留旧错误枚举、unknown请求结果、全部传输和重试逻辑；不认定公司现场TLS根因已解决。新增原生握手成功且请求送达后失败、双语言服务诊断及三语言浏览器回归。"
     }
   ],
-  "updated_at": "2026-11-09"
+  "updated_at": "2026-11-10"
 }
