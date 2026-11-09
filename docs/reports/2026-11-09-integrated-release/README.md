@@ -26,3 +26,12 @@
 原工作区的并行改动完整保存在本轮整合输入清单和 Git stash `6d0a154271bce0c0b72441cfe6427f2b88f5f846`，随后原分支已快进到整合应用提交。备份仍保留；不应再重复应用到已整合源码。
 
 候选门禁通过，正式门禁仍为 `REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED`。最终 EXE 的合成接口结果不证明真实模型的业务准确率或速度，也未关闭超过一小时的公司现场启动、截图 HTTP 500、TLS 线索及复杂业务回答质量等待验证事项。
+
+
+## 同包辅助验收工具
+
+[辅助工具 run 42555656314](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42555656314) 成功，生成唯一 artifact `13647579294`。工具实际在 Windows 启动，输出无请求的 38 轮、最多 114 次模型请求计划，并对冻结原 EXE 重新完成 79 个离线样本。该计划只是待授权后执行的上限，本轮真实模型调用为 0。
+
+下载后的完整外层 artifact SHA-256 为 `544e704940f174524675c6b15b01d3a98cae27d6d7ff4cd18c1fc803275a30a3`；辅助包内的原应用 ZIP 和 EXE 与候选发布逐字节一致，未重新构建原应用。独立核验、来源绑定、文件哈希与复验身份见 `office-kit-verification.json`；4 份原始构建/原生报告保存为 `OFFICE-NATIVE-REPORTS.zip`，归档和逐文件哈希见 `office-raw-reports.json`。辅助包保存在上述 Actions run 的产物中，按工作流保留 30 天。
+
+辅助工具在 CI 成功不代表目标公司设备验收完成，也没有替代人工业务评分；正式门禁仍阻断。应用候选的 8 个发布附件保持不变，辅助包独立保存在对应工作流产物中。
