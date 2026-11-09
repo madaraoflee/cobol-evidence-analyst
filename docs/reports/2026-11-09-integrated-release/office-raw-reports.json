@@ -1,0 +1,27 @@
+{
+  "archive": "OFFICE-NATIVE-REPORTS.zip",
+  "bytes": 1010970,
+  "sha256": "074729b148602c7193c61e009e7c30431a4554d2821956e0a8a3f41f46782631",
+  "members": [
+    {
+      "name": "KIT-BUILD-RECEIPT.json",
+      "bytes": 990,
+      "sha256": "91ad120f96dc7b12d6a4b6fc9ba8f8ca59554a8c01ae92b5e590765fe5b22f15"
+    },
+    {
+      "name": "OFFICE-CANDIDATE-BINDING.json",
+      "bytes": 636,
+      "sha256": "7679d244c97d34e7e9e5d471f5f384b047d3aa1b74fad1ff7a13956d3ac362c0"
+    },
+    {
+      "name": "OFFICE-ENVIRONMENT.json",
+      "bytes": 369,
+      "sha256": "59dfb79187488396f0405dff6dd8d4b279e596097f8491cf4a74df908b00ed1e"
+    },
+    {
+      "name": "COMPILED-ACCEPTANCE.json",
+      "bytes": 13165647,
+      "sha256": "d2e332eccd66fc7d506ca487105788967e1bde87034b7ad9597dcd078e9cc6f8"
+    }
+  ]
+}

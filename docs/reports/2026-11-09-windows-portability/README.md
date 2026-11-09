@@ -8,4 +8,4 @@
 
 第二轮完整源码回归绑定 `deea01e3e71777d1418729f4e9b23890278d212f`：5,138 项 Python 与 309 项浏览器测试全部通过，零错误、零失败、零跳过。257 条记录中 249 条修复机制逐项通过，8 条历史/现场记录继续未验证，因此整体保持 blocked。详见本目录逐条报告、原始报告压缩包和 verification-summary.json。
 
-第二轮 Windows 最终包结果将在完成后追加。源码级结果不能替代真实公司仓库、模型、人评和目标设备验收。
+第二轮 Windows run [42551742917](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42551742917) 绑定整合提交 `d1fa964daec550dda29462f800e8346df2d55486`，四分片零失败、零错误，5,135 项通过、2 项原有 POSIX 专用跳过。两项跳过均已在上述完整源码回归通过。原始结果保存为 FINAL-WINDOWS-REGRESSIONS.zip；最终 EXE 的 79 样本及 55 项连续性检查也通过，候选发布回执另见 [整合交付记录](../2026-11-09-integrated-release/README.md)。源码与 CI 离线结果不能替代真实公司仓库、模型、人评和目标设备验收。

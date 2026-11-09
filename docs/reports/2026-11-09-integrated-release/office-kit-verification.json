@@ -1,0 +1,78 @@
+{
+  "status": "passed",
+  "verification_scope": "ci_built_kit_and_native_offline_repeat_only",
+  "office_run_id": 42555656314,
+  "office_artifact_id": 13647579294,
+  "outer_sha256": "544e704940f174524675c6b15b01d3a98cae27d6d7ff4cd18c1fc803275a30a3",
+  "kit_archive_sha256": "7fad3f7548772fca5dd950f2799ee676bb486453f10d6408c83703ac17660cb0",
+  "office_kit_sha256": "40f0c81d31f8f0f89dab1e477d28b999b47fdedb56ab568b197f5f49aa8e2027",
+  "helper_binary_sha256": "99120725e4a062b823006370ef286de28f1d576e1e1babe4b0654102bdb7d420",
+  "source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+  "artifact": {
+    "archive_sha256": "af7fb224a05ce33d3f487a327378b13ccbf15b1322640068ceac91354ab3bf7f",
+    "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+    "binary_sha256": "024f6aabfa1fd5ff5f0277c29649b60cac463a8d8f73f80a1458c3a05a6111ba",
+    "application_sha256": "95dc0c775b1b7a02abc5f3da41cd3d0fe5b2670369ca36a2fbe735e26935b589",
+    "source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows"
+  },
+  "candidate_binding": {
+    "schema_version": "office-candidate-binding/v1",
+    "repository": "madaraoflee/cobol-evidence-analyst",
+    "selection": "explicit_run",
+    "workflow_id": 376674140,
+    "workflow_path": ".github/workflows/windows-desktop.yml",
+    "source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+    "candidate_run_id": 42551742917,
+    "candidate_run_attempt": 1,
+    "candidate_artifact_id": 13647426107,
+    "candidate_artifact_name": "COBOLWorkbench-windows-x64-d1fa964daec550dda29462f800e8346df2d55486-1",
+    "helper_source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+    "model_calls": 0,
+    "publication_performed": false
+  },
+  "native_samples": 79,
+  "native_cases": 25,
+  "native_plan_in_ci": {
+    "status": "planned",
+    "turns": 38,
+    "maximum_model_requests": 114,
+    "publication_performed": false
+  },
+  "local_plan_recalculation_scope": "source_function_no_binary_or_network",
+  "planned_turns": 38,
+  "planned_maximum_requests": 114,
+  "observed_real_model_requests": 0,
+  "formal_publish_allowed": false,
+  "real_model_acceptance_completed": false,
+  "company_office_acceptance_completed": false,
+  "assets": {
+    "COBOLWorkbench-office-acceptance-windows-x64.zip": {
+      "sha256": "7fad3f7548772fca5dd950f2799ee676bb486453f10d6408c83703ac17660cb0",
+      "size": 57050664
+    },
+    "COBOLWorkbench-office-acceptance-windows-x64.zip.sha256": {
+      "sha256": "0550c86aabc1ec6d8566713deef2fc7447e123450e752fb826d4b9828e401b6d",
+      "size": 116
+    },
+    "COMPILED-ACCEPTANCE.json": {
+      "sha256": "d2e332eccd66fc7d506ca487105788967e1bde87034b7ad9597dcd078e9cc6f8",
+      "size": 13165647
+    },
+    "KIT-BUILD-RECEIPT.json": {
+      "sha256": "91ad120f96dc7b12d6a4b6fc9ba8f8ca59554a8c01ae92b5e590765fe5b22f15",
+      "size": 990
+    },
+    "OFFICE-CANDIDATE-BINDING.json": {
+      "sha256": "7679d244c97d34e7e9e5d471f5f384b047d3aa1b74fad1ff7a13956d3ac362c0",
+      "size": 636
+    },
+    "OFFICE-ENVIRONMENT.json": {
+      "sha256": "59dfb79187488396f0405dff6dd8d4b279e596097f8491cf4a74df908b00ed1e",
+      "size": 369
+    }
+  },
+  "plan_log_sha256": "bf3ba27229d56b1d10c595df415c4a0484ee10f23708337b9c31dad182d6e66d"
+}

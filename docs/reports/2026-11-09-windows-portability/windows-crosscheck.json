@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "audit_status": "verified",
+  "candidate_source_commit": "d1fa964daec550dda29462f800e8346df2d55486",
+  "full_source_test_commit": "deea01e3e71777d1418729f4e9b23890278d212f",
+  "windows": {
+    "tests": 5137,
+    "passed": 5135,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 2,
+    "expected_failures": 0,
+    "unique_execution": true,
+    "shards": [
+      {
+        "index": 0,
+        "tests": 1285,
+        "skipped": 1
+      },
+      {
+        "index": 1,
+        "tests": 1284,
+        "skipped": 1
+      },
+      {
+        "index": 2,
+        "tests": 1284,
+        "skipped": 0
+      },
+      {
+        "index": 3,
+        "tests": 1284,
+        "skipped": 0
+      }
+    ]
+  },
+  "full_source": {
+    "python_passed": 5138,
+    "python_skipped": 0,
+    "all_recorded_bugs_verified": false,
+    "unverified_bug_count": 8
+  },
+  "skipped_tests_crosschecked": [
+    {
+      "test_id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+      "windows_outcome": "skipped",
+      "windows_reason": "Real source permissions require a non-root POSIX user.",
+      "applicable_platform": "Darwin",
+      "applicable_outcome": "passed",
+      "applicable_report": "python-0.json"
+    },
+    {
+      "test_id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+      "windows_outcome": "skipped",
+      "windows_reason": "Real directory permission failures require a non-root POSIX user.",
+      "applicable_platform": "Darwin",
+      "applicable_outcome": "passed",
+      "applicable_report": "python-1.json"
+    }
+  ],
+  "source_identity": {
+    "runtime_tests_contract_unchanged": true,
+    "snapshot_files": 829,
+    "snapshot_sha256": "406cf84dbfd8b25924634c086f1ae4c0b0c7eeab9aa40b4259e1d204657f7948",
+    "only_committed_changes": [
+      "docs/reports/2026-11-09-windows-portability/BUG-REGRESSION-REPORT.json",
+      "docs/reports/2026-11-09-windows-portability/README.md",
+      "docs/reports/2026-11-09-windows-portability/SOURCE-REGRESSION-REPORTS.zip",
+      "docs/reports/2026-11-09-windows-portability/verification-summary.json"
+    ],
+    "only_working_changes": [
+      " M docs/reports/2026-11-09-integrated-release/README.md",
+      " M docs/reports/2026-11-09-windows-portability/README.md",
+      "?? docs/reports/2026-11-09-integrated-release/github-release.json",
+      "?? docs/reports/2026-11-09-integrated-release/windows-candidate-verification.json",
+      "?? docs/reports/2026-11-09-windows-portability/FINAL-WINDOWS-REGRESSIONS.zip"
+    ]
+  },
+  "raw_windows_report_sha256": {
+    "python-regressions-d1fa964daec550dda29462f800e8346df2d55486-1-0/python-regressions-0.json": "bff96e77af813607b9bc332e6589b3355fcaeb66ff0037c0fe4a6b5e838ca00e",
+    "python-regressions-d1fa964daec550dda29462f800e8346df2d55486-1-1/python-regressions-1.json": "1a1180415ed398ecebd5afabb561ec1f30213be839f171415c1268084f0b84bf",
+    "python-regressions-d1fa964daec550dda29462f800e8346df2d55486-1-2/python-regressions-2.json": "8147ae00970a6aae9b52d1a7abbc1cc9754d07419c2a91b20384ac047f0c663d",
+    "python-regressions-d1fa964daec550dda29462f800e8346df2d55486-1-3/python-regressions-3.json": "bb753f48881efaf7df2712f307ae7cd346add0bb5fd777dffdb402881bdd7be5"
+  },
+  "raw_full_source_python_report_sha256": {
+    "python-3.json": "46d97824d2c2a31accf67dc516da6e62a9eee004521aff6f127b0fa4b2ae007b",
+    "python-2.json": "8fee1d7a4b3bf6c91f8c66be096d1a94f2c57296a2bc242c14f723788fc92fe6",
+    "python-tools.json": "e2e1c37b929024009036c200cb2886551f794f7ba8f81d5d719ed5a576d0920b",
+    "python-1.json": "26fae0a911d46b44e067c358d16d8cf4d56d11112c5799ab25ecfe75ca267822",
+    "python-0.json": "a0d62dc5f20e30cbe080ac83f248aef7d6c064a9ea2aa607f24fce8e69733b0d"
+  },
+  "scope": "Source-test cross-platform reconciliation only; not new executable, real-model or target-device acceptance.",
+  "archived_raw_windows_results": {
+    "file": "FINAL-WINDOWS-REGRESSIONS.zip",
+    "bytes": 989812,
+    "sha256": "48d84c0c1f41a677ea3932c20151624f2866209325d187464359c4aef4c901f8"
+  }
+}
