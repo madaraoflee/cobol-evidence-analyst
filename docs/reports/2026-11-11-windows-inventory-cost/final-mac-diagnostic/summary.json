@@ -1,0 +1,120 @@
+{
+  "kind": "local_final_tool_four_mode_smoke",
+  "status": "completed_diagnostic",
+  "exit_code": 0,
+  "runtime_platform": "Darwin",
+  "runtime_machine": "arm64",
+  "python_version": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "tool_sha256": "11f5e3494fd5f680c95623d7aa8f0d5b4dfafc4a276ec7908cd44dd0dc957eee",
+  "tool_unchanged": true,
+  "files_per_case": 200,
+  "mode_sequence": [
+    "DELETE",
+    "PERSIST",
+    "TRUNCATE",
+    "DELETE"
+  ],
+  "elapsed_seconds": 10.366988042020239,
+  "cases": [
+    {
+      "case": 1,
+      "mode": "DELETE",
+      "status": "passed",
+      "seconds": 2.42345841700444,
+      "observed_modes": [
+        "DELETE"
+      ],
+      "observed_synchronous": [
+        2
+      ],
+      "connections": 7531,
+      "full_verified_connections": 7531,
+      "page_delivery_positions": 200,
+      "export_delivery_positions": 200,
+      "source_reviews": 200,
+      "durable_completed_actions": 803,
+      "rollback_kept_session_metadata_bytes": true,
+      "rollback_kept_summary": true,
+      "rollback_kept_publication": true
+    },
+    {
+      "case": 2,
+      "mode": "PERSIST",
+      "status": "passed",
+      "seconds": 2.535916249966249,
+      "observed_modes": [
+        "PERSIST"
+      ],
+      "observed_synchronous": [
+        2
+      ],
+      "connections": 7531,
+      "full_verified_connections": 7531,
+      "page_delivery_positions": 200,
+      "export_delivery_positions": 200,
+      "source_reviews": 200,
+      "durable_completed_actions": 803,
+      "rollback_kept_session_metadata_bytes": true,
+      "rollback_kept_summary": true,
+      "rollback_kept_publication": true
+    },
+    {
+      "case": 3,
+      "mode": "TRUNCATE",
+      "status": "passed",
+      "seconds": 2.445666790998075,
+      "observed_modes": [
+        "TRUNCATE"
+      ],
+      "observed_synchronous": [
+        2
+      ],
+      "connections": 7531,
+      "full_verified_connections": 7531,
+      "page_delivery_positions": 200,
+      "export_delivery_positions": 200,
+      "source_reviews": 200,
+      "durable_completed_actions": 803,
+      "rollback_kept_session_metadata_bytes": true,
+      "rollback_kept_summary": true,
+      "rollback_kept_publication": true
+    },
+    {
+      "case": 4,
+      "mode": "DELETE",
+      "status": "passed",
+      "seconds": 2.4232939169742167,
+      "observed_modes": [
+        "DELETE"
+      ],
+      "observed_synchronous": [
+        2
+      ],
+      "connections": 7531,
+      "full_verified_connections": 7531,
+      "page_delivery_positions": 200,
+      "export_delivery_positions": 200,
+      "source_reviews": 200,
+      "durable_completed_actions": 803,
+      "rollback_kept_session_metadata_bytes": true,
+      "rollback_kept_summary": true,
+      "rollback_kept_publication": true
+    }
+  ],
+  "case_deliveries_equivalent": true,
+  "source_binding_declared_file_count": 10,
+  "source_unchanged_in_declared_scope": true,
+  "report_sha256": "26473e289d667d1f5d3830c52f081e9f0e66b8d27c8f1c1f8f1dc3830838a362",
+  "real_model_calls": false,
+  "real_source_access": false,
+  "source_regression_acceptance": false,
+  "compiled_executable_acceptance": false,
+  "office_acceptance": false,
+  "limits": [
+    "Local macOS instrumented synthetic diagnostic; not Windows timing or final EXE acceptance.",
+    "Only the ten listed production/fixture/driver files and diagnostic tool hash were bound; not whole-checkout cleanliness.",
+    "Does not replace the original 10001-file case or complete regression suite."
+  ],
+  "diagnostic_report": "/private/tmp/cobol-online-cost-final-200-20261111/diagnostic/DIAGNOSTIC-REPORT.json",
+  "log": "/private/tmp/cobol-online-cost-final-200-20261111/diagnostic/diagnostic.log"
+}

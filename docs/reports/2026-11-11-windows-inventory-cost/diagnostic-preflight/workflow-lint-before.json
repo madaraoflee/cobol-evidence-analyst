@@ -1,0 +1,19 @@
+{
+  "draft": "/private/tmp/online-snapshot-cost-workflow.yml",
+  "draft_sha256": "9111d873a0ec82dce041cc3607a6b5b0edbfaaa6367d6079023dc013ac95ef04",
+  "command": [
+    "/private/tmp/cobol-actionlint-1.7.7-20261111/actionlint",
+    "-shellcheck=",
+    "-pyflakes=",
+    "/private/tmp/online-snapshot-cost-workflow.yml"
+  ],
+  "exit_code": 1,
+  "status": "failed",
+  "tool_version_stdout": "1.7.7\ninstalled by downloading from release page\nbuilt with go1.23.4 compiler for darwin/arm64\n",
+  "tool_version_stderr": "",
+  "shellcheck_enabled": false,
+  "pyflakes_enabled": false,
+  "powershell_runtime_executed": false,
+  "workflow_triggered": false,
+  "source_modified": false
+}

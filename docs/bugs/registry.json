@@ -7926,6 +7926,69 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "已保留修前证据并完成定向回归；完整本轮源码和新的Windows同包结果另行报告。原资料、范围、来源校验、预算、旧测试断言及成功白名单不削弱；只读索引优化不手工重算数据。Mac对照不代替Windows耗时，旧被中断项目不得算通过。"
+    },
+    {
+      "id": "BUG-20261111-012",
+      "title": "Windows在线万文件持久化仍超时，旧索引修复不足以完成整轮回归",
+      "symptom": "main a46bff1320b41226d15be72ba28e5aa77e29bfb4 的Windows run42877684403分组2在原45分钟上限中断；在线10001文件用例实际执行1871.306555秒仍incomplete，614项未开始，EXE构建被阻断。",
+      "root_cause": "尚未完全确认。真实周期栈多数位于capture后的db.commit，其他落在连接与读取；Mac中性1k测到5027笔有行变化事务，但不能拿Mac统计或每笔写入假设替代Windows根因测量。需要同版本、同中性流程的Windows事务和连接分阶段诊断。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_all_full_durability_modes_preserve_complete_delivery_and_rollback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_existing_result_is_rejected_without_modifying_its_bytes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_incorrect_delivery_size_fails_without_overwriting_workflow_evidence"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_keyboard_interrupt_keeps_report_and_case_explicitly_interrupted"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-inventory-cost/README.md",
+        "docs/reports/2026-11-11-windows-inventory-cost/WINDOWS-REGRESSION-SUMMARY.json",
+        "docs/reports/2026-11-11-windows-inventory-cost/failed-windows-regression-evidence.zip"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "Windows实际未通过，不计入全部通过；原45分钟门槛、全部旧断言、输入、金标和跳过规则保持不变。此条记录新增未闭环的Windows持久化耗时，不将之前两项索引修复误称为整体问题已解决。诊断不替代全部源码、最终EXE、真实模型或目标设备验收。"
+    },
+    {
+      "id": "BUG-20261111-013",
+      "title": "维护诊断工具末次已观测到源码变化仍返回成功",
+      "symptom": "入库前3文件真实四模式复现：三次源码绑定观测initial/initial/changed，最终source_unchanged=false但status=completed_diagnostic、返回0。",
+      "root_cause": "正常成功返回在try内提前决定，finally再次读取并记录源码变化却没有更新成功状态及退出码。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_final_source_observation_change_blocks_completed_diagnostic"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_keyboard_interrupt_keeps_report_and_case_explicitly_interrupted"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_incorrect_delivery_size_fails_without_overwriting_workflow_evidence"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-diagnostic-final-source-binding/README.md",
+        "docs/reports/2026-11-11-diagnostic-final-source-binding/boundary-reproduction.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "仅维护诊断工具，在首次上传前发现并修复，不修改应用生产默认或原测试。三文件及源码观测注入只验证状态判定；新完整回归和Windows实测另行报告，不能替代公司真实模型/源码/设备验收。"
     }
   ],
   "updated_at": "2026-11-10"

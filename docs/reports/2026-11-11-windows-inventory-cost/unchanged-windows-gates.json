@@ -1,0 +1,54 @@
+{
+  "old_commit": "b2995f2e154c846f09f76c1f08edf5b4e20e5119",
+  "new_commit": "a46bff1320b41226d15be72ba28e5aa77e29bfb4",
+  "files": [
+    {
+      "path": ".github/workflows/windows-desktop.yml",
+      "unchanged": true,
+      "old_sha256": "3bc5258f28066a8e333025755f8e0805650959d1633925116ba832fdffc09392",
+      "final_sha256": "3bc5258f28066a8e333025755f8e0805650959d1633925116ba832fdffc09392"
+    },
+    {
+      "path": "docs/eval/desktop-joint-v1/manifest.json",
+      "unchanged": true,
+      "old_sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+      "final_sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06"
+    },
+    {
+      "path": "tools/check_python_regression_reports.py",
+      "unchanged": true,
+      "old_sha256": "8822e7aac9cc967e182b9c9b5a36c89f212a9dd1bf0528740fe1dc8b457ebb1b",
+      "final_sha256": "8822e7aac9cc967e182b9c9b5a36c89f212a9dd1bf0528740fe1dc8b457ebb1b"
+    },
+    {
+      "path": "tools/desktop_acceptance.py",
+      "unchanged": true,
+      "old_sha256": "9bc06844f44eb255eb7aac02ef65ad5c08cfe42bbb0dd0b2fad3cf4c00a80150",
+      "final_sha256": "9bc06844f44eb255eb7aac02ef65ad5c08cfe42bbb0dd0b2fad3cf4c00a80150"
+    },
+    {
+      "path": "poc/agent_policy.py",
+      "unchanged": true,
+      "old_sha256": "d86b5014603d4fda9a14cc6050a6f8356628396d1dc6c8aef5bd75f00540f1b9",
+      "final_sha256": "d86b5014603d4fda9a14cc6050a6f8356628396d1dc6c8aef5bd75f00540f1b9"
+    },
+    {
+      "path": "tools/check_global_inventory_continuity.py",
+      "unchanged": true,
+      "old_sha256": "3a9df5d0dcf26aeadd085ba89d4c1a478157c65988ea79f495f02bc4e955bc4f",
+      "final_sha256": "3a9df5d0dcf26aeadd085ba89d4c1a478157c65988ea79f495f02bc4e955bc4f"
+    },
+    {
+      "path": "poc/release_acceptance.py",
+      "unchanged": true,
+      "old_sha256": "6ac5801ece150e096cd98cd506c33e981a94c0cde7a0b6f5c01df45b827abf87",
+      "final_sha256": "6ac5801ece150e096cd98cd506c33e981a94c0cde7a0b6f5c01df45b827abf87"
+    },
+    {
+      "path": ".github/workflows/windows-office-acceptance.yml",
+      "unchanged": true,
+      "old_sha256": "4e0fd51263f5bb99358c038195d152019d6f47452c92261c427178e0b71b70a3",
+      "final_sha256": "4e0fd51263f5bb99358c038195d152019d6f47452c92261c427178e0b71b70a3"
+    }
+  ]
+}

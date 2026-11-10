@@ -1,0 +1,52 @@
+{
+  "kind": "final_binding_source_change_race_reproduction",
+  "tool_path": "/private/tmp/cobol-global-formula-audit-tree-20261110/tools/diagnose_online_inventory_cost.py",
+  "tool_sha256": "0c793bf09138c4f8e78191303e99b1aedc9a90300437fe87fd6bb916a5eaa127",
+  "scope": "real three-file production driver; only argparse choice and binding observations mocked; no repository source edited",
+  "file_count": 3,
+  "mode_sequence": [
+    "DELETE",
+    "PERSIST",
+    "TRUNCATE",
+    "DELETE"
+  ],
+  "binding_call_count": 3,
+  "binding_observation_sequence": [
+    "initial",
+    "initial",
+    "changed"
+  ],
+  "return_code": 0,
+  "report_status": "completed_diagnostic",
+  "source_unchanged_in_declared_scope": false,
+  "all_cases_passed": true,
+  "case_count": 4,
+  "report_source_binding_before": {
+    "poc/online_inventory_store.py": "b3f12ac5b2efb229ab8666459e73cedea9d34873df30ae582774ad5ad6d9ae3d",
+    "poc/online_investigation.py": "6e32c41ee3d07f97cd43070768c4aafb9c47cbd72a26d74d020ede07ba095cab",
+    "poc/online_material_reader.py": "207915fc5ad159a696683481ea7ad8bb70578bce7f6c72f9774160fec9b43b22",
+    "poc/online_material_query.py": "0fe8b9b329096d6b3d90729c3fa343eb6d650be83e044cd652ae898994d82995",
+    "poc/online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/business_index.py": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03",
+    "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+    "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+    "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+  },
+  "report_source_binding_after": {
+    "poc/online_inventory_store.py": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "poc/online_investigation.py": "6e32c41ee3d07f97cd43070768c4aafb9c47cbd72a26d74d020ede07ba095cab",
+    "poc/online_material_reader.py": "207915fc5ad159a696683481ea7ad8bb70578bce7f6c72f9774160fec9b43b22",
+    "poc/online_material_query.py": "0fe8b9b329096d6b3d90729c3fa343eb6d650be83e044cd652ae898994d82995",
+    "poc/online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/business_index.py": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03",
+    "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+    "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+    "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+  },
+  "reported_source_binding_changed": true,
+  "confirmed_false_success": true,
+  "diagnostic_report_path": "/private/tmp/cobol-diagnostic-final-binding-boundary-20261111/three-file-production-pipeline/DIAGNOSTIC-REPORT.json",
+  "diagnostic_report_sha256": "9a3b528afadca5a019646ead778fe9098c2320c21e466ac5c5e8c0391593850f"
+}

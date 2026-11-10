@@ -1,0 +1,19 @@
+{
+  "draft": "/private/tmp/online-snapshot-cost-workflow.yml",
+  "draft_sha256": "d705201e20a70ba9539fa586ec82048dbcbed099d0ed98f883648fd9ab8c91da",
+  "command": [
+    "/private/tmp/cobol-actionlint-1.7.7-20261111/actionlint",
+    "-shellcheck=",
+    "-pyflakes=",
+    "/private/tmp/online-snapshot-cost-workflow.yml"
+  ],
+  "exit_code": 0,
+  "status": "passed",
+  "tool_version": "1.7.7\ninstalled by downloading from release page\nbuilt with go1.23.4 compiler for darwin/arm64\n",
+  "shellcheck_enabled": false,
+  "pyflakes_enabled": false,
+  "powershell_runtime_executed": false,
+  "workflow_triggered": false,
+  "repo_source_modified": false,
+  "draft_fix": "runner.temp is evaluated in the step env and upload path, not the job env."
+}

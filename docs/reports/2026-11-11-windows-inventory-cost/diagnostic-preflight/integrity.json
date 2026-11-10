@@ -1,0 +1,12 @@
+{
+  "official_repository": "rhysd/actionlint",
+  "release": "v1.7.7",
+  "asset": "actionlint_1.7.7_darwin_arm64.tar.gz",
+  "archive_sha256": "2693315b9093aeacb4ebd91a993fea54fc215057bf0da2659056b4bc033873db",
+  "official_checksum_sha256": "2693315b9093aeacb4ebd91a993fea54fc215057bf0da2659056b4bc033873db",
+  "checksum_verified": true,
+  "checksums_file_sha256": "ac22e6577b8d133c7cd779682e65712ef722e719a297633699a4da05e9f351e0",
+  "archive_bytes": 1962532,
+  "binary_sha256": "00aba386d026da33be6e85dd5a46d7af4dd9e4d6cbdb02335f4b267162fd2d9e",
+  "official_api_digest_available": false
+}
