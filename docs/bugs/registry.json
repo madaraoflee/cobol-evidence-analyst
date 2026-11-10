@@ -6438,6 +6438,301 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "用户于2026-11-10明确批准最小本地诊断修复及唯一旧文案预期更正。只纠正中英繁中文案与兼容注释，保留旧错误枚举、unknown请求结果、全部传输和重试逻辑；不认定公司现场TLS根因已解决。新增原生握手成功且请求送达后失败、双语言服务诊断及三语言浏览器回归。"
+    },
+    {
+      "id": "BUG-20261110-001",
+      "title": "失败轮已完成的新分析未移交给普通追问",
+      "symptom": "第二轮完成新源码读取和第3代压缩后终答HTTP 500，下一轮退回第2代，漏掉新条件和原文页。",
+      "root_cause": "历史选择只认有可用回答的调查句柄；诊断轮只参与安全检查，未选择其中已完成的累计分析。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/failed-compaction-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_completed_compaction_before_http500_is_inherited_by_next_question"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_two_failed_turns_preserve_monotonic_analysis_and_latest_owned_handle"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_older_unknown_request_blocks_even_a_newer_known_failure"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_changed_new_source_and_compilation_identity_reject_failed_donor"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_no_progress_failure_keeps_original_anchor"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_deictic_failed_chain_preserves_verified_lineage"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_forked_or_retracted_failed_checkpoint_is_not_merged"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "用户明确批准本地最小修复。仅接续同会话同源码同对象且严格扩展的已完成分析；未知请求仍阻断。不能确认公司500根因，也不涵盖此前完全没有可用回答的首轮失败。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-002",
+      "title": "流式错误事件丢失明确接口分类和已观察状态",
+      "symptom": "流式响应明确报告额度、限流或上下文超限，却显示响应格式错误；原生流式诊断可能记为未收到响应。",
+      "root_cause": "SSE错误事件抛出通用错误，未复用安全分类；解码失败早于传输返回，已收到的状态和安全头信息未保留。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/stream-errors-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/stream-tests-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_sse_error_diagnostics.py",
+          "test_id": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_explicit_sse_causes_keep_safe_headers_on_native_and_injected_paths"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_sse_error_diagnostics.py",
+          "test_id": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_unknown_sse_code_stays_unconfirmed_without_echo"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_sse_error_diagnostics.py",
+          "test_id": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_reflected_error_code_and_request_id_are_not_trusted"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_sse_error_diagnostics.py",
+          "test_id": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_visible_text_is_preserved_without_retry_or_false_completion"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_sse_error_diagnostics.py",
+          "test_id": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_ordinary_http500_keeps_existing_classification"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "用户明确批准本地最小诊断修复。保留原错误码、unknown结果和重试策略；已收到响应头不等于远端执行完成。离线复现不认定公司现场根因。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-003",
+      "title": "后续本机错误覆盖此前接口错误的显示与历史",
+      "symptom": "接口明确限流后本机检查出错，磁盘同时保留两项诊断，但当前界面及历史只显示系统错误。",
+      "root_cause": "前端安全投影、未接受回答投影及会话保存没有传递已有prior_diagnostic。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/prior-diagnostic-browser-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/prior-diagnostic-history-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/prior-tests-before.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_api_diagnostic.py",
+          "test_id": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_real_failure_save_and_reopen_preserve_current_and_prior_causes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_api_diagnostic.py",
+          "test_id": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_unaccepted_projection_preserves_only_safe_prior_fields"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_prior_api_diagnostic.py",
+          "test_id": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_invalid_prior_does_not_replace_a_valid_current_diagnostic"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_prior_api_diagnostic.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "用户明确批准本地最小诊断修复。分别标示此前接口失败与当前本机失败，不将两者当作已证因果；复现中的本机异常为合成注入。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-004",
+      "title": "在线入口及独立在线页面未遵循界面语言",
+      "symptom": "选择简体后Bitbucket入口仍含繁体；独立在线页面及动态状态没有继承全局语言选择。",
+      "root_cause": "入口缺少精确翻译词条；独立在线页面硬编码文本且未读取既有locale设置。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/online-before-all.log"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online_locale.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "仅修改Bitbucket专属界面及入口词条；不翻译用户问题、历史内容、模型答案、源码或路径。界面语言不构成真实模型语言遵从验收。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-005",
+      "title": "在线问答未传入已保存的回答要求",
+      "symptom": "用户在设置中保存的回答语言、业务重点及章节要求没有进入在线模型请求。",
+      "root_cause": "在线桥接、工作区及调查请求只传固定系统指令，未接入answer_instructions与locale。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/online-requirements-and-errors-before.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_full_saved_requirements_language_priority_and_protocol_reach_every_model_call"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prose_and_locale_fallback_match_existing_language_resolver"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_legacy_checkpoint_defaults_only_new_fields_and_rejects_other_changes"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_changed_requirements_revise_pending_answer_with_all_evidence_and_unfinished_work"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_answered_checkpoint_same_requirements_replays_but_changed_requirements_regenerates"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_unknown_outcome_preserves_diagnostic_and_old_requirements_until_explicit_retry"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prompt_capacity_keeps_full_requirements_and_revision_draft_for_later_resume"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_revision_capacity_failure_retains_original_pending_answer_without_marking_answered"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_bridge_exposes_live_saved_requirements_read_only"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_new_questions_and_followups_receive_latest_full_requirements_and_locale"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_oversized_saved_requirements_leave_durable_progress_recoverable"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "在线独立修复；完整要求须传到每轮，恢复保留证据和待办，需求变更时旧答案只能作为待修订草稿，未知请求不自动重发。本地要求传递另行核对，不以合成测试证明真实模型遵从。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-006",
+      "title": "在线调查丢弃结构化接口错误详情",
+      "symptom": "在线API失败后只剩错误枚举，无法看到原本已分类的原因、状态和安全关联编号。",
+      "root_cause": "APIClientError捕获仅保留code，checkpoint/result/job/pending未保留安全诊断投影。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/online-requirements-and-errors-before.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_unknown_outcome_preserves_diagnostic_and_old_requirements_until_explicit_retry"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_http_diagnostics_are_safe_specific_only_with_evidence_and_never_auto_retried"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_diagnostics_survive_reload_unknown_gate_and_clear_on_success"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_untrusted_diagnostic_fields_are_removed_from_all_persisted_projections"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_online_answer_requirements.py",
+          "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_synchronous_provider_failure_keeps_top_level_safe_diagnostic"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online_locale.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "仅独立在线链路传递既有安全诊断；普通HTTP500仍原因未确认，不推定限流或额度，不自动重试。公司现场仍待复测。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-007",
+      "title": "首轮失败且没有可用回答锚点时普通追问不接续已完成分析",
+      "symptom": "首次提问已完成2代压缩后终答HTTP500，检查点仍在磁盘且unknown为空；普通下一问没有assistant历史锚点，按第0代开始。",
+      "root_cause": "接续以可用assistant历史句柄作为所有权锚点；首轮诊断-only失败没有该锚点，不能进入现有失败轮累计状态选择。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-open.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/reproduce_first_failed_handoff.py",
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-continuation.json"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "已离线复现，属于原有问题；不纳入本次已准备并获准的已有成功锚点后最小接续修复。需另行设计并验证首轮所有权、原始请求证明与未知请求边界，不能绕过检查。未修复，不能因其他源码测试通过而关闭。"
+    },
+    {
+      "id": "BUG-20261110-008",
+      "title": "在线最近任务的错误显示到其他历史对话",
+      "symptom": "切换历史对话或资料版本后，前端仍可能展示另一个对话最近任务的错误。",
+      "root_cause": "在线状态始终返回最近active_job；前端未核对job的conversation_id和workspace_id与当前选择是否一致。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/online-before-scope.log",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online_locale.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "仅在线界面核对诊断所属对话和工作区；不改变任务状态、重试或数据。已测试当前、异对话、异工作区、接入任务与无关后台任务继续轮询；完整旧缺陷验证结果以本次独立报告为准。"
     }
   ],
   "updated_at": "2026-11-10"

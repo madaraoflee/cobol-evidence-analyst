@@ -1,0 +1,28 @@
+{
+  "source_commit": "57a9118e4a57b5802e9673d517924f3ecb178f43",
+  "source_snapshot": "e64e558aff6e0ac5f1c096764d2031d558315fe2c26c5d802dfbbd83791a2f1f",
+  "started_at": "2026-11-10T13:52:20.572979+00:00",
+  "finished_at": "2026-11-10T13:54:44.477870+00:00",
+  "status": "blocked",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "python_tests": 5170,
+  "browser_tests": 322,
+  "errors": [],
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "recorded_bugs": 266,
+  "source_verified_bugs": 259,
+  "source_tests_failed": 0,
+  "source_tests_skipped": 0,
+  "real_model_calls": 0,
+  "new_application_builds": 0,
+  "archive_sha256": "bacb5a2e865c6a25886531b3b9053a7843a72a690c5ec226978ac71595d63e99"
+}

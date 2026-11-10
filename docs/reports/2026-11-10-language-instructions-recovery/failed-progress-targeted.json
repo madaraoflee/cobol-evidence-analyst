@@ -1,0 +1,14 @@
+{
+  "tests_run": 32,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "expected_failures": 0,
+  "new_tests": 7,
+  "existing_tests": 25,
+  "full_regression": false,
+  "files": {
+    "poc/conversation_analysis_handoff.py": "7e70198c059f390bc987066cc9314b33144558f72442e68cac0926d51291da06",
+    "poc/tests/test_failed_turn_analysis_progress.py": "7400fe1c94ca08d20f1128b604fad1523c41e6aedb0dadae01adb221aa67a583"
+  }
+}

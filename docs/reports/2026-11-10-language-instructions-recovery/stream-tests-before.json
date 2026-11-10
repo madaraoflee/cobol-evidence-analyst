@@ -1,0 +1,8 @@
+{
+  "tests_run": 5,
+  "failures": 1,
+  "errors": 6,
+  "skipped": 0,
+  "passed": false,
+  "scope": "New proposed tests against unchanged repository module."
+}

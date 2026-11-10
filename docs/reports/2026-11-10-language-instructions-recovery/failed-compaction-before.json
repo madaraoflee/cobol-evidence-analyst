@@ -1,0 +1,30 @@
+{
+  "source_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "external_model_calls": 0,
+  "socket_network_blocked": true,
+  "first_run": "a836da4b8c2bfaeff63a7e7f",
+  "failed_run": "c2c0398683f59149396406f5",
+  "next_run": "ccfc27a91853db2adb7cf321",
+  "first_generations": 2,
+  "failed_generations": 3,
+  "next_generations": 2,
+  "failed_turn_compactions": 1,
+  "failed_answer_available": false,
+  "failed_answer_origin": "diagnostic",
+  "failed_message_status": "failed",
+  "failed_stop_reason": "HTTP_ERROR",
+  "failed_errors": null,
+  "failed_run_uncertain_requests": [],
+  "failed_checkpoint_has_new_marker": true,
+  "next_checkpoint_has_new_marker": false,
+  "next_first_prompt_has_new_marker": false,
+  "next_handoff_from": "a836da4b8c2bfaeff63a7e7f",
+  "new_source_ids_read_before_http500": [
+    "ev_page_703554fe180becf6361bcb4e"
+  ],
+  "new_source_ids_absent_from_next_memory": [
+    "ev_page_703554fe180becf6361bcb4e"
+  ],
+  "old_successful_memory_unchanged": true,
+  "failed_memory_still_durable": true
+}

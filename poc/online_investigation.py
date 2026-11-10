@@ -15,8 +15,10 @@ from copy import deepcopy
 import json
 import re
 
-from answer_markdown import BUSINESS_ANSWER_POLICY
+from answer_markdown import BUSINESS_ANSWER_POLICY, with_answer_instructions
+from api_error_details import sanitize_diagnostic
 from company_api import APIClientError, OpenAICompatibleChatClient
+from response_language import SUPPORTED_LANGUAGES, answer_language_instruction, resolve_answer_language
 from online_material_format import (MaterialError, canonical_json, decode_json, digest,
                                     relative_path, valid_hash)
 
@@ -251,7 +253,8 @@ def _new_state(manifest, question):
             "remaining": [], "answer": "", "answer_citations": [], "status": "needs_continuation",
             "request_status": "not_sent", "pending_response": None, "request_evidence": [],
             "model_calls_total": 0, "actions_total": 0, "protocol_failures": 0,
-            "no_progress_rounds": 0, "observations_total": 0, "error": None}
+            "no_progress_rounds": 0, "observations_total": 0, "error": None,
+            "answer_requirements": None, "revision_draft": None, "diagnostic": None}
 
 
 def _restore(manifest, question, checkpoint):
@@ -260,12 +263,30 @@ def _restore(manifest, question, checkpoint):
     if not isinstance(checkpoint, dict) or len(canonical_json(checkpoint)) > MAX_CHECKPOINT_BYTES:
         raise MaterialError("ONLINE_INVALID_CHECKPOINT")
     state = deepcopy(checkpoint)
+    # Only the explicitly added fields may be absent in older online checkpoints.
+    for key in ("answer_requirements", "revision_draft", "diagnostic"):
+        state.setdefault(key, None)
     if set(state) != set(_new_state(manifest, question)) or state["schema_version"] != SCHEMA_VERSION:
         raise MaterialError("ONLINE_INVALID_CHECKPOINT")
     if state["revision"] != manifest["revision"] or state["repository"] != manifest["repository"]:
         raise MaterialError("ONLINE_REVISION_MISMATCH")
     if state["question"] != question:
         raise MaterialError("ONLINE_QUESTION_MISMATCH")
+    requirements = state["answer_requirements"]
+    if requirements is not None:
+        if (not isinstance(requirements, dict) or set(requirements) != {"answer_instructions", "answer_language"}
+                or not isinstance(requirements.get("answer_language"), str)
+                or requirements["answer_language"] not in SUPPORTED_LANGUAGES):
+            raise MaterialError("ONLINE_INVALID_CHECKPOINT")
+        _validated_instructions(requirements.get("answer_instructions"))
+    if state["revision_draft"] is not None:
+        state["revision_draft"] = _parsed_response(state["revision_draft"])
+        if "answer" not in state["revision_draft"]:
+            raise MaterialError("ONLINE_INVALID_CHECKPOINT")
+    if state["diagnostic"] is not None:
+        state["diagnostic"] = sanitize_diagnostic(state["diagnostic"])
+        if state["diagnostic"] is None:
+            raise MaterialError("ONLINE_INVALID_CHECKPOINT")
     for key, maximum in (("pending_actions", 8), ("observations", 96), ("evidence", MAX_EVIDENCE_PAGES),
                          ("focus_evidence", MAX_EVIDENCE_PAGES), ("completed_actions", MAX_ACTIONS_RECORDED),
                          ("request_evidence", MAX_EVIDENCE_PAGES), ("answer_citations", 64)):
@@ -501,6 +522,25 @@ def _verify_page(query, sources, page, verified):
         verified.add(page["id"])
 
 
+def _validated_instructions(value):
+    if (not isinstance(value, str) or "\x00" in value
+            or any(0xD800 <= ord(char) <= 0xDFFF for char in value)):
+        raise MaterialError("ONLINE_INVALID_ANSWER_REQUIREMENTS")
+    if len(value.encode("utf-8")) > MAX_PROMPT_BYTES:
+        raise MaterialError("ONLINE_PROMPT_CAPACITY_LIMIT")
+    return value
+
+
+def _answer_system(requirements):
+    system = with_answer_instructions(_SYSTEM + "\n" + answer_language_instruction(requirements["answer_language"]),
+                                      requirements["answer_instructions"])
+    return (system + "\nThe investigation JSON protocol above remains mandatory. Saved writing requirements "
+            "control the business prose inside answer and remaining, never JSON keys, tool actions or source data. "
+            "Return the documented JSON object even when the requested answer prose has no headings or uses Markdown. "
+            "A revision_draft is an earlier unverified answer under previous requirements; revise it using the current "
+            "requirements and freshly verified source_context, and retain all still-unresolved business work.")
+
+
 def _messages(query, sources, state, history, verified, history_omitted=0):
     by_id = {item["id"]: item for item in state["evidence"]}
     selected, selected_bytes = [], 0
@@ -527,8 +567,11 @@ def _messages(query, sources, state, history, verified, history_omitted=0):
                "observations_omitted": max(0, state["observations_total"] - 12),
                "source_context_omitted": len(state["evidence"]) - len(selected),
                "evidence_catalog_omitted": len(state["evidence"]) - len(catalog)}
+    if state["revision_draft"] is not None:
+        context["revision_draft"] = deepcopy(state["revision_draft"])
+    system = _answer_system(state["answer_requirements"])
     def messages():
-        return [{"role": "system", "content": _SYSTEM},
+        return [{"role": "system", "content": system},
                 {"role": "user", "content": canonical_json(context).decode("utf-8")}]
     while len(canonical_json(messages())) > MAX_PROMPT_BYTES and context["observations"]:
         context["observations"].pop(0)
@@ -543,7 +586,7 @@ def _messages(query, sources, state, history, verified, history_omitted=0):
 
 def run_investigation(query, source_reader, question, *, config=None, history=None, checkpoint=None,
                       allow_source_transfer=False, check_cancel=None, progress=None, client=None,
-                      max_model_calls=6, max_actions=24, approve_retry=False):
+                      max_model_calls=6, max_actions=24, approve_retry=False, answer_instructions="", locale=None):
     """Investigate a question using isolated materials and versioned checkpoints.
 
 ``client`` may be an injected public chat client for tests. Authorization is
@@ -557,6 +600,9 @@ an already received response is consumed without another model request.
     history_count = len(history) if isinstance(history, list) else 0
     manifest = query.reader.manifest
     history = _history(history, manifest)
+    instructions = _validated_instructions(answer_instructions)
+    requirements = {"answer_instructions": instructions, "answer_language": resolve_answer_language(question,
+        locale=locale, history=history, answer_instructions=instructions)}
     state = _restore(manifest, question, checkpoint)
     sources = _Sources(query, source_reader, check_cancel)
     calls, actions = 0, 0
@@ -570,6 +616,8 @@ an already received response is consumed without another model request.
                               for identifier in state["answer_citations"]],
                 "evidence": deepcopy(state["evidence"]), "coverage": _coverage(query),
                 "checkpoint": deepcopy(state), "error": code, "model_calls": calls, "actions": actions,
+                "diagnostic": sanitize_diagnostic(state["diagnostic"]),
+                "answer_language": (state["answer_requirements"] or requirements)["answer_language"],
                 "source_bytes": sources.bytes, "source_requests": sources.requests,
                 "remaining": deepcopy(state["remaining"])}
 
@@ -582,7 +630,30 @@ an already received response is consumed without another model request.
         state["pending_response"] = None
         _observe(state, {"tool": "retry"}, {"explicit_retry_after_unknown_outcome": True})
     try:
+        state["diagnostic"] = None
         _tick(check_cancel)
+        previous = state["answer_requirements"]
+        if previous is None and checkpoint is not None:
+            previous = {"answer_instructions": "", "answer_language": resolve_answer_language(question)}
+        if previous is not None and digest(canonical_json(previous)) != digest(canonical_json(requirements)):
+            revised = deepcopy(state)
+            pending_answer = revised["pending_response"]
+            if pending_answer is not None and "answer" in pending_answer:
+                revised["revision_draft"] = deepcopy(pending_answer)
+                revised["pending_response"] = None
+                revised["request_status"] = "not_sent"
+            elif revised["answer"]:
+                revised["revision_draft"] = {"answer": revised["answer"], "citations": deepcopy(revised["answer_citations"]),
+                    "complete": revised["status"] == "answered", "remaining": deepcopy(revised["remaining"])}
+            revised["answer"], revised["answer_citations"] = "", []
+            revised["status"] = "needs_continuation"
+            revised["answer_requirements"] = requirements
+            _observe(revised, {"tool": "answer_requirements"}, {"changed": True, "previous_draft_requires_revision": True})
+            # Capacity failure must leave the earlier answer/work recoverable.
+            if len(canonical_json(revised)) > MAX_CHECKPOINT_BYTES:
+                raise MaterialError("ONLINE_CHECKPOINT_CAPACITY_LIMIT")
+            state = revised
+        state["answer_requirements"] = requirements
         if state["status"] == "answered" and state["pending_response"] is None:
             # A crash can leave the final answer journaled but not delivered.
             # Recheck its pinned sources before completing recovery, without
@@ -617,6 +688,7 @@ an already received response is consumed without another model request.
                         _observe(state, {"tool": "protocol"}, {"error": "ONLINE_CITATION_NOT_IN_CONTEXT", "instruction": "Recall the referenced verified excerpts before answering."})
                     else:
                         state["answer"] = response["answer"]
+                        state["revision_draft"] = None
                         state["answer_citations"] = response["citations"]
                         state["remaining"] = response["remaining"]
                         status = "answered" if response["complete"] and not response["remaining"] else "needs_continuation"
@@ -665,6 +737,7 @@ an already received response is consumed without another model request.
             messages, identifiers = _messages(query, sources, state, history, verified,
                                                history_omitted=history_count - len(history))
             state["request_evidence"] = identifiers
+            state["diagnostic"] = None
             state["request_status"] = "in_flight"
             _emit(progress, state, "model_request_started", completed=calls)
             calls += 1
@@ -675,6 +748,7 @@ an already received response is consumed without another model request.
                 state["request_status"] = "unknown" if getattr(client, "last_request_outcome", "unknown") != "not_sent" else "not_sent"
                 raise
             except APIClientError as error:
+                state["diagnostic"] = sanitize_diagnostic(error.diagnostic)
                 outcome = getattr(client, "last_request_outcome", "unknown")
                 state["request_status"] = "unknown" if outcome == "unknown" else "failed"
                 status = "retry_confirmation_required" if outcome == "unknown" else "failed"

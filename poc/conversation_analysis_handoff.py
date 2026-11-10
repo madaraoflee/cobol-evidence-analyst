@@ -88,6 +88,43 @@ def _latest_owned_analysis(database_path, source_root, conversation_id):
     return row[0], questions, handles
 
 
+def _strictly_extends_analysis_memory(previous, current):
+    """Select a monotonic checkpoint, never merge unrelated failed attempts."""
+    old_context, context = previous.get("source_memory_context"), current.get("source_memory_context")
+    if (not isinstance(old_context, dict) or not isinstance(context, dict)
+            or any(not old_context.get(key) or context.get(key) != old_context[key]
+                   for key in ("run_id", "question", "analysis_identity"))):
+        return False
+    old_memory, memory = previous.get("prior_source_memory"), current.get("prior_source_memory")
+    if not isinstance(old_memory, dict) or not isinstance(memory, dict):
+        return False
+    old_ledger, ledger = old_memory.get("analysis_ledger"), memory.get("analysis_ledger")
+    if not isinstance(old_ledger, dict) or not isinstance(ledger, dict):
+        return False
+    old_generations, generations = old_ledger.get("generations"), ledger.get("generations")
+    if (not isinstance(old_generations, list) or not isinstance(generations, list)
+            or generations[:len(old_generations)] != old_generations):
+        return False
+    page_sets = []
+    for value in (old_memory, memory):
+        pages = value.get("pages")
+        if (not isinstance(pages, list) or any(not isinstance(page, dict)
+                or not isinstance(page.get("evidence_id"), str) for page in pages)):
+            return False
+        by_id = {page["evidence_id"]: page for page in pages}
+        if len(by_id) != len(pages):
+            return False
+        page_sets.append(by_id)
+    old_pages, pages = page_sets
+    if any(pages.get(identifier) != page for identifier, page in old_pages.items()):
+        return False
+    old_origins, origins = old_memory.get("origins"), memory.get("origins")
+    if (not isinstance(old_origins, dict) or not isinstance(origins, dict)
+            or any(origins.get(identifier) != origin for identifier, origin in old_origins.items())):
+        return False
+    return len(generations) > len(old_generations) or len(pages) > len(old_pages)
+
+
 def followup_analysis_seed(question, *, database_path, source_root, session, history, conversation_id,
                            store, framework_reference_path=None, entry_program=None):
     """Return a validated same-object seed, or no inheritance at all.
@@ -124,12 +161,16 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
         if (prior_subject.get("status") != "resolved" or len(prior_subject.get("root_paths", [])) != 1
                 or not checkpoint.get("prior_source_memory")):
             return None
+        # Transcript eligibility and reusable source work are separate. A
+        # diagnostic-only turn may still have durably completed new analysis.
+        handoff_saved, handoff_run_id = saved, run_id
+        lineage_handles = {run_id}
         with closing(sqlite3.connect(database_path)) as connection:
             metadata = _metadata(connection)
             if any(prior_subject.get(key) != metadata.get(key) for key in
                    ("snapshot_id", "source_root_hash", "compilation_context_fingerprint")):
                 return None
-            for skipped_turn in skipped_questions:
+            for skipped_turn in reversed(skipped_questions):
                 skipped_question = skipped_turn["question"]
                 if (not isinstance(skipped_question, str) or len(skipped_question) > 32768
                         or _RESET.search(skipped_question) or _NEW_TOPIC.search(skipped_question)):
@@ -149,7 +190,7 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                             or failed_run.get("state") not in {"completed", "attention"}
                             or failed_run["metadata"].get("question_id") !=
                                 "sha256:" + hashlib.sha256(skipped_question.encode()).hexdigest()
-                            or failed_lineage.get("from_run_id") != run_id
+                            or failed_lineage.get("from_run_id") not in lineage_handles
                             or failed_checkpoint.get("conversation_analysis_context") != checkpoint["conversation_analysis_context"]
                             or failed_checkpoint.get("source_index_configuration") != session.index_configuration
                             or fingerprint(failed_checkpoint.get("compilation_context")) !=
@@ -169,6 +210,31 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                         or skipped_subject.get("root_paths") != prior_subject["root_paths"]
                         or skipped_scope.get("exclusive_source_scope") != prior_scope.get("exclusive_source_scope")):
                     return None
+                if len(skipped_turn["handles"]) == 1:
+                    failed_handle = skipped_turn["handles"][0]
+                    failed_run = skipped_runs[failed_handle]
+                    failed_checkpoint = failed_run["checkpoint"]
+                    failed_lineage = failed_checkpoint.get("conversation_analysis_handoff")
+                    failed_subject = failed_checkpoint.get("session_subject")
+                    if (not isinstance(failed_lineage, dict) or not isinstance(failed_subject, dict)
+                            or failed_run.get("state") not in {"completed", "attention"}
+                            or failed_run["metadata"].get("question_id") !=
+                                "sha256:" + hashlib.sha256(skipped_question.encode()).hexdigest()
+                            or failed_lineage.get("from_run_id") not in lineage_handles
+                            or failed_checkpoint.get("conversation_analysis_context") != checkpoint["conversation_analysis_context"]
+                            or failed_checkpoint.get("source_index_configuration") != session.index_configuration
+                            or fingerprint(failed_checkpoint.get("compilation_context")) !=
+                                fingerprint(session.options.get("compilation_context"))
+                            or failed_subject.get("status") != "resolved"
+                            or failed_subject.get("root_paths") != prior_subject["root_paths"]
+                            or not isinstance(failed_subject.get("scope"), dict)
+                            or failed_subject["scope"].get("exclusive_source_scope") != prior_scope.get("exclusive_source_scope")
+                            or any(failed_subject.get(key) != metadata.get(key) for key in
+                                   ("snapshot_id", "source_root_hash", "compilation_context_fingerprint"))):
+                        return None
+                    lineage_handles.add(failed_handle)
+                    if _strictly_extends_analysis_memory(handoff_saved["checkpoint"], failed_checkpoint):
+                        handoff_saved, handoff_run_id = failed_run, failed_handle
             current = _question_identity(connection, question)
             if current.get("status") == "none":
                 current = (resolve_question_field_subject(connection, question)
@@ -186,6 +252,8 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                 entry = _question_identity(connection, entry_program)
                 if entry.get("status") != "resolved" or entry.get("direct_paths") != subject["root_paths"]:
                     return None
+        saved, run_id = handoff_saved, handoff_run_id
+        checkpoint = saved["checkpoint"]
         memory_checkpoint = deepcopy(checkpoint["prior_source_memory"])
         context = deepcopy(checkpoint.get("source_memory_context") or {})
         original_question = context.get("question")

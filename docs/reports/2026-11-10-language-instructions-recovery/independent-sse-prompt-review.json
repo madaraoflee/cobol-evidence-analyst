@@ -1,0 +1,13 @@
+{
+  "tests_run": 47,
+  "failed_ids": [],
+  "error_ids": [
+    "test_web_answer_instructions.WebAnswerInstructionsTests.test_failed_save_preserves_previous_active_and_persisted_requirements",
+    "test_web_answer_instructions.WebAnswerInstructionsTests.test_old_settings_and_unrestricted_writing_formats_work",
+    "test_web_answer_instructions.WebAnswerInstructionsTests.test_route_uses_existing_session_guard_and_only_checks_input_type",
+    "test_web_answer_instructions.WebAnswerInstructionsTests.test_save_before_import_preserves_original_text_and_survives_restart",
+    "test_web_answer_instructions.WebAnswerInstructionsTests.test_saved_requirements_reach_model_and_edit_during_request_applies_next_time"
+  ],
+  "skipped": 0,
+  "scope": "Targeted local callback/outcome/compatibility and saved-answer-instruction contract review; synthetic offline only"
+}

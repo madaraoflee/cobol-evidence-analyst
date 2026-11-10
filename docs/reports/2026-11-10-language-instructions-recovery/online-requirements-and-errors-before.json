@@ -1,0 +1,20 @@
+{
+  "scope": "Offline pre-fix evidence; no external calls",
+  "source_files": {
+    "poc/online_web_bridge.py": "cc340e5c604cdde85fea1255983083e163f6e116c2752f40f622d104f0eeff25",
+    "poc/online_workspace.py": "0256f531e6b65727fac9142fe32d21efa0c1aedd6b7e64a04f4444f007b7624d",
+    "poc/online_investigation.py": "52b45d541444f62068b46473b6d3b44a76464da292f8647fef030f75dbe6228a"
+  },
+  "saved_requirements": {
+    "job_status": "answered",
+    "provider_calls": 0,
+    "runner_received_instructions": false,
+    "runner_received_locale": false
+  },
+  "api_diagnostic": {
+    "status": "failed",
+    "error": "HTTP_ERROR",
+    "result_has_diagnostic": false,
+    "checkpoint_has_diagnostic": false
+  }
+}

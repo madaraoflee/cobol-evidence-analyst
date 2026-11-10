@@ -1,0 +1,37 @@
+{
+  "modified_files": [
+    "poc/online_web_bridge.py",
+    "poc/online_workspace.py",
+    "poc/online_investigation.py",
+    "poc/tests/test_online_answer_requirements.py"
+  ],
+  "sha256": {
+    "poc/online_web_bridge.py": "f0725dd429e1d498c1c91bd9de4ce8e959dc87e3a072b702cd3eee1e23bc5905",
+    "poc/online_workspace.py": "c2e41a4a89a3199b1e8eefafd92f4a4c8f3b010460ab1c4f5a4c7947e4baf0d8",
+    "poc/online_investigation.py": "73549f45c2955e5cbb5fc7d11b77aea56e8cda3e4e49c0727910747b7d9c585c",
+    "poc/tests/test_online_answer_requirements.py": "6bbdedb2e2e5afcab8e2c56f062669f8a10f0baa44b1a2bbb13794cdc3069f60"
+  },
+  "regression_tests": [
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_full_saved_requirements_language_priority_and_protocol_reach_every_model_call",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prose_and_locale_fallback_match_existing_language_resolver",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_legacy_checkpoint_defaults_only_new_fields_and_rejects_other_changes",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_changed_requirements_revise_pending_answer_with_all_evidence_and_unfinished_work",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_answered_checkpoint_same_requirements_replays_but_changed_requirements_regenerates",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_unknown_outcome_preserves_diagnostic_and_old_requirements_until_explicit_retry",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prompt_capacity_keeps_full_requirements_and_revision_draft_for_later_resume",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_http_diagnostics_are_safe_specific_only_with_evidence_and_never_auto_retried",
+    "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_revision_capacity_failure_retains_original_pending_answer_without_marking_answered",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_bridge_exposes_live_saved_requirements_read_only",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_new_questions_and_followups_receive_latest_full_requirements_and_locale",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_oversized_saved_requirements_leave_durable_progress_recoverable",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_diagnostics_survive_reload_unknown_gate_and_clear_on_success",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_untrusted_diagnostic_fields_are_removed_from_all_persisted_projections",
+    "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_synchronous_provider_failure_keeps_top_level_safe_diagnostic"
+  ],
+  "boundaries": [
+    "Offline synthetic source and injected model responses only",
+    "No local-core file edited by this agent",
+    "No build, publish, real model or company source access",
+    "Parent runs complete mandatory defect regression after all changes freeze"
+  ]
+}

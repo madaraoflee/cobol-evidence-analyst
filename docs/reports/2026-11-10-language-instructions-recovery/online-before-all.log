@@ -1,0 +1,180 @@
+✖ the Bitbucket entry label follows all three existing workbench locales (14.654458ms)
+✖ online inherits the saved locale for authored static and dynamic interface text (14.464917ms)
+✖ changing online language preserves model prose titles filenames and evidence bytes (1.265167ms)
+✖ question and explicit continuation send the selected locale with consent preserved (1.409792ms)
+✖ visible errors progress and later refreshes use the newly selected locale (1.146083ms)
+✖ online safe diagnostic is visible for synchronous failures and retranslated without exposing provider text (1.098583ms)
+✖ online jobs and reopened pending investigations retain distinct timeout rate limit and unknown 500 explanations (0.952583ms)
+✖ online rejects malformed diagnostic fields and never renders unsafe upstream identifiers or instructions (4.752917ms)
+✖ online release selection and accessible labels change language without changing version labels or credentials (1.177791ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 0
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.486333
+
+✖ failing tests:
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:44:1
+✖ the Bitbucket entry label follows all three existing workbench locales (14.654458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Bitbucket 在線分析'
+  - 'Bitbucket 在线分析'
+                ^
+  
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:48:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Bitbucket 在線分析',
+    expected: 'Bitbucket 在线分析',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:52:1
+✖ online inherits the saved locale for authored static and dynamic interface text (14.464917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '' !== 'zh-CN'
+  
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:55:49)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'zh-CN',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:63:1
+✖ changing online language preserves model prose titles filenames and evidence bytes (1.265167ms)
+  AssertionError [ERR_ASSERTION]: online language selector is wired
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at Object.select (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:41:71)
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:67:27)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:77:1
+✖ question and explicit continuation send the selected locale with consent preserved (1.409792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 'en'
+  
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:81:69)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'en',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:86:1
+✖ visible errors progress and later refreshes use the newly selected locale (1.146083ms)
+  AssertionError [ERR_ASSERTION]: online language selector is wired
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at Object.select (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:41:71)
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:89:63)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:100:1
+✖ online safe diagnostic is visible for synchronous failures and retranslated without exposing provider text (1.098583ms)
+  AssertionError [ERR_ASSERTION]: 操作未完成（HTTP_ERROR）。已有版本和历史会保留。
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:105:54)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:111:1
+✖ online jobs and reopened pending investigations retain distinct timeout rate limit and unknown 500 explanations (0.952583ms)
+  AssertionError [ERR_ASSERTION]
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:118:67)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:126:1
+✖ online rejects malformed diagnostic fields and never renders unsafe upstream identifiers or instructions (4.752917ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /unconfirmed/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:135:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /unconfirmed/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at ../cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:138:1
+✖ online release selection and accessible labels change language without changing version labels or credentials (1.177791ms)
+  AssertionError [ERR_ASSERTION]: online language selector is wired
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at Object.select (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:41:71)
+      at TestContext.<anonymous> (/private/tmp/cobol-system-error-audit-20261110/online-before-tree/poc/tests/web_online_locale.test.cjs:142:11)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

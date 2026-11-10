@@ -1,0 +1,12 @@
+{
+  "source_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "method": "Old module loaded in memory; no checkout mutation",
+  "tests": 3,
+  "failures": [],
+  "errors": [
+    "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_real_failure_save_and_reopen_preserve_current_and_prior_causes",
+    "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_unaccepted_projection_preserves_only_safe_prior_fields"
+  ],
+  "skipped": 0,
+  "external_model_calls": 0
+}

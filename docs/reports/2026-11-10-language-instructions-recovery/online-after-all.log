@@ -1,0 +1,31 @@
+✔ repository identity accepts exact Cloud repository and rejects credentials, alternate hosts and paths (2.407625ms)
+✔ page uses guarded online endpoints and no model request before explicit source consent (18.087625ms)
+✔ source switching clears prior answers and fixed citation keys are escaped (1.678792ms)
+✔ unknown outcome is an explicit retry action and uses saved investigation (1.131541ms)
+✔ connection payload keeps separate credentials in request only and clears form (1.120041ms)
+✔ oversized UTF-8 questions fail before posting and retain the editable question (1.075625ms)
+✔ partial input coverage remains visible even when details were omitted (0.6495ms)
+✔ snapshot, HTTPS and old workspace views keep weekly sync completion unknown (2.078042ms)
+✔ release preview and selected view distinguish synchronizer attestation from snapshot (1.482541ms)
+✔ online status polling recovers from a transient failure without repeating a question (1.071916ms)
+✔ online status retry delay is bounded and invalid sessions stop polling (1.360625ms)
+✔ late online status responses cannot overwrite cancellation or workspace selection (1.891292ms)
+✔ online failed actions refresh status without retrying the mutation (1.062417ms)
+✔ the Bitbucket entry label follows all three existing workbench locales (20.625875ms)
+✔ online inherits the saved locale for authored static and dynamic interface text (17.143583ms)
+✔ changing online language preserves model prose titles filenames and evidence bytes (2.44ms)
+✔ question and explicit continuation send the selected locale with consent preserved (1.747125ms)
+✔ visible errors progress and later refreshes use the newly selected locale (1.546792ms)
+✔ online safe diagnostic is visible for synchronous failures and retranslated without exposing provider text (3.768042ms)
+✔ online jobs and reopened pending investigations retain distinct timeout rate limit and unknown 500 explanations (5.585166ms)
+✔ online rejects malformed diagnostic fields and never renders unsafe upstream identifiers or instructions (5.10925ms)
+✔ online release selection and accessible labels change language without changing version labels or credentials (1.733292ms)
+✔ online failures belong to the selected conversation and workspace while unrelated running jobs keep polling (10.092291ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 155.489583

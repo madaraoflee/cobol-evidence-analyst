@@ -1,0 +1,16 @@
+{
+  "source_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "external_model_calls": 0,
+  "mode": "business/full_chain",
+  "injected_failure_sequence": [
+    "synthetic provider HTTP 500 / rate_limit_exceeded",
+    "synthetic RuntimeError during post-answer scope verification"
+  ],
+  "saved_primary_category": "system_error",
+  "saved_prior_category": "rate_limit",
+  "saved_prior_http_status": 500,
+  "job_status": "COMPLETED",
+  "project_agent_category": "system_error",
+  "project_agent_retains_prior_diagnostic": true,
+  "history_retains_prior_diagnostic": false
+}

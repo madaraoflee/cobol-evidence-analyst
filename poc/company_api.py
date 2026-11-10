@@ -617,7 +617,8 @@ class UrllibTransport:
                     return
             current = getattr(current, "fp", None)
 
-    def __call__(self, request: TransportRequest, *, check_cancel=None, on_response_chunk=None) -> TransportResponse:
+    def __call__(self, request: TransportRequest, *, check_cancel=None, on_response_chunk=None,
+                 on_response_headers=None) -> TransportResponse:
         """Bound connection setup and idle generation without cutting off progress.
 
         A socket timeout is an inactivity timeout and does not bound repeated
@@ -653,9 +654,17 @@ class UrllibTransport:
         def active_deadline():
             return exchange.get("stream_deadline", deadline)
 
+        headers_delivered = False
+
         def deliver_chunks():
+            nonlocal headers_delivered
             if pending_chunks is None:
                 return False
+            response = exchange.get("response")
+            if not headers_delivered and response is not None:
+                if on_response_headers is not None:
+                    on_response_headers(int(response.status), dict(response.headers.items()))
+                headers_delivered = True
             while True:
                 try:
                     chunk = pending_chunks.get_nowait()
@@ -1017,8 +1026,12 @@ class _ChatCompletionStream:
     """
 
     def __init__(self, callback, secret: str, check_cancel=None, *,
-                 max_output_tokens=DEFAULT_MAX_OUTPUT_TOKENS):
+                 max_output_tokens=DEFAULT_MAX_OUTPUT_TOKENS, protected_values=(), request_body=None):
         self.emitter = _StreamTextEmitter(callback, secret, check_cancel)
+        self.protected_values = tuple(protected_values or ()) + (secret,)
+        self.request_body = request_body
+        self.response_status = None
+        self.response_diagnostic_fields = {}
         self.decoder = codecs.getincrementaldecoder("utf-8-sig")("strict")
         self.buffer = ""
         self.data_lines: list[str] = []
@@ -1031,6 +1044,15 @@ class _ChatCompletionStream:
         self.reasoning_character_limit = max_output_tokens * REASONING_CHARACTERS_PER_OUTPUT_TOKEN
         self.choices: dict[int, dict[str, object]] = {}
         self.metadata: dict[str, object] = {}
+
+    def observe_response_headers(self, status, headers):
+        # Preserve only allowlisted observations, never raw response headers.
+        observed = build_diagnostic("MODEL_ERROR_RESPONSE", http_status=status, headers=headers,
+            protected_values=self.protected_values, request_body=self.request_body)
+        self.response_status = observed.get("http_status")
+        self.response_diagnostic_fields = {key: observed[key] for key in (
+            "http_status", "retry_after_seconds", "upstream_request_id", "upstream_request_id_source")
+            if key in observed}
 
     def feed(self, chunk: bytes):
         before = self.progress_count
@@ -1097,7 +1119,10 @@ class _ChatCompletionStream:
         if not isinstance(event, dict):
             raise APIClientError("INVALID_RESPONSE_SHAPE")
         if event.get("error") is not None:
-            raise APIClientError("MODEL_ERROR_RESPONSE")
+            diagnostic = build_diagnostic("MODEL_ERROR_RESPONSE", http_status=self.response_status,
+                body=data, protected_values=self.protected_values, request_body=self.request_body)
+            raise APIClientError("MODEL_ERROR_RESPONSE", http_status=self.response_status,
+                diagnostic={**diagnostic, **self.response_diagnostic_fields})
         for name in ("id", "model"):
             if isinstance(event.get(name), str):
                 self.metadata[name] = event[name]
@@ -1422,7 +1447,10 @@ class OpenAICompatibleChatClient:
                 raise
 
         stream = (_ChatCompletionStream(on_text_delta, secret, cancel if check_cancel else None,
-                                       max_output_tokens=self.config.max_output_tokens)
+                                       max_output_tokens=self.config.max_output_tokens,
+                                       protected_values=(secret, self.config.base_url,
+                                           self.config.chat_model, self.config.embedding_model),
+                                       request_body=request_body)
                   if on_text_delta is not None else None)
         try:
             try:
@@ -1431,6 +1459,7 @@ class OpenAICompatibleChatClient:
                     transport_options = {"check_cancel": cancel if check_cancel else None}
                     if stream is not None:
                         transport_options["on_response_chunk"] = stream.feed
+                        transport_options["on_response_headers"] = stream.observe_response_headers
                     response = self._transport(request, **transport_options)
                 else:
                     response = self._transport(request)
@@ -1473,6 +1502,7 @@ class OpenAICompatibleChatClient:
                 and _is_event_stream_headers(response.headers)
             )
             if streaming_response:
+                stream.observe_response_headers(response.status_code, response.headers)
                 if not isinstance(response.body, (bytes, str)):
                     raise APIClientError("RESPONSE_BODY_INVALID")
                 raw_size = len(response.body.encode("utf-8")) if isinstance(response.body, str) else len(response.body)
@@ -1530,7 +1560,14 @@ class OpenAICompatibleChatClient:
                     elapsed=time.monotonic() - started if safe_endpoint == "chat/completions" else None)
             if self._diagnostics is not None:
                 if not response_received:
-                    exchange = self._capture_response(None, safe_endpoint, started, exc.code)
+                    # A stream may report a provider error before transport
+                    # returns. Received headers do not establish completion.
+                    observed_error = (TransportResponse(stream.response_status, b"",
+                        body_omitted_reason="HTTP_ERROR_BODY_NOT_COLLECTED")
+                        if stream is not None and exc.code == "MODEL_ERROR_RESPONSE"
+                        and type(stream.response_status) is int
+                        and stream.response_status == exc.http_status else None)
+                    exchange = self._capture_response(observed_error, safe_endpoint, started, exc.code)
                 elif stream is not None and exchange is None:
                     # Decoding failed before an assembled completion existed.
                     # Record the status without retaining raw SSE/error text.

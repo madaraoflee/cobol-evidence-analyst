@@ -11,7 +11,7 @@
 </head>
 <body>
   <a class="skip" href="#question">跳至提问</a>
-  <header class="topbar"><div><span class="brand">源码业务分析</span><span class="tag">BITBUCKET ONLINE</span></div><a href="/">返回本地工作台</a></header>
+  <header class="topbar"><div><span class="brand">源码业务分析</span><span class="tag">BITBUCKET ONLINE</span></div><div class="topbar-actions"><label for="online-language">语言</label><select id="online-language" aria-label="界面语言" data-language-names><option value="zh-CN">简体中文</option><option value="zh-HK">繁體中文</option><option value="en">English</option></select><a href="/">返回本地工作台</a></div></header>
   <div class="workspace">
     <aside class="sidebar" aria-label="在线资料与历史">
       <div class="section-heading"><h2>在线资料</h2><button id="connect" class="compact">接入</button></div>
@@ -22,10 +22,11 @@
       <div class="sidebar-footer"><span id="connection-status" role="status">正在连接本机服务…</span><p class="small muted">在线资料、对话和授权独立管理。</p></div>
     </aside>
     <main>
-      <section class="source-heading"><div><p class="eyebrow">BUSINESS INVESTIGATION</p><h1 id="source-title">从业务问题开始</h1><p id="source-version" class="muted">接入已发布的在线分析资料，查找流程、规则与源码依据。</p></div><div class="source-actions"><button id="update" class="secondary" disabled>选择新版本</button><button id="credentials" class="secondary" disabled>更新授权</button><button id="disconnect" class="quiet" disabled>结束授权</button></div></section>
+      <section class="source-heading"><div><p class="eyebrow">业务调查</p><h1 id="source-title">从业务问题开始</h1><p id="source-version" class="muted">接入已发布的在线分析资料，查找流程、规则与源码依据。</p></div><div class="source-actions"><button id="update" class="secondary" disabled>选择新版本</button><button id="credentials" class="secondary" disabled>更新授权</button><button id="disconnect" class="quiet" disabled>结束授权</button></div></section>
       <p id="source-basis" class="small muted" hidden></p>
       <details id="coverage" class="coverage-panel" hidden><summary id="coverage-title">资料覆盖范围</summary><p id="coverage-summary" class="small muted"></p><ul id="coverage-boundaries"></ul><ul id="coverage-skips"></ul></details>
       <div id="error" class="notice error" role="alert" hidden></div>
+      <div id="model-diagnostic" class="notice error" role="status" hidden></div>
       <section id="progress" class="notice" aria-live="polite" hidden><div><strong id="progress-title">正在分析</strong><p id="progress-detail"></p></div><button id="cancel" class="secondary">停止</button></section>
       <section id="messages" class="messages" aria-label="业务分析对话" aria-live="polite"><div class="empty"><div class="empty-mark">⌕</div><h2>让每个结论有源码依据</h2><p>可以询问一项业务如何处理、条件如何判断，或变更会影响哪些程序。系统会记录已核对的范围和待确认事项。</p></div></section>
       <div id="continuation" class="continuation" hidden><p id="continuation-description"></p><button id="resume" class="secondary">继续调查</button><button id="retry" class="secondary" hidden>确认重新调用模型</button></div>

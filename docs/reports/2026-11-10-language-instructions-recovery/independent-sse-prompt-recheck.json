@@ -1,0 +1,14 @@
+{
+  "original_result": "/private/tmp/failure-memory-sse-prompt-review-20261110.json",
+  "original_passed": 42,
+  "original_environment_errors": 5,
+  "environment_error": "Local test server bind on 127.0.0.1 was denied in the restricted run.",
+  "rerun_module": "test_web_answer_instructions",
+  "rerun_tests": 7,
+  "rerun_failures": 0,
+  "rerun_errors": 0,
+  "rerun_skipped": 0,
+  "rerun_permission": "Approved localhost-only test execution; no company API or real model",
+  "final_unique_tests_passed": 47,
+  "source_edits_in_review": 0
+}

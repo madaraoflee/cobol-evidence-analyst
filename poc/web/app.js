@@ -494,6 +494,7 @@ function safeFailureDiagnostics(subject=null){
   const answer=subject || result() || {},agent=subject?{}:(state.project?.agent || {});
   const summary=answer.diagnostic_summary || agent.diagnostic_summary || {};
   const candidates=[...(Array.isArray(answer.diagnostics)?answer.diagnostics:[]),...(Array.isArray(summary.api_failures)?summary.api_failures:[]),
+    {diagnostic:answer.prior_diagnostic,prior_failure:true},{diagnostic:agent.prior_diagnostic,prior_failure:true},
     {diagnostic:answer.diagnostic},{diagnostic:agent.diagnostic}];
   const found=[],seen=new Set();
   for(const item of candidates.slice(0,128)){
@@ -501,7 +502,7 @@ function safeFailureDiagnostics(subject=null){
     seen.add(diagnostic.request_id);
     const stage=['answer','discover','investigate','synthesis_review','continuation','semantic_review','semantic_revise','context_compact','unknown','capability_probe','provider_request','context_assembly','response_parse','response_validation','configuration','direct','map','reduce','model_request','repository_search','page','program','synthesis'].includes(item.stage)?item.stage:'unknown';
     const requestContext=safeFailureRequestContext(item.request_context);
-    found.push({stage,...diagnostic,...(requestContext?{request_context:requestContext}:{})});if(found.length>=64)break;
+    found.push({stage,...diagnostic,...(item.prior_failure===true?{prior_failure:true}:{}),...(requestContext?{request_context:requestContext}:{})});if(found.length>=64)break;
   }
   return found;
 }
@@ -563,7 +564,7 @@ function failureDiagnosticsView(subject=null,{retainedAnswer=false}={}){
   if(!subject && (state.mode!=='real' || draftChanged()))return '';
   const failures=safeFailureDiagnostics(subject);if(!failures.length)return '';
   const heading=retainedAnswer?ui`<summary>${icon('alert')}本次請求未完成 · 已保留回答</summary>`:ui`<div class="failure-heading">${icon('alert')}本次請求未完成</div>`;
-  const body=ui`${heading}${failures.slice(-4).map(failure=>`<p><strong>${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>${failureRequestContextView(failure)}`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details>`;
+  const body=ui`${heading}${failures.slice(-4).map(failure=>`<p><strong>${failure.prior_failure?escapeHTML(t('此前失敗'))+'：':''}${failure.evidence_source==='local'?escapeHTML(t('本機處理'))+'：':''}${escapeHTML(failure.reason)}</strong>${failure.http_status?' · HTTP '+failure.http_status:''}</p><p>${escapeHTML(t('下一步'))}：${escapeHTML(failure.next_step)}</p>`).join('')}<details><summary>查看安全錯誤詳情</summary>${failures.slice(-4).map(failure=>`<p><small>${escapeHTML(t('本地關聯編號'))}：<code>${escapeHTML(failure.request_id)}</code>${failure.upstream_request_id?` · ${escapeHTML(t('上游關聯編號'))}：<code>${escapeHTML(failure.upstream_request_id)}</code>`:''}</small></p>${failureRequestContextView(failure)}`).join('')}<pre class="api-raw-text">${escapeHTML(JSON.stringify(failures,null,2))}</pre></details>`;
   return retainedAnswer?`<details class="narrative-notes request-failure retained-answer">${body}</details>`:`<section class="narrative-notes request-failure" role="status">${body}</section>`;
 }
 function browserDiagnostic(category,httpStatus=null){

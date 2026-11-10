@@ -456,6 +456,9 @@ def _unaccepted_agent(agent: dict, reason_code: str) -> dict:
         (agent.get("agent_result") or {}).get("diagnostic"))
     if diagnostic:
         rejected["diagnostic"] = diagnostic
+    prior = sanitize_diagnostic(agent.get("prior_diagnostic"))
+    if prior:
+        rejected["prior_diagnostic"] = prior
     if isinstance(agent.get("api_diagnostics"), dict):
         rejected["api_diagnostics"] = agent["api_diagnostics"]
     if isinstance(agent.get("display_projection"), dict):
@@ -1708,6 +1711,9 @@ class WorkbenchState:
                      "answer_complete_characters": complete_characters,
                      "answer_detail": options.get("answer_detail", "detailed"),
                      "locale": options.get("locale"), "answer_language": answer_language}
+        prior = sanitize_diagnostic(project_agent.get("prior_diagnostic"))
+        if prior:
+            details["prior_diagnostic"] = prior
         previous = next((message for message in (self.conversation or {}).get("messages", ())
             if message.get("id") == options.get("retry_assistant_id") and message.get("role") == "assistant"), None)
         if not available and previous is not None and _has_business_answer(previous):

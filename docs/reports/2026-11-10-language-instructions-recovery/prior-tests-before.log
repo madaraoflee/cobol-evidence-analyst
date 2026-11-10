@@ -1,0 +1,26 @@
+test_invalid_prior_does_not_replace_a_valid_current_diagnostic (test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_invalid_prior_does_not_replace_a_valid_current_diagnostic) ... ok
+test_real_failure_save_and_reopen_preserve_current_and_prior_causes (test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_real_failure_save_and_reopen_preserve_current_and_prior_causes) ... ERROR
+test_unaccepted_projection_preserves_only_safe_prior_fields (test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_unaccepted_projection_preserves_only_safe_prior_fields) ... ERROR
+
+======================================================================
+ERROR: test_real_failure_save_and_reopen_preserve_current_and_prior_causes (test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_real_failure_save_and_reopen_preserve_current_and_prior_causes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-online-language-instructions-20261110/poc/tests/test_prior_api_diagnostic.py", line 45, in test_real_failure_save_and_reopen_preserve_current_and_prior_causes
+    self.assertEqual(message["prior_diagnostic"], prior)
+                     ~~~~~~~^^^^^^^^^^^^^^^^^^^^
+KeyError: 'prior_diagnostic'
+
+======================================================================
+ERROR: test_unaccepted_projection_preserves_only_safe_prior_fields (test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_unaccepted_projection_preserves_only_safe_prior_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-online-language-instructions-20261110/poc/tests/test_prior_api_diagnostic.py", line 65, in test_unaccepted_projection_preserves_only_safe_prior_fields
+    self.assertEqual(projected["prior_diagnostic"], prior)
+                     ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+KeyError: 'prior_diagnostic'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.603s
+
+FAILED (errors=2)
