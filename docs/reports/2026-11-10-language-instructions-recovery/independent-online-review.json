@@ -1,0 +1,10 @@
+{
+  "pending_answer_capacity_preserved": true,
+  "capacity_unchanged_requirements_and_evidence": true,
+  "recovery_single_new_call_with_original_draft": true,
+  "legacy_received_answer_replayed_without_new_call": true,
+  "unknown_with_existing_answer_evidence_remaining_kept": true,
+  "unapproved_changed_requirements_did_not_send": true,
+  "real_model_calls": 0,
+  "repository_edits": 0
+}

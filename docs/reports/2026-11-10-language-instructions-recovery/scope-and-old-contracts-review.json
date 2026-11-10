@@ -1,0 +1,105 @@
+{
+  "base_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "reviewed_commit": "57a9118e4a57b5802e9673d517924f3ecb178f43",
+  "status": "scope_and_contracts_passed",
+  "scope": {
+    "local_minimum_exceptions": {
+      "failed_turn_cumulative_analysis_handoff": [
+        "poc/conversation_analysis_handoff.py"
+      ],
+      "safe_stream_error_classification": [
+        "poc/company_api.py"
+      ],
+      "preserve_current_and_prior_diagnostics": [
+        "poc/web_app.py",
+        "poc/web/app.js",
+        "poc/web/i18n.js"
+      ]
+    },
+    "independent_online_files": [
+      "poc/online_investigation.py",
+      "poc/online_web_bridge.py",
+      "poc/online_workspace.py",
+      "poc/web/online.html",
+      "poc/web/online.css",
+      "poc/web/online.js"
+    ],
+    "shared_i18n_additions_only": [
+      "Bitbucket 在線分析|Bitbucket 在线分析|Bitbucket online analysis",
+      "此前失敗|此前失败|Earlier failure"
+    ],
+    "unexpected_changed_files": []
+  },
+  "old_tests": {
+    "files_checked": 478,
+    "modified_or_removed": [],
+    "new_test_files": [
+      "poc/tests/test_failed_turn_analysis_progress.py",
+      "poc/tests/test_online_answer_requirements.py",
+      "poc/tests/test_prior_api_diagnostic.py",
+      "poc/tests/test_sse_error_diagnostics.py",
+      "poc/tests/web_online_locale.test.cjs",
+      "poc/tests/web_prior_api_diagnostic.test.cjs"
+    ]
+  },
+  "baseline": {
+    "python_ids": {
+      "old_count": 5140,
+      "new_count": 5170,
+      "added": 30,
+      "old_sequence_retained_as_prefix": true,
+      "removed_ids": [],
+      "duplicates": 0
+    },
+    "browser_ids": {
+      "old_count": 310,
+      "new_count": 322,
+      "added": 12,
+      "old_sequence_retained_as_prefix": true,
+      "removed_ids": [],
+      "duplicates": 0
+    }
+  },
+  "ledger": {
+    "old_count": 258,
+    "new_count": 266,
+    "old_records_changed_or_removed": [],
+    "new_ids": [
+      "BUG-20261110-001",
+      "BUG-20261110-002",
+      "BUG-20261110-003",
+      "BUG-20261110-004",
+      "BUG-20261110-005",
+      "BUG-20261110-006",
+      "BUG-20261110-007",
+      "BUG-20261110-008"
+    ],
+    "open_ids": [
+      "BUG-20261007-901",
+      "BUG-20261007-902",
+      "BUG-20261106-901",
+      "BUG-20261106-902",
+      "BUG-20261106-903",
+      "BUG-20261106-904",
+      "BUG-20261110-007"
+    ]
+  },
+  "workflows": {
+    ".github/workflows/windows-desktop.yml": {
+      "unchanged": true,
+      "events": [
+        "workflow_dispatch"
+      ],
+      "manual_only": true
+    },
+    ".github/workflows/windows-office-acceptance.yml": {
+      "unchanged": true,
+      "events": [
+        "workflow_dispatch"
+      ],
+      "manual_only": true
+    }
+  },
+  "worktree_status": "",
+  "execution_boundary": "Read-only git/JSON/source audit only; did not run tests, model calls, builds, Actions, or modify checkout. Full regression is in parent-owned run and is not established by this report."
+}

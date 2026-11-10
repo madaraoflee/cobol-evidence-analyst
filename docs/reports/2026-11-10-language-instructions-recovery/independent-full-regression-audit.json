@@ -1,0 +1,1938 @@
+{
+  "schema_version": 1,
+  "audit_status": "passed",
+  "read_only": true,
+  "audited_at": "2026-11-10T13:57:06.488755+00:00",
+  "source_commit": "57a9118e4a57b5802e9673d517924f3ecb178f43",
+  "current_head": "57a9118e4a57b5802e9673d517924f3ecb178f43",
+  "source_snapshot": "e64e558aff6e0ac5f1c096764d2031d558315fe2c26c5d802dfbbd83791a2f1f",
+  "source_files": 837,
+  "snapshot_matches_current_and_frozen_commit": true,
+  "python_discovered": 5170,
+  "python_result_count": 5170,
+  "browser_result_count": 322,
+  "browser_files": 21,
+  "python_shards": [
+    {
+      "index": 0,
+      "suite": "poc/tests",
+      "selected": 1293,
+      "status": "passed"
+    },
+    {
+      "index": 1,
+      "suite": "poc/tests",
+      "selected": 1292,
+      "status": "passed"
+    },
+    {
+      "index": 2,
+      "suite": "poc/tests",
+      "selected": 1292,
+      "status": "passed"
+    },
+    {
+      "index": 3,
+      "suite": "poc/tests",
+      "selected": 1292,
+      "status": "passed"
+    },
+    {
+      "index": 0,
+      "suite": "tools/tests",
+      "selected": 1,
+      "status": "passed"
+    }
+  ],
+  "historical_versions_checked": {
+    "docs/bugs/regression-baseline.json": 5,
+    "docs/bugs/registry.json": 6
+  },
+  "historical_baseline_union_counts": {
+    "python_ids": 5170,
+    "browser_ids": 322
+  },
+  "new_baseline_equals_complete_discovered_python_and_browser_results": true,
+  "defect_count": 266,
+  "defect_passed": 259,
+  "defect_unverified": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "gate_status": "blocked",
+  "source_regressions_passed": true,
+  "errors": [],
+  "bugs": [
+    {
+      "id": "BUG-20261001-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-013",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-014",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-015",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-016",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-017",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261001-018",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261002-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261004-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261004-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261004-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261004-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261005-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261005-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-901",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261007-902",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261014-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261015-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261017-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261017-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261017-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261017-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261019-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-105",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-106",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-107",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-108",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-109",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-110",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-111",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-112",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261020-901",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 5,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261021-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261021-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261021-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261021-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261021-901",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 8,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-105",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-106",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261022-107",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261023-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261023-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261023-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261023-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-105",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-106",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-107",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261024-108",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261025-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261025-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261025-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261025-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-101",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-102",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-103",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-104",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-105",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-106",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261026-107",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261027-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261027-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261027-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261027-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261028-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-013",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-014",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-016",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-017",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-018",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-019",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-020",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-021",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-022",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-023",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-024",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-025",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-026",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-027",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-028",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-029",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-030",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-031",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-032",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-033",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-034",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-035",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-036",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-037",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-038",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-039",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-040",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-041",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-043",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-044",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-045",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-046",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-047",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-048",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261029-049",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261030-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261105-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261105-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261105-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261105-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-013",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-014",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-015",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-016",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-017",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-018",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-019",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-020",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-021",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-022",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-023",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-024",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-025",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-026",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-027",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-028",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-029",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-030",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-901",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-902",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-903",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261106-904",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-901",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 23,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261107-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261108-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 7,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 7,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 3,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-007",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 6,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 5,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-009",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 6,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-010",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 7,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-011",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 5,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-012",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-013",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 2,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261109-014",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-001",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 7,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-002",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 5,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-003",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 4,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-004",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-005",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 11,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-006",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 6,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-007",
+      "registry_status": "open",
+      "gate_status": "unverified",
+      "mapped_checks": 0,
+      "independently_matched": true
+    },
+    {
+      "id": "BUG-20261110-008",
+      "registry_status": "fixed",
+      "gate_status": "passed",
+      "mapped_checks": 1,
+      "independently_matched": true
+    }
+  ],
+  "limitations": [
+    "No test execution was repeated; this independently checks raw results, current discovery, historical contracts and source bytes.",
+    "The six field acceptance issues and BUG-20261110-007 remain unverified; source success is not EXE or real-model acceptance."
+  ]
+}
