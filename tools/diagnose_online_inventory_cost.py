@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Compare four neutral pipeline persistence cases, always synchronous FULL.
-Sequence: DELETE, PERSIST, TRUNCATE, DELETE. Only external diagnostic connections
+Sequence: DELETE, WAL, TRUNCATE, DELETE. The WAL case is a controlled single-actor
+experiment with a case-scoped, main-thread, transaction-free keeper connection
+activated by a completed sqlite_schema read,
+NO_CKPT_ON_CLOSE, FULL and wal_autocheckpoint=1000. Only diagnostic connections
 change their mode; repository code and production defaults are left unchanged.
 No real model or remote business-source repository is accessed; network is blocked.
 """
@@ -70,6 +73,8 @@ class Observer:
         config = {'sqlite_version': sqlite3.sqlite_version,
             'journal_mode': sqlite3.Connection.execute(db, 'PRAGMA journal_mode').fetchone()[0],
             'synchronous': sqlite3.Connection.execute(db, 'PRAGMA synchronous').fetchone()[0],
+            'no_checkpoint_on_close': db.getconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE),
+            'wal_autocheckpoint': sqlite3.Connection.execute(db, 'PRAGMA wal_autocheckpoint').fetchone()[0],
             'query_plans': {}}
         for label, (query, parameters) in queries.items():
             try:
@@ -115,18 +120,29 @@ def instrument(observer, driver, inventory, investigation):
     original_connect, original_driver = sqlite3.connect, driver.exercise_online_store
     original_page, original_export = inventory.InventoryPublication.page, inventory.InventoryPublication.export_data
     original_execute = investigation._execute
+    keeper, keeper_key = None, None
     class Connection(sqlite3.Connection):
         def __init__(self, *args, **options):
             super().__init__(*args, **options)
             self.changed_before_commit = 0
             self.key = hashlib.sha256(str(args[0]).encode()).hexdigest()[:12]
             if observer.journal_mode is not None:
+                if observer.journal_mode == 'WAL':
+                    self.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+                    if self.getconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE) is not True:
+                        raise RuntimeError('Diagnostic WAL requires NO_CKPT_ON_CLOSE')
+                    observer.counts['connections_verified_NO_CKPT_ON_CLOSE'] += 1
                 actual = sqlite3.Connection.execute(self, 'PRAGMA journal_mode=' + observer.journal_mode).fetchone()[0]
                 if actual.upper() != observer.journal_mode:
                     raise RuntimeError('Requested diagnostic journal mode was not applied')
                 sqlite3.Connection.execute(self, 'PRAGMA synchronous=FULL')
                 if sqlite3.Connection.execute(self, 'PRAGMA synchronous').fetchone()[0] != 2:
                     raise RuntimeError('Diagnostic connection must keep synchronous FULL')
+                if observer.journal_mode == 'WAL':
+                    sqlite3.Connection.execute(self, 'PRAGMA wal_autocheckpoint=1000')
+                    if sqlite3.Connection.execute(self, 'PRAGMA wal_autocheckpoint').fetchone()[0] != 1000:
+                        raise RuntimeError('Diagnostic WAL requires wal_autocheckpoint=1000')
+                    observer.counts['connections_verified_wal_autocheckpoint_1000'] += 1
                 observer.counts['connections_verified_FULL'] += 1
                 observer.counts['connections_verified_' + observer.journal_mode] += 1
         def execute(self, sql, parameters=(), /):
@@ -165,9 +181,37 @@ def instrument(observer, driver, inventory, investigation):
             finally:
                 observer.measure('close', time.perf_counter() - started)
     def connect(*args, **options):
+        nonlocal keeper, keeper_key
         path = str(args[0] if args else options.get('database', '')).replace('\\', '/').split('?', 1)[0]
         if not path.endswith('/online-inventories.sqlite'):
             return original_connect(*args, **options)
+        if observer.journal_mode == 'WAL' and keeper is None:
+            started = time.perf_counter()
+            keeper = original_connect(*args, **options)
+            observer.counts['keeper_connections_opened'] += 1
+            keeper_key = 'keeper-' + hashlib.sha256(str(args[0]).encode()).hexdigest()[:12]
+            keeper.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+            if keeper.getconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE) is not True:
+                raise RuntimeError('Diagnostic keeper requires NO_CKPT_ON_CLOSE')
+            if keeper.execute('PRAGMA journal_mode=WAL').fetchone()[0].upper() != 'WAL':
+                raise RuntimeError('Diagnostic keeper requires WAL')
+            keeper.execute('PRAGMA synchronous=FULL')
+            if keeper.execute('PRAGMA synchronous').fetchone()[0] != 2:
+                raise RuntimeError('Diagnostic keeper must keep synchronous FULL')
+            keeper.execute('PRAGMA wal_autocheckpoint=1000')
+            if keeper.execute('PRAGMA wal_autocheckpoint').fetchone()[0] != 1000:
+                raise RuntimeError('Diagnostic keeper requires wal_autocheckpoint=1000')
+            cursor = keeper.execute('SELECT count(*) FROM sqlite_schema')
+            try:
+                if cursor.fetchone() is None:
+                    raise RuntimeError('Diagnostic keeper schema read did not complete')
+            finally:
+                cursor.close()
+            observer.counts['keeper_schema_reads_completed'] += 1
+            if keeper.in_transaction:
+                raise RuntimeError('Diagnostic keeper must not hold a transaction')
+            observer.counts['keeper_connections_verified_configuration'] += 1
+            observer.measure('keeper_connect_and_configuration', time.perf_counter() - started)
         options['factory'] = Connection
         started = time.perf_counter()
         try:
@@ -217,7 +261,20 @@ def instrument(observer, driver, inventory, investigation):
          mock.patch.object(investigation, '_execute', execute), \
          mock.patch('socket.create_connection', side_effect=AssertionError('No network allowed in diagnostic')), \
          mock.patch('socket.socket.connect', side_effect=AssertionError('No network allowed in diagnostic')):
-        yield
+        try:
+            yield
+        finally:
+            if keeper is not None:
+                try:
+                    if keeper.in_transaction:
+                        raise RuntimeError('Diagnostic keeper unexpectedly held a transaction')
+                    observer.counts['keeper_transaction_free_on_exit'] += 1
+                    observer.inspect_schema(keeper, keeper_key)
+                finally:
+                    started = time.perf_counter()
+                    keeper.close()
+                    observer.counts['keeper_connections_closed'] += 1
+                    observer.measure('keeper_close', time.perf_counter() - started)
 
 def atomic_json(path, value):
     temporary = path.with_suffix(path.suffix + '.tmp')
@@ -281,7 +338,7 @@ def verify_delivery(value, gold, count):
         'statistics': {key: stats[key] for key in fields}}
 
 def main():
-    parser = argparse.ArgumentParser(description='Offline diagnostic only: DELETE/PERSIST/TRUNCATE/DELETE with synchronous FULL; production defaults are not changed.')
+    parser = argparse.ArgumentParser(description='Offline diagnostic only: single-actor managed-keeper DELETE/WAL/TRUNCATE/DELETE with synchronous FULL; WAL keeps NO_CKPT_ON_CLOSE and wal_autocheckpoint=1000; production defaults are not changed.')
     parser.add_argument('--repo-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--files', type=int, default=200, choices=(200, 1000))
@@ -302,7 +359,7 @@ def main():
     initial = binding(repo)
     report = {'schema': 'online-inventory-cost-diagnostic/v1', 'status': 'incomplete',
         'started_at': datetime.now(timezone.utc).isoformat(), 'files': args.files,
-        'mode_sequence': ['DELETE', 'PERSIST', 'TRUNCATE', 'DELETE'], 'synchronous': 'FULL',
+        'mode_sequence': ['DELETE', 'WAL', 'TRUNCATE', 'DELETE'], 'synchronous': 'FULL',
         'production_defaults_changed': False, 'real_model_calls': False, 'real_source_access': False,
         'source_regression_acceptance': False, 'executable_acceptance': False,
         'source_binding_scope': list(initial), 'source_binding_before': initial,
@@ -310,7 +367,9 @@ def main():
         'limits': ['This diagnostic does not replace the original 10001-file test, complete regressions, final EXE or office acceptance.',
                    'Only the ten listed repository files are checked unchanged; this is not an assertion that the entire checkout is clean.',
                    'Row-changing commits are not direct VFS fsync counts.',
-                   'No fastest journal mode is selected automatically.']}
+                   'No fastest journal mode is selected automatically.',
+                   'The WAL case is an isolated neutral single-actor experiment with one transaction-free case-scoped keeper; not a production mode recommendation.',
+                   'SQLite 3.50.4 is affected by the documented WAL-reset race; no concurrent writer/checkpoint actor is used here; production WAL would require a separate version and safety decision.']}
     atomic_json(output / 'DIAGNOSTIC-REPORT.json', report)
     observer = None
     try:
@@ -342,6 +401,11 @@ def main():
                     assert observer.counts['connections_verified_FULL'] == observer.counts['connect']
                     assert observer.config, 'Missing observed SQLite configuration'
                     assert all(config['synchronous'] == 2 and config['journal_mode'].upper() == mode for config in observer.config.values())
+                    if mode == 'WAL':
+                        assert observer.counts['keeper_schema_reads_completed'] == observer.counts['keeper_connections_opened'] == observer.counts['keeper_connections_verified_configuration'] == observer.counts['keeper_transaction_free_on_exit'] == observer.counts['keeper_connections_closed'] == 1
+                        assert observer.counts['connections_verified_NO_CKPT_ON_CLOSE'] == observer.counts['connect']
+                        assert observer.counts['connections_verified_wal_autocheckpoint_1000'] == observer.counts['connect']
+                        assert all(config['no_checkpoint_on_close'] is True and config['wal_autocheckpoint'] == 1000 for config in observer.config.values())
                     observer.status = 'diagnostic_case_passed'
                     item.update(status='passed', seconds=time.perf_counter() - started, verification=checked)
                     atomic_json(case_dir / 'result.json', item)

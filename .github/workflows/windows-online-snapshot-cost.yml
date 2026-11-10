@@ -58,7 +58,7 @@ jobs:
             diagnostic_output = $env:DIAGNOSTIC_OUTPUT
             python_default_temp = $defaultTemp
             runner_temp = $env:RUNNER_TEMP
-            journal_mode_sequence = @('DELETE', 'PERSIST', 'TRUNCATE', 'DELETE')
+            journal_mode_sequence = @('DELETE', 'WAL', 'TRUNCATE', 'DELETE')
             synchronous = 'FULL'
             source_regression_acceptance = $false
             executable_acceptance = $false
