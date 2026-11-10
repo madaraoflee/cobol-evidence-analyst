@@ -1,0 +1,6 @@
+{"status": "inventory_only", "all_recorded_bugs_verified": false, "errors": [], "python_tests": 1}
+{"status": "blocked", "all_recorded_bugs_verified": false, "errors": ["Source or regression contract changed during verification"], "python_tests": 1}
+----------------------------------------------------------------------
+Ran 25 tests in 0.331s
+
+OK

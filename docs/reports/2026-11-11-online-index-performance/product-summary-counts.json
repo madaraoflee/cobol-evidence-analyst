@@ -1,0 +1,30 @@
+[
+  {
+    "files": 2000,
+    "elapsed": 0.06454420805675909,
+    "status": "needs_continuation",
+    "actions": 1,
+    "summary_calls": 9,
+    "summary_seconds": 0.04154387314338237,
+    "phases": [
+      "model_request_started",
+      "model_response_received",
+      "response_applied",
+      "source_action_completed"
+    ]
+  },
+  {
+    "files": 10001,
+    "elapsed": 0.2792861250345595,
+    "status": "needs_continuation",
+    "actions": 1,
+    "summary_calls": 9,
+    "summary_seconds": 0.19232283410383388,
+    "phases": [
+      "model_request_started",
+      "model_response_received",
+      "response_applied",
+      "source_action_completed"
+    ]
+  }
+]

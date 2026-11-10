@@ -1,0 +1,5159 @@
+{
+  "schema_version": 1,
+  "status": "blocked",
+  "all_recorded_bugs_verified": false,
+  "scope": "source_offline_only",
+  "native_or_real_model_acceptance": false,
+  "errors": [],
+  "source_commit": "949a56ba091d33d9668c5511be76d0cd292640de",
+  "source_snapshot": "d3d2f95a02077306647c844da9a31cb8db0ed1c63000d30f5b3ede4a381dee76",
+  "started_at": "2026-11-10T18:31:21.701635+00:00",
+  "source_regressions_passed": true,
+  "python_tests": 5289,
+  "browser_tests": 334,
+  "bugs": [
+    {
+      "id": "BUG-20261001-001",
+      "title": "中文业务零命中却把目录样本当回答材料",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_discovery_recovery.BusinessDiscoveryRecoveryTests.test_cross_language_discovery_excludes_random_sources_and_accepts_explained_action",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_discovery_recovery.BusinessDiscoveryRecoveryTests.test_no_source_discovered_cannot_be_recorded_as_sufficient_material",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-002",
+      "title": "明确程序未供应远处计算及条件",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_direct_program_calculations.DirectProgramCalculationTests.test_named_program_map_includes_its_distant_calculation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_direct_program_calculations.DirectProgramCalculationTests.test_business_description_supplies_deep_formula_and_condition_to_model",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-003",
+      "title": "公共字段使局部查询扫描无关全库规则",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_direct_program_calculations.LocalRuleLookupWorkTests.test_common_field_operations_outside_selected_file_do_not_expand_local_lookup_work",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-004",
+      "title": "实际答复候选与结束原因错位",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_api_message_integrity.APIMessageIntegrityTests.test_alternate_response_choice_controls_answer_and_quality_trace",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_finish_reason_follows_selected_choice_with_usable_content",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-005",
+      "title": "源码齐全的笼统拒答被标为完成",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_completion.AnswerCompletionTests.test_ordinary_question_reviews_uncited_blanket_limitation_with_complete_source",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_completion.AnswerCompletionTests.test_repeated_blanket_limitation_is_not_a_successful_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-006",
+      "title": "晚出现的目标公式被候选预算截掉",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_question_investigation.QuestionInvestigationTests.test_exact_late_formula_is_selected_before_budget_and_unrelated_gaps_are_excluded",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-007",
+      "title": "逐步计算问句未触发业务详解",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_detail_regressions.BusinessDetailIntentTests.test_stepwise_calculation_requests_business_detail",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_detail_regressions.BusinessDetailRegressions.test_stepwise_calculation_supplies_input_origins_and_binds_answer_claims",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-008",
+      "title": "业务详解依赖用户必须说详细",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_detail_regressions.BusinessDetailIntentTests.test_business_questions_default_to_detail_without_keyword_gate",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_detail_regressions.BusinessDetailRegressions.test_default_calculation_supplies_input_origins_before_first_model",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-009",
+      "title": "只有IF和MOVE的业务规则被误报缺公式",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_detail_regressions.BusinessDetailRegressions.test_known_non_arithmetic_rules_answer_calculation_without_compute",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-010",
+      "title": "输出截断仍显示完成且续答失败丢首稿",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_length_with_body_is_partial_with_explicit_stop_reason",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_continuation_failure_stops_and_retains_original_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-011",
+      "title": "完整长回答被本地截为六万字符",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_long_native_completion_keeps_entire_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_api_message_integrity.APIMessageIntegrityTests.test_bounded_diagnostic_preview_never_clips_accepted_response",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-012",
+      "title": "文件影响调查漏掉下游写入子程序",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_impact.FileImpactTests.test_public_fixture_copybook_indirect_call_and_dds_relationship_remain_scoped",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-013",
+      "title": "文件问题没有补读记录布局和DDS",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_impact_evidence.FileImpactEvidenceTests.test_located_io_record_copybook_and_dds_are_reading_leads",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_file_impact_evidence.FileImpactEvidenceTests.test_structural_snapshot_with_search_pages_supplies_definitions",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-014",
+      "title": "REWRITE记录名被误当文件名",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_impact.FileImpactTests.test_reports_known_direct_write_and_read_only_file_with_physical_provenance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_file_impact.FileImpactTests.test_missing_select_does_not_drop_fd_and_record_mapping_provenance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-015",
+      "title": "ASSIGN修饰词或不完整声明被当作真实对象",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_impact.FileImpactTests.test_assignment_modifiers_are_never_treated_as_external_file_names",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_file_impact.FileImpactTests.test_inline_unsupported_forms_and_dds_literals_are_not_invented_facts",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-016",
+      "title": "重复同名字段使文件影响元数据膨胀",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_impact.FileImpactTests.test_repeated_fields_and_large_records_have_global_metadata_budgets",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_file_impact.FileImpactTests.test_metadata_byte_limit_is_independent_of_fact_count",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-017",
+      "title": "不同API错误都退化为HTTP_ERROR",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_known_structured_codes_have_distinct_fixed_explanations",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_unknown_429_and_500_do_not_guess_a_cause",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261001-018",
+      "title": "失败响应反射源码进入诊断捕获",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_all_rejected_responses_are_omitted_even_when_capture_enabled",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_safe_ids_allowlist_and_reflection_checks",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261002-001",
+      "title": "泛泛计算短答被当作完整答案",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_completion.AnswerCompletionTests.test_generic_calculation_answer_is_not_success_after_bounded_review",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_completion.AnswerCompletionTests.test_budget_cannot_turn_unexplained_supplied_formula_into_success",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261004-001",
+      "title": "计算依赖闭包重复扫描全库导致首答迟迟不发",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_question_investigation.QuestionInvestigationTests.test_large_dependency_closure_visits_the_relation_catalog_once",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_question_investigation.QuestionInvestigationTests.test_dependency_closure_preserves_root_and_edge_order_and_resolution",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261004-002",
+      "title": "长SQL解析平方退化且取消难以生效",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_structural_parser_latency.StructuralParserLatencyTests.test_sql_scan_work_is_linear_and_keeps_output_and_table_relations",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_structural_parser_latency.StructuralParserLatencyTests.test_two_line_declarations_cannot_skip_progress_checkpoints",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_structural_parser_latency.StructuralParserLatencyTests.test_one_long_sql_statement_is_cancellable_inside_collection",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261004-003",
+      "title": "增量更新每文件重复全库删除和重解析",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_intake_performance.IncrementalIntakeTests.test_changed_files_remove_old_search_rows_in_one_batch",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_intake_performance.IncrementalIntakeTests.test_rule_batches_keep_fields_and_repeated_occurrences_without_reparsing",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261004-004",
+      "title": "导入失败丢失旧工作区或误报已恢复",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_import_request_failure.ImportRequestFailureTests.test_empty_source_update_explains_the_empty_source_and_keeps_the_old_workspace",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_import_request_failure.ImportRequestFailureTests.test_backup_restore_failure_ends_the_job_without_claiming_a_restored_snapshot",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261005-001",
+      "title": "一个坏编码或二进制成员使整库导入失败",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_mixed_source_intake.MixedSourceIntakeTests.test_mixed_import_indexes_readable_encodings_and_skips_binary_members_only",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_mixed_source_intake.MixedSourceIntakeTests.test_a_previously_indexed_binary_file_loses_old_facts_and_both_search_indexes_then_recovers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261005-002",
+      "title": "演示工作区覆盖真实用户恢复偏好",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_mixed_source_intake.MixedSourceIntakeTests.test_real_success_and_failed_retry_preferences_survive_demo_and_restart",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_mixed_source_intake.MixedSourceIntakeTests.test_legacy_saved_example_never_becomes_the_startup_workspace_or_real_retry_inputs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-001",
+      "title": "快速同尺寸编辑仍复用旧框架资料",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_reference_cache.FrameworkReferenceCacheTests.test_same_metadata_rewrite_still_refreshes_the_content_revision",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_reference_cache.FrameworkReferenceCacheTests.test_cached_reference_must_still_be_readable",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-002",
+      "title": "重复补读触发无意义整篇重写",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_automatic_material.AutomaticMaterialTests.test_redundant_read_does_not_regenerate_a_complete_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_automatic_material.AutomaticMaterialTests.test_material_comparison_ignores_navigation_but_preserves_versions_and_facts",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-003",
+      "title": "续写拼接重复列表或误删相似条件",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_continuation_join.ChatContinuationJoinTests.test_restarted_item_is_joined_once_and_accounting_keeps_both_requests",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_continuation.AnswerContinuationTests.test_similar_conditions_are_not_fuzzily_deduplicated",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-004",
+      "title": "执行条件问题被无关公式义务拖住",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_calculation_question_intent.CalculationQuestionIntentTests.test_actual_validation_question_does_not_require_unexecuted_formula_or_rounding",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_calculation_question_intent.ExecutionQuestionInvestigationTests.test_complete_execution_context_has_no_formula_or_rounding_obligation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-005",
+      "title": "调用返回及SQL输出影响被过早当作确定值",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_external_call_parameters_preserve_position_and_passing_mode",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_select_into_names_outputs_without_interpreting_sqlcode_or_final_values",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-006",
+      "title": "同名COPY字段串到错误调用实例",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_grounding.MutableGroupScopeTests.test_direct_copy_uses_selected_path_not_a_same_named_other_program_or_copy",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_grounding.MutableGroupScopeTests.test_copy_chain_requires_exact_caller_version_site_and_context",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-007",
+      "title": "调用条件问题把被调程序误作分析主体",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_identity.SourceIdentityTests.test_default_business_chat_receives_caller_source_for_call_condition_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_completion.AnswerCompletionTests.test_false_source_selection_denial_recovers_once_with_supplied_source",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-008",
+      "title": "把被调内部校验当调用前置条件",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_discovery_contract.BusinessDiscoveryContractTests.test_explicit_caller_contract_separates_call_gates_from_callee_validation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-009",
+      "title": "软程序焦点无法用真实检索纠正",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_source_navigation.BusinessSourceNavigationTests.test_model_search_can_correct_soft_focus_with_real_caller_definition",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_source_navigation.BusinessSourceNavigationTests.test_mixed_focus_paths_are_rejected_atomically",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_source_navigation.BusinessSourceNavigationTests.test_missing_exact_path_is_not_replaced_by_search_or_history",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-010",
+      "title": "读取额度耗尽时丢掉模型补读动作",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_action_budget.BusinessActionBudgetTests.test_model_read_waits_for_fresh_allowance_and_supplies_requested_source",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_action_budget.BusinessActionBudgetTests.test_mixed_search_does_not_discard_a_read_deferred_for_budget",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-011",
+      "title": "空focus或参数变体使有效工具请求失效",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_action_contract.BusinessActionContractTests.test_empty_optional_focus_preserves_other_requested_actions",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_action_contract.BusinessActionContractTests.test_multiple_scalar_arguments_are_not_silently_reduced_to_one",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261007-901",
+      "title": "历史实测的保存前后路由解释缺当前闭环",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261007-902",
+      "title": "历史实测的动态失败字段阶段解释缺当前闭环",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261014-001",
+      "title": "ADD GIVING把中间操作数错误列为写入",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_add_giving_reads_only_senders_and_writes_only_receivers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-002",
+      "title": "字符串中的CALL和PERFORM变成依赖",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_display_literals_never_create_code_dependencies",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-003",
+      "title": "同名限定字段的输入输出串绑",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_qualified_fields_bind_to_their_exact_declared_storage",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-004",
+      "title": "字符串内注释符截掉有效字面量",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_quoted_comment_marker_is_preserved_in_both_frontends",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-005",
+      "title": "同一行多语句被合并或丢失",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_same_physical_line_has_independent_occurrences_and_access",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-006",
+      "title": "语句终止词和异常体被当成操作数",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_scope_terminators_and_exception_bodies_are_not_operands",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-007",
+      "title": "PERFORM SECTION未覆盖完整节及返回边",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_semantics.FrontendSemanticRegressionTests.test_section_perform_resolves_and_returns_after_all_section_paragraphs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-008",
+      "title": "真实引用可给错误公式和遗漏覆盖背书",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_default_claim_ledger.DefaultClaimGateTests.test_default_fake_transport_wrong_formula_with_real_id_is_locally_repaired",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_default_claim_ledger.DefaultClaimGateTests.test_default_final_value_cannot_ignore_uncited_supplied_overwrite",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-009",
+      "title": "节点预算耗尽的缓存被标完整流",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_scope.SemanticScopeTests.test_warm_graph_preserves_node_budget_incompleteness",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-010",
+      "title": "更换入口或编译上下文重放其他调查答案",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_run_store.RunStoreTests.test_changed_entry_uses_its_own_run_and_older_entry_can_resume",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_run_store.RunStoreTests.test_unchanged_source_hash_with_changed_compilation_context_cannot_resume",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-011",
+      "title": "省略程序名的追问丢失已确认主体",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_focus.ConversationFocusTests.test_generic_followup_preserves_program_without_using_model_prose",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_focus.ConversationFocusTests.test_second_subject_then_pronoun_retains_only_the_second_field_focus",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261014-012",
+      "title": "原生桌面包丢失JSON加速扩展",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_desktop_app.DesktopRuntimeTests.test_self_test_rejects_json_fallback_before_starting_server",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-001",
+      "title": "交付目标时间误作硬截止丢弃迟到首答",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_latency.BusinessChatLatencyTests.test_explicit_one_second_soft_target_retains_first_answer_with_finite_hard_budget",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_question_budget_delivery.QuestionBudgetDeliveryTests.test_target_remaining_does_not_shorten_provider_allowance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-002",
+      "title": "字段查找先截断导致晚候选消失",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_focus_lookup.ConversationFocusLookupTests.test_late_qualified_candidate_is_not_lost_after_257_other_matches",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_focus_lookup.ConversationFocusLookupTests.test_unrelated_common_name_cannot_hide_a_unique_field",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-003",
+      "title": "VALUE初值不进入输入来源证据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_value_definitions.ValueDefinitionTests.test_value_is_an_actual_source_origin_with_declaration_and_activation_evidence",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_value_definitions.ValueDefinitionTests.test_base_value_name_does_not_hide_the_valid_initial_definition",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-004",
+      "title": "文件映射问题被整程序计算义务阻断",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_file_question_obligations.FileQuestionObligationTests.test_file_mapping_has_typed_identity_and_each_actual_source_obligation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_file_question_obligations.FileQuestionObligationTests.test_default_fake_answer_receives_original_select_fd_copy_and_both_io",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-005",
+      "title": "裸字段AMOUNT误要求无关C的舍入",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_synthesis_controls.SuppliedCalculationReferenceScopeTests.test_native_bare_amount_short_answer_does_not_acquire_c_rounding",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_synthesis_controls.SuppliedCalculationReferenceScopeTests.test_native_in_of_output_aliases_keep_the_same_formula_scope",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-006",
+      "title": "远程修订结果未知后仍继续付费题集",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_desktop_live_acceptance.NativeLiveAcceptanceTests.test_unknown_revision_retains_answer_and_stops_all_later_paid_turns",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-007",
+      "title": "等价来源容器导致跨轮证据冲突",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_evidence_context.EvidenceContextTests.test_equivalent_include_chain_sequences_merge_only_observation_metadata",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_evidence_context.EvidenceContextTests.test_same_evidence_id_still_rejects_authority_and_copy_instance_changes",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-008",
+      "title": "回答漏掉实际累加仍通过完成性检查",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_accumulation.AccumulationCoverageTests.test_explicit_multilingual_operation_requires_actual_accumulation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_accumulation.DefaultAccumulationTests.test_default_one_request_supplies_operation_and_detects_only_its_actual_omission",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-009",
+      "title": "索引中的CL上游批处理命令未供给问答",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_batch_context_evidence.BatchContextEvidenceTests.test_indexed_upstream_commands_produce_two_reads_then_bound_supplied_facts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_batch_context_evidence.BatchContextEvidenceTests.test_default_brief_chat_supplies_commands_before_single_fake_response",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-010",
+      "title": "不完整I/O分支被补充为无条件业务事实",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_fact_completion.SourceFactCompletionTests.test_default_chain_keeps_body_and_does_not_add_mixed_line_io_assignment",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_statement_io_clauses.IOClauseFactsTests.test_mixed_line_branch_marker_is_not_line_level_proof",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-011",
+      "title": "自由格式乘法续行被当注释丢掉",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_io_boundaries.SharedIOBoundaryTests.test_free_leading_multiplication_is_preserved_by_all_normalizers_and_facts",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261015-012",
+      "title": "正常I/O子句头被并入前一个算式",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_frontend_io_boundaries.SharedIOBoundaryTests.test_normal_io_clause_headers_do_not_extend_compute_occurrences",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_frontend_io_boundaries.SharedIOBoundaryTests.test_only_actual_arithmetic_size_error_has_a_normal_result_contract",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261017-001",
+      "title": "原文离开窗口后跨轮丢失来源引用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prior_source_memory_chat.PriorSourceMemoryEvictionChatTests.test_draft_keeps_evicted_source_and_later_answer_can_correct_its_interpretation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_chat.PriorSourceMemoryEvictionChatTests.test_tool_only_findings_keep_evicted_source_before_any_draft_exists",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261017-002",
+      "title": "工具findings JSON泄漏为用户正文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_findings_preview_boundaries.FindingsPreviewBoundaryTests.test_intro_followed_by_fragmented_findings_and_read_never_previews_json",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_findings_preview_boundaries.FindingsPreviewBoundaryTests.test_findings_only_object_is_recovered_without_preview_or_final_leak",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261017-003",
+      "title": "重复缺口换措辞后持续调查不收敛",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_repeated_denial_does_not_create_new_progress_by_duplicating_the_same_gap",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_repeated_tool_request_converges_to_an_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261017-004",
+      "title": "Windows拒绝POST时响应丢失或等待不结束",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_web_app.WebAppTests.test_rejected_post_delivers_403_before_discarding_a_late_body_without_model_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_web_app.WebAppTests.test_rejected_post_without_a_body_does_not_wait_for_the_client_to_close",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-001",
+      "title": "英文问题的本地修正和错误提示混入中文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_ledger_language.ClaimLedgerLanguageTests.test_english_correction_keeps_source_reference_and_independent_prose",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_response_language.ChatLanguageTests.test_english_no_evidence_failure_has_english_diagnostic",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-002",
+      "title": "切换回答语言重放旧语言草稿或绕过旧未知请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_language_resume_safety.LanguageResumeSafetyTests.test_language_switch_blocks_automatic_and_explicit_resume_without_replaying_old_draft",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_language_resume_safety.LanguageResumeSafetyTests.test_newer_safe_run_cannot_hide_an_older_pending_request",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-003",
+      "title": "远处控制条件被命中行挤出实际请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_evidence_selection_budgets.EvidenceSelectionBudgetTests.test_distant_guard_and_callsite_share_an_atomic_selection_budget",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_request_fit_latency.RequestFitLatencyTests.test_byte_fitting_does_not_separate_distant_guard_and_call",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-004",
+      "title": "索引页缺失被误当成源码不存在",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_retrieval_raw_fallback.RawRetrievalFallbackTests.test_missing_fts_rows_recover_raw_evidence_and_reuse_question_cache",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_retrieval_raw_fallback.RawRetrievalFallbackTests.test_explicit_read_recovers_the_requested_range_when_search_pages_are_missing",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-005",
+      "title": "已供参数处理源码仍被回答为未提供",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_availability_repairs.SourceAvailabilityRepairTests.test_processing_source_is_not_confused_with_runtime_parameters",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bounded_answer_quality.BoundedAnswerQualityTests.test_a_supported_source_denial_is_repaired_without_paid_rewriting",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-006",
+      "title": "更完整措辞的错稿替换正确公式",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bounded_answer_quality.BoundedAnswerQualityTests.test_more_complete_keywords_cannot_replace_a_supported_formula_with_an_error",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-007",
+      "title": "错误候选解释凭真实引用进入长期记忆",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bounded_answer_quality.BoundedAnswerQualityTests.test_a_true_citation_does_not_promote_a_false_finding_into_memory",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory.PriorSourceMemoryTests.test_false_interpretation_can_be_retracted_without_losing_original_source",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-008",
+      "title": "重连或时钟回退重置已用调查时间",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_question_budget_delivery.QuestionBudgetDeliveryTests.test_soft_target_checkpoint_restore_cannot_extend_target_or_hard_deadline",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_question_budget_delivery.QuestionBudgetDeliveryTests.test_repeated_restore_and_clock_rollback_cannot_extend_deadline",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261019-009",
+      "title": "批量评测默认额度被交互默认值扩大",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_live_business_eval.LiveBusinessEvalTests.test_batch_default_never_expands_stricter_deployment_allowance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-101",
+      "title": "正常细粒度 SSE 被 JSON 传输额度误截断",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_company_api_streaming.StreamingClientTests.test_small_deltas_with_repeated_metadata_can_exceed_json_wire_budget",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_company_api_streaming.StreamingClientTests.test_accumulated_content_and_tool_arguments_keep_json_content_budget",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-102",
+      "title": "未证明的自然语言状态被当作源码矛盾改写",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_ledger_model_prose.ClaimLedgerModelProseTests.test_actual_model_answer_keeps_conditions_initial_value_and_table_exactly",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_ledger_model_prose.ClaimLedgerModelProseTests.test_unverified_checker_result_cannot_be_upgraded_to_contradiction",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-103",
+      "title": "链式数值推导被截成源码赋值后误纠正",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_ledger_model_prose.ClaimLedgerModelProseTests.test_partial_mathematical_derivation_cannot_become_a_source_contradiction",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_ledger_model_prose.ClaimLedgerModelProseTests.test_unknown_math_does_not_hide_separate_wrong_source_assignment_or_condition",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-104",
+      "title": "回答收到后可选补读超时丢弃正文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_delivery_workbench.AnswerDeliveryWorkbenchTests.test_related_program_followup_retains_received_answer_after_optional_read_timeout",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_latency.BusinessChatLatencyTests.test_already_returned_first_answer_is_preserved_at_hard_deadline",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-105",
+      "title": "自然语言结果码遗漏引号导致错误纠正",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_status_notation.ClaimStatusNotationTests.test_captured_business_result_survives_draft_and_final_review",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_status_notation.ClaimStatusNotationTests.test_natural_unquoted_status_is_not_an_exact_source_identifier_assertion",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_status_notation.ClaimStatusNotationTests.test_wrong_explicit_status_and_numeric_formula_are_still_corrected",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-106",
+      "title": "框架操作定义与适用限制被拆开供证",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_reference_constraints.FrameworkReferenceConstraintTests.test_automatic_selection_keeps_qualifications_without_keyword_overlap",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_reference_delivery.FrameworkReferenceDeliveryTests.test_actual_request_budget_cannot_orphan_constraints_or_lose_user_audience",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_reference_constraints.FrameworkReferenceConstraintTests.test_constraint_count_and_character_budgets_do_not_send_definition_alone",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_reference_constraints.FrameworkReferenceConstraintTests.test_rule_and_interface_citations_require_the_same_boundary_evidence",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-107",
+      "title": "普通 COPY 参数布局中的后续键赋值擦除已知操作码",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_copy_assignments.FrameworkCopyAssignmentTests.test_full_copy_and_caller_bind_same_operation_as_inline_declarations",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_copy_binding.FrameworkCopyBindingTests.test_complete_unique_copy_reaches_actual_chat_with_original_evidence",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-108",
+      "title": "引用和行内花括号导致真实正文预览停滞",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_preview_progress.AnswerPreviewPrefixTests.test_citations_links_and_square_bracket_prose_are_not_protocol",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_preview_progress.AnswerPreviewPrefixTests.test_inline_braces_do_not_freeze_later_text",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-109",
+      "title": "长中文问题挤掉后续英文检索线索",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_long_chinese_question_retains_new_english_clue_and_consistent_match_status",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_chat_accepts_translated_evidence_after_long_chinese_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_retrieval_query_budget.RetrievalQueryBudgetTests.test_explicit_expansion_survives_long_question_in_discovery_and_crop",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_retrieval_query_budget.RetrievalQueryBudgetTests.test_short_chinese_source_term_at_end_of_long_question_is_searchable",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-110",
+      "title": "普通分词命中挤掉完整业务标识符",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_exact_identifier_precedes_more_than_a_candidate_limit_of_split_phrase_hits",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-111",
+      "title": "技术清单加套话被误判为完整业务说明",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_explanation_intent.BusinessExplanationIntentTests.test_generic_completion_words_cannot_rescue_a_technical_inventory",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_explanation_intent.BusinessExplanationIntentTests.test_real_chat_revises_technical_draft_with_supplied_business_gaps",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-112",
+      "title": "局部公式纠错删除同句独立业务介绍",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_prose_preservation.ClaimProsePreservationTests.test_move_repair_preserves_independent_business_introduction",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_prose_preservation.ClaimProsePreservationTests.test_actual_draft_final_review_and_completion_keep_the_business_explanation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261020-901",
+      "title": "历史前端固定一秒采样的准确回归映射已补齐",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workbench_progress_wait.ProgressWaitTests.test_preview_wakes_reader_before_generation_can_finish",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_progress_wait.ProgressWaitTests.test_native_stream_delta_reaches_waiter_before_the_next_response_read",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_web_job_stream.WebJobStreamTests.test_received_preview_arrives_while_job_is_still_running_then_terminal_closes",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_progress_wait.test.cjs",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_conversation.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261021-101",
+      "title": "省略式 IF ELSE 引述被误当作错误条件",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_conditional_excerpt.ConditionalExcerptClaimTests.test_incomplete_quoted_branch_preserves_business_premise_but_is_not_verified",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_conditional_excerpt.ConditionalExcerptClaimTests.test_real_neutral_model_answer_replays_verbatim_through_draft_and_final",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261021-102",
+      "title": "待核措辞误触发保证性断言复核",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_review_qualification.SemanticReviewQualificationTests.test_same_quoted_pending_proposition_is_not_an_asserted_guarantee",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_semantic_review_qualification.SemanticReviewQualificationTests.test_pending_frame_never_cancels_a_separate_positive_guarantee",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261021-103",
+      "title": "截断续答拼接留下断引用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_continuation.AnswerContinuationTests.test_frozen_two_real_continuations_preserve_business_text_and_known_ids",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_continuation_join.ChatContinuationJoinTests.test_two_truncated_responses_drop_only_incomplete_citation_and_keep_raw_diagnostics",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261021-104",
+      "title": "慢本地检索导致首轮跳过必需语义证据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_latency.BusinessChatLatencyTests.test_slow_retrieval_keeps_real_selected_semantics_in_cold_and_warm_first_wire",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_latency.BusinessChatLatencyTests.test_slow_selected_parser_keeps_semantics_without_default_timer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261021-901",
+      "title": "静态控制原文已供应后仍残留缺源码原因的回归映射已补齐",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_exact_separate_guard_page_clears_only_static_scope_unknown_reason",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_missing_or_invalid_guard_keeps_unknown_reason_and_runtime_unverified",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_activation_question_scope.SuppliedCLScopeReasonTests.test_supplied_guard_without_environment_predecessor_cannot_claim_known_scope",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_distant_guard_requires_source_and_preserves_runtime_unknown",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_missing_or_false_guard_cannot_pass_with_scope_flags_alone",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_old_missing_source_answer_is_rejected",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_source_guard_never_proves_runtime_or_object_binding",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_cl_guard_acceptance.DesktopCLGuardAcceptanceTests.test_unknown_or_stale_activation_scope_cannot_pass",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-101",
+      "title": "已有结果目录因 SQLite 伴随文件或导出被拒绝",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_existing_output_reuse.ExistingOutputReuseTests.test_existing_database_sidecars_do_not_require_an_empty_output",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_existing_output_reuse.ExistingOutputReuseTests.test_recognized_library_with_exports_can_refresh_and_keep_history",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-102",
+      "title": "索引不可恢复时仍在磁盘的会话历史被隐藏",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_restart.WorkspaceRestartTests.test_history_remains_accessible_when_index_or_source_cannot_be_restored",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_upgrade.DesktopUpgradeTests.test_upgrade_with_missing_index_retains_history_without_reimport",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-103",
+      "title": "自动升级把旧入口范围扩大为整个目录",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_entry_scoped_library_is_not_expanded_during_automatic_upgrade",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_display_repair_marker_cannot_be_used_as_original_scope_proof",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-104",
+      "title": "已失败升级在每次启动重复扫描",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_attempt_skips_integrity_and_source_table_scan_on_restart",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-105",
+      "title": "非原始审稿协议被清洗成有效批准",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_bound_semantic_review.SourceBoundSemanticReviewTests.test_fenced_review_is_not_cleaned_into_protocol_approval",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_bound_semantic_review.SourceBoundSemanticReviewTests.test_fenced_review_remains_invalid_after_durable_receipt_and_resume",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-106",
+      "title": "修好一处同类风险仍被判定毫无进展",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_risk_identity.ProductionRiskProgressTests.test_resolving_one_of_two_same_kind_concerns_allows_remaining_review",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261022-107",
+      "title": "风险移到另一个程序未被识别为回归",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_risk_identity.ProductionRiskProgressTests.test_same_kind_concern_moving_to_another_program_is_a_regression",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261023-101",
+      "title": "远程结果未知永久挡住用户主动重试",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_repeated_interruptions_never_trigger_automatic_resubmission",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_retry_using_a_superseded_original_id_can_start_a_new_explicit_run",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261023-102",
+      "title": "完整响应因预览异常被标为远端结果未知",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_preview_failure_in_a_terminal_event_preserves_the_received_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_remote_request_lifecycle.RemoteRequestLifecycleTests.test_error_name_alone_cannot_close_a_request",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261023-103",
+      "title": "中文解释请求被英文业务术语改成英文回答",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_response_language.LanguageSelectionTests.test_chinese_explanation_requests_keep_business_terms_without_switching_language",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_response_language.ChatLanguageTests.test_mixed_business_question_keeps_chinese_in_prompt_and_local_diagnostic",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261023-104",
+      "title": "条件与公式倒置仍被核验为支持",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_reversed_natural_branches_are_repaired_with_true_and_false_source_guards",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_prose_branch_binding.ProseBranchBindingIntegrationTests.test_single_offline_request_repairs_both_branches_before_final_delivery",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-101",
+      "title": "源码变化后显式重试反复命中过期调查",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_changed_source_after_received_response_starts_fresh_only_on_explicit_retry",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-102",
+      "title": "派生搜索页或 FTS 缺失仍被当作完整缓存",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_search_cache_repair.SearchCacheRepairTests.test_refresh_repairs_missing_search_entry_and_only_rebuilds_affected_file",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_search_cache_repair.SearchCacheRepairTests.test_direct_read_recovers_internal_gap_before_refresh",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-103",
+      "title": "已索引框架阶段未进入默认业务请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_stage_business.FrameworkStageBusinessTests.test_default_chat_receives_business_stage_chain_from_actual_source_and_manual",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_business.FrameworkStageBusinessTests.test_related_followup_keeps_current_stage_conditions_and_operation_caveat",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-104",
+      "title": "常见业务处理流程问法漏启整体业务分析",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_stage_business.FrameworkStageBusinessTests.test_natural_business_flow_questions_keep_focused_questions_narrow",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-105",
+      "title": "未展开过程 COPY 或 REPLACE 仍产生确定阶段绑定",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_stage_scope.FrameworkStageScopeTests.test_procedure_copy_invalidates_stage_before_or_after_observation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_scope.FrameworkStageScopeTests.test_replacement_and_compile_directives_are_persistent_stage_boundaries",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-106",
+      "title": "页面丢失源码格式导致阶段调用漏识别",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_explicit_free_format_preserves_eight_space_indented_perform",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_orientation.SuppliedSyntaxFormatTests.test_explicit_fixed_format_retains_physical_statement_location",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-107",
+      "title": "业务概念初问没有供应已定位的被调实现",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_concept_pipeline.BusinessConceptPipelineTests.test_concept_supplies_implementations_and_business_task_before_first_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_concept_working_set.ConceptWorkingSetTests.test_concept_and_program_name_both_supply_multihop_original_source",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261024-108",
+      "title": "只说外部源码缺失的整答被当作已经解释业务",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_external_boundary_alone_still_requests_visible_business_explanation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_concept_delivery.BusinessConceptDeliveryTests.test_missing_external_algorithm_does_not_restart_complete_visible_explanation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261025-101",
+      "title": "草稿和最终补全重复添加同一源码事实",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_fact_completion.SourceFactCompletionTests.test_default_draft_and_final_completion_add_io_failure_only_once",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_fact_completion.SourceFactCompletionTests.test_same_assignment_in_other_if_branch_is_still_added",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261025-102",
+      "title": "正确的 CONTINUE ELSE 业务解释被误改",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_same_sentence_continue_else_binds_only_the_false_source_branch",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_prose_branch_binding.ProseBranchBindingTests.test_same_sentence_else_move_survives_large_fixed_format_source_tail",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261025-103",
+      "title": "测试夹具换行转换造成源码字节哈希不一致",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_prose_branch_binding.ProseBranchBindingIntegrationTests.test_single_offline_request_repairs_both_branches_before_final_delivery",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_business.FrameworkStageBusinessTests.test_real_index_binds_stage_role_to_perform_and_contained_operation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_scope.FrameworkStageScopeTests.test_indexed_boundary_survives_request_trimming_and_cache_reuse",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_concept_working_set.ConceptWorkingSetTests.test_concept_and_program_name_both_supply_multihop_original_source",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261025-104",
+      "title": "测试数据库连接未关闭导致 Windows 临时目录清理失败",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_stage_scope.FrameworkStageScopeTests.test_indexed_boundary_survives_request_trimming_and_cache_reuse",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_stage_scope.FrameworkStageScopeTests.test_v15_cache_is_rebound_even_when_source_and_manual_are_unchanged",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-101",
+      "title": "管线或提示升级后明确重试仍被旧版本阻塞",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_pipeline_upgrade_retry.PipelineUpgradeRetryTests.test_pipeline_upgrade_explicit_saved_id_starts_current_run",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_pipeline_upgrade_retry.PipelineUpgradeRetryTests.test_prompt_upgrade_explicit_question_retry_starts_current_run",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-102",
+      "title": "一个超大程序使随后已供应子程序事实消失",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_syntax_evidence.SyntaxEvidenceTests.test_oversized_program_keeps_later_supplied_subprogram_facts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_syntax_evidence.SyntaxEvidenceTests.test_skipping_one_span_preserves_the_total_scan_budget",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-103",
+      "title": "超默认读取页但仍在总额度内的单行使游标停滞",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_read_long_line_budget.LongLineReadBudgetTests.test_fifteen_kilobyte_condition_is_supplied_whole",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_read_long_line_budget.LongLineReadBudgetTests.test_line_larger_than_total_allowance_remains_local_gap_without_repeated_expansion",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-104",
+      "title": "替换草稿丢失先前已供应的原文依据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prior_source_memory_chat.PriorSourceMemoryEvictionChatTests.test_rewritten_draft_recovers_evicted_source_on_the_next_existing_turn",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory.PriorSourceMemoryTests.test_replacing_draft_keeps_source_location_without_old_interpretation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-105",
+      "title": "同轮重复工具动作挤掉不同待查位置",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_duplicate_action_reads.DuplicateActionReadTests.test_duplicate_reads_leave_allowance_for_the_next_distinct_location",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_duplicate_action_reads.DuplicateActionReadTests.test_duplicate_inspections_leave_shared_allowance_for_another_tool",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-106",
+      "title": "显式重试仍依赖旧编译设置或已删除证据路径",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_explicit_retry_current_source.ExplicitRetryCurrentSourceTests.test_compilation_change_allows_explicit_retry_after_received_response",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_explicit_retry_current_source.ExplicitRetryCurrentSourceTests.test_explicit_retry_does_not_require_removed_old_evidence_path",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261026-107",
+      "title": "重复相同调查发现持续膨胀记忆",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prior_source_memory.PriorSourceMemoryTests.test_repeated_identical_findings_do_not_grow_or_displace_memory",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261027-001",
+      "title": "响应重放丢失尚未执行的补读任务",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_pending_frontier_response_checkpoint.PendingFrontierResponseCheckpointTests.test_received_response_replay_executes_new_navigation_once",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_pending_frontier_response_checkpoint.PendingFrontierResponseCheckpointTests.test_received_search_deferred_by_remaining_allowance_survives_checkpoint",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261027-002",
+      "title": "证据选页重复比较全部旧页面",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_evidence_selection_reuse.EvidenceSelectionReuseTests.test_each_new_page_avoids_rechecking_all_previous_pairs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_evidence_selection_reuse.EvidenceSelectionReuseTests.test_varied_groups_versions_and_copy_instances_preserve_exact_output",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261027-003",
+      "title": "重复语句分词与普通程序头扫描拖慢索引",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_statement_token_reuse.StatementTokenReuseTests.test_header_prefilter_preserves_format_validation_and_unicode_identity",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_statement_token_reuse.StatementTokenReuseTests.test_reused_tokens_preserve_assignment_and_reference_facts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_statement_token_reuse.StatementTokenReuseTests.test_streaming_index_keeps_complete_rule_and_occurrence_tables",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261027-004",
+      "title": "同一调用重复重建COPY布局",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_layout_reuse.FrameworkLayoutReuseTests.test_import_reuses_binding_layout_and_preserves_identical_facts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_layout_reuse.FrameworkLayoutReuseTests.test_dependent_binding_keeps_digest_and_deep_change_invalidation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-001",
+      "title": "每次完成问题都重复读取全库关系预览",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_graph_cache.WorkspaceGraphCacheTests.test_unchanged_file_reuses_preview_but_checks_snapshot_and_isolates_results",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_graph_cache.WorkspaceGraphCacheTests.test_file_replacement_is_allowed_and_invalidates_the_entry",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-002",
+      "title": "Windows关系缓存忽略真实文件变化",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_graph_cache.WorkspaceGraphCacheTests.test_checkpointed_wal_detects_change_when_ctime_is_creation_time",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_graph_cache.WorkspaceGraphCacheTests.test_windows_path_and_descriptor_compare_birthtime_despite_different_ctime",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-003",
+      "title": "广域程序定义查询反复访问无关正文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_map_definition_lookup.ProgramDefinitionLookupTests.test_broad_rows_versions_duplicate_names_and_order_match_original",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_map_definition_lookup.ProgramDefinitionLookupTests.test_broad_subset_does_not_add_unselected_programs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-004",
+      "title": "首问成功读取的原文仍被清空",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_discovery_recovery.BusinessDiscoveryRecoveryTests.test_first_question_direct_read_survives_into_the_next_actual_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_discovery_recovery.BusinessDiscoveryRecoveryTests.test_original_text_fallback_is_retained_on_first_question_and_followup_search",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_discovery_recovery.BusinessDiscoveryRecoveryTests.test_formula_gap_does_not_discard_a_successfully_requested_source_read",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-005",
+      "title": "带连字符文件名被误当字段",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_reference_fields.SourceReferenceFieldTests.test_filename_and_path_components_do_not_become_field_references",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_reference_fields.SourceReferenceFieldTests.test_first_question_has_formula_evidence_without_phantom_field_gap",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-006",
+      "title": "语义导航引用未绑定实际供应的完整页",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prompt_source_references.PromptSourceReferenceTests.test_covering_page_changes_only_wire_reference_id",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prompt_source_references.PromptSourceReferenceTests.test_actual_request_semantic_reference_is_a_valid_answer_citation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-007",
+      "title": "正确零值条件被后处理误判并损坏表格",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_claim_condition_tables.ClaimConditionTableTests.test_captured_model_table_survives_draft_and_final_review_verbatim",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_claim_condition_tables.ClaimConditionTableTests.test_zero_notation_does_not_prove_a_source_contradiction_or_runtime_result",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-008",
+      "title": "紧凑请求丢失调查项属性",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_request_fit_completed_reads.CompletedReadRequestFitTests.test_minimal_investigation_keeps_inherited_requirement_fields",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_request_fit_completed_reads.CompletedReadRequestFitTests.test_compact_projection_retains_pending_reads_and_canonical_history",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261028-009",
+      "title": "继续补查在收尾与工具恢复分支丢失接续上下文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_continuation_final_delivery_preserves_previous_answer_and_continuation_task",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_continuation_tool_recovery_does_not_replace_the_continuation_task",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_explicit_investigation_continuation.ExplicitInvestigationContinuationTests.test_legacy_continuation_restores_searches_from_result_or_last_request",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-001",
+      "title": "远端接入失败结果在长对话中不可见",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_remote_source.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-002",
+      "title": "更新重试被错误当成打开旧缓存",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_remote_source.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-003",
+      "title": "重新使用缓存后旧失败导入再次出现",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_web_remote_source.RemoteSourceIntegrationTests.test_reusing_current_cache_clears_failed_or_cancelled_index_and_preserves_conversation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-004",
+      "title": "默认软目标过早终止有意义补查",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_default_investigation_delivery.DefaultInvestigationDeliveryTests.test_default_reviews_incomplete_first_answer_after_twenty_second_response",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_default_investigation_delivery.DefaultInvestigationDeliveryTests.test_default_keeps_tools_and_review_after_sixteen_second_initial_context",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-005",
+      "title": "手动继续覆盖旧答案和旧引用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_store.ConversationStoreTests.test_continuation_revisions_persist_without_repeating_in_model_history",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_store.ConversationStoreTests.test_answer_revisions_are_owned_deleted_and_never_created_for_ordinary_retry",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-006",
+      "title": "续写仍使用已经修改或清空的旧要求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_instructions_integration.AnswerInstructionsIntegrationTests.test_continue_after_restart_uses_new_and_then_cleared_global_requirements",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-007",
+      "title": "自定义单段回答被追加固定技术附录",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_custom_answer_postprocessing.CustomAnswerPostprocessingTests.test_custom_single_paragraph_survives_full_and_compact_requests",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_custom_answer_postprocessing.CustomAnswerPostprocessingTests.test_suppressing_appendices_still_repairs_a_demonstrably_wrong_formula",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-008",
+      "title": "调用方计算被误归给空子程序并删除",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_noop_claim_attribution.NoopClaimAttributionTests.test_caller_formula_and_requested_noop_call_remain_in_the_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_noop_claim_attribution.NoopClaimAttributionTests.test_same_name_noop_in_another_cited_file_cannot_revoke_active_body",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-009",
+      "title": "补搜原文仍围绕旧问题命中裁剪",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_retrieval_query_budget.RetrievalQueryBudgetTests.test_new_search_crops_around_new_hit_instead_of_old_dense_comment",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-010",
+      "title": "无关框架背景挤出关键业务原文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_context_priority.BusinessContextPriorityTests.test_automatic_unbound_framework_background_does_not_evict_business_rules",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_context_priority.BusinessContextPriorityTests.test_source_bound_framework_contract_survives_background_trimming",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-011",
+      "title": "赋值语法摘要被当作完成业务解释",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_refusal_recovery.BusinessRefusalRecoveryTests.test_blanket_refusal_with_bare_assignment_observation_is_revisited",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_refusal_recovery.BusinessRefusalRecoveryTests.test_actual_business_explanation_with_runtime_limit_does_not_regenerate",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-012",
+      "title": "分组输入参数被误报来源缺失或循环",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_parameter_origin_candidates.ParameterOriginCandidatesTests.test_supplied_using_group_fields_are_input_origins_and_not_a_dependency_cycle",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_parameter_source_origin_review.ParameterSourceOriginReviewTests.test_group_and_scalar_input_locate_source_without_claiming_value",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-013",
+      "title": "同一语句读写重复占满候选名额",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_parameter_origin_candidates.ParameterOriginCandidatesTests.test_read_write_relations_share_one_statement_candidate_slot",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_parameter_origin_candidates.ParameterOriginCandidatesTests.test_more_than_twelve_distinct_statements_still_reports_candidate_limit",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-014",
+      "title": "缩进列号差异跳过未知调用影响核验",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_parameter_origin_candidates.ParameterOriginCandidatesTests.test_indented_unknown_call_effect_still_overrides_parameter_origin",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_parameter_origin_candidates.ParameterOriginCandidatesTests.test_column_adjustment_does_not_match_a_different_statement_on_the_same_line",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-016",
+      "title": "行内字段截断续写产生重复正文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_continuation_join.ChatContinuationJoinTests.test_inline_identifier_restart_preserves_business_text_and_raw_response_accounting",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-017",
+      "title": "工具标签协议泄漏到正文和流式预览",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_markup_protocol.MarkupProtocolRecoveryTests.test_machine_packet_then_valid_json_actually_reads_new_source_before_answering",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_markup_protocol.MarkupProtocolRecoveryTests.test_character_split_machine_packet_never_leaks_into_answer_previews",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-018",
+      "title": "恢复重复获得工具格式纠正机会",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_markup_protocol_resume.MarkupProtocolResumeTests.test_second_received_bad_packet_replays_without_a_third_provider_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_markup_protocol_resume.MarkupProtocolResumeTests.test_first_received_bad_packet_still_earns_its_one_correction_after_replay",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-019",
+      "title": "正常结束的空正文没有有界恢复",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_chat_empty_stop_recovery.EmptyStopRecoveryTests.test_completed_empty_stop_gets_one_same_evidence_answer_with_saved_system",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_empty_stop_recovery.EmptyStopRecoveryTests.test_refusal_filter_tools_and_unknown_transport_results_do_not_recover",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-020",
+      "title": "有新证据的长调查受固定轮数提前截断",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_default_reads_more_than_eight_related_ranges_with_original_question_and_system",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_repeated_tool_request_converges_to_an_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-021",
+      "title": "重复片段换边界被误当新证据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_continuation_progress.SemanticContinuationProgressTests.test_changed_temporary_ids_or_tool_names_do_not_create_progress",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_completion_driven_chat.CompletionDrivenChatTests.test_permuted_source_denials_still_represent_the_same_gap",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-022",
+      "title": "连续微小续写或重开刷新正文预算",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_continuation_budget.AnswerContinuationBudgetTests.test_tiny_unique_progress_exhausts_derived_request_allowance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_output_resume.AnswerOutputResumeTests.test_explicit_continue_preserves_exhausted_output_and_partial_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-023",
+      "title": "验收等待计算无法处理未封顶请求次数",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_desktop_live_acceptance.NativeLiveAcceptanceTests.test_external_watchdog_stays_finite_without_product_local_timer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-024",
+      "title": "字符串编译开关被当成真",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_compilation_context_validation.CompilationContextValidationTests.test_string_booleans_cannot_select_a_preprocessing_branch",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_compilation_context_validation.CompilationContextValidationTests.test_all_compilation_switches_require_boolean_values",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-025",
+      "title": "字符串COPY库列表被逐字符拆开",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_compilation_context_validation.CompilationContextValidationTests.test_library_and_resource_strings_are_not_silently_split",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-026",
+      "title": "非法模型超时覆盖绕过验证",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_model_output_budget.ModelOutputBudgetTests.test_timeout_overrides_are_validated_before_returning_a_profile",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_model_output_budget.ModelOutputBudgetTests.test_direct_config_cannot_treat_a_boolean_as_one_second_timeout",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-027",
+      "title": "SQL字面量或注释中的终止词破坏索引",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_index.BusinessIndexTests.test_sql_envelopes_ignore_literal_and_comment_markers_and_keep_host_outputs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_index.BusinessIndexTests.test_oversized_sql_retains_lexical_state_until_real_terminator",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_structural_parser_latency.StructuralParserLatencyTests.test_sql_comment_structure_words_do_not_escape_into_cobol",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-028",
+      "title": "SQL内部假调用或缺行后的调用被误认为有完整框架证据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_framework_binding.FrameworkBindingTests.test_sql_comments_and_literals_cannot_end_embedded_scope",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_framework_binding.FrameworkBindingTests.test_gap_cannot_hide_persistent_source_scope_changes",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-029",
+      "title": "响应重放保存错误候选的完成状态",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_received_response_replay_preserves_selected_choice_completion_and_refusal",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_explicit_retry_recovery.ExplicitRetryRecoveryTests.test_replayed_parse_failures_keep_the_error_and_do_not_recover_as_empty_answers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-030",
+      "title": "解析器更新后旧索引无法自动升级",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_previous_parser_upgrades_to_two_digit_version_offline",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_finished_local_upgrade_is_not_repeated_on_the_next_start",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-031",
+      "title": "局部刷新丢失原编译配置或混入新旧索引事实",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_session.SourceSessionTests.test_local_refresh_preserves_saved_compilation_conditions_and_copy_configuration",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_session.SourceSessionTests.test_capture_cannot_refresh_an_equal_content_snapshot_rebuilt_with_new_configuration",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_session.SourceSessionTests.test_local_refresh_cannot_mix_current_facts_into_a_legacy_parser_index",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-032",
+      "title": "刷新后COPY类型和程序概览陈旧",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_session.SourceSessionTests.test_local_refresh_preserves_extensionless_procedure_copy_identity",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_session.SourceSessionTests.test_local_refresh_recomputes_text_completeness_and_program_overview",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-033",
+      "title": "陈旧CALL导航被当成当前调用证据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_navigation_cannot_turn_replaced_callsite_or_noncode_into_call_evidence",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_stale_caller_navigation_cannot_resolve_a_current_call_to_another_file",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_selected_callee_needs_the_navigation_version_not_only_the_same_path",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-034",
+      "title": "不同COPY实例相互覆盖或拼出不存在的完整语义",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_evidence_context.EvidenceContextTests.test_different_copy_instances_cannot_cover_each_others_source",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_answer_grounding.GroundingRiskTests.test_call_and_sql_fragments_cannot_join_different_copy_transformations",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_syntax_evidence.SyntaxEvidenceTests.test_copy_instance_and_replacement_trace_cannot_complete_another_scope",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-035",
+      "title": "当前语言排除要求被保存偏好覆盖",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_saved_answer_language.SavedLanguageSelectionTests.test_current_language_exclusions_override_saved_and_inferred_defaults",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_response_language.LanguageSelectionTests.test_unfinished_source_fences_do_not_set_current_or_saved_language",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-036",
+      "title": "只查语法的明确限制触发额外业务概览",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_saved_business_preferences.SavedBusinessContentTests.test_syntax_only_question_does_not_read_callers_or_demand_business_narrative",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_saved_business_preferences.SavedBusinessPreferenceTests.test_current_business_exclusions_and_syntax_only_do_not_create_overview_work",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-037",
+      "title": "仓库子目录被误解释为另一仓库路由",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_remote_source.RemoteSourceTests.test_browser_subdirectory_cannot_be_reinterpreted_as_another_repository",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-038",
+      "title": "服务端提交未变掩盖本机源码损坏",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_web_incremental_sync.WebIncrementalSyncTests.test_server_same_commit_cache_damage_is_repaired_in_a_new_snapshot",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_web_incremental_sync.WebIncrementalSyncTests.test_same_commit_same_size_same_mtime_modified_source_is_repaired",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-039",
+      "title": "旧缓存文件不可读导致增量更新无法恢复",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_remote_incremental.RemoteIncrementalTests.test_unreadable_cached_file_is_redownloaded_without_changing_old_snapshot",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_remote_incremental.RemoteIncrementalTests.test_destination_write_failure_does_not_retry_source_download",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-040",
+      "title": "整合遗漏独立搜索线索的候选位置",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_independent_search_leads_each_receive_a_candidate_slot",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-041",
+      "title": "语义未知被误修成源码已经提供",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_availability_semantic_absence.SemanticAbsenceTests.test_missing_semantic_objects_are_not_source_denials",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_availability_semantic_absence.SemanticAbsenceTests.test_actual_draft_delivery_preserves_semantic_unknown_in_one_request",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-043",
+      "title": "新人解释风格把具体场景扩大成整程序概览",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_explanation_intent.BusinessExplanationIntentTests.test_newcomer_style_preserves_a_specific_validation_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_explanation_intent.BusinessExplanationIntentTests.test_narrow_and_explicit_implementation_questions_keep_direct_answers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-044",
+      "title": "保存的业务内容要求未进入遗漏复核",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_saved_business_preferences.SavedBusinessContentTests.test_actual_chat_repairs_obvious_business_omission_using_saved_requirements",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_saved_business_preferences.SavedBusinessContentTests.test_changed_and_cleared_preferences_do_not_reuse_different_candidate_modes",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-045",
+      "title": "更换保存语言后继续仍复用另一语言草稿",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_continuation_language_change.ContinuationLanguageChangeTests.test_changed_language_revises_complete_or_truncated_draft_without_mutating_old_run",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_continuation_language_change.ContinuationLanguageChangeTests.test_changed_language_failure_does_not_present_old_draft_as_current_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-046",
+      "title": "引号内语言值未识别且示例指令误扩大范围",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_quoted_answer_preferences.QuotedAnswerPreferenceTests.test_current_quoted_language_values_override_opposite_saved_language",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_quoted_answer_preferences.QuotedAnswerPreferenceTests.test_quoted_business_actions_do_not_expand_investigation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-047",
+      "title": "增量分页空next可接受不完整差异",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_remote_incremental.RemoteIncrementalTests.test_explicit_empty_next_without_size_does_not_publish_a_partial_change_set",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-048",
+      "title": "远端429限流缺少明确界面映射",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_remote_source.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261029-049",
+      "title": "办公验收辅助工具漏打包场景依赖",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_office_build_dependencies.OfficeHelperDependenciesTests.test_staged_tools_have_their_complete_local_import_closure",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-001",
+      "title": "多个实例并发保存设置互相干扰",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_web_answer_instructions.WorkspaceSettingsPersistenceTests.test_concurrent_instances_publish_their_own_complete_settings",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_web_answer_instructions.WorkspaceSettingsPersistenceTests.test_failed_publication_preserves_previous_settings_and_removes_temporary_file",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-002",
+      "title": "归档和恢复丢失原文截断边界",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_session.SourceSessionTests.test_archived_truncation_round_trips_with_copy_provenance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory.PriorSourceMemoryTests.test_restore_rejects_cleared_truncation_and_mismatched_round_boundary",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_quality_trace_memory.QualityTraceMemoryTests.test_source_diagnostics_retain_incomplete_excerpt_boundary",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-003",
+      "title": "异常Unicode审稿使保存或恢复崩溃",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_semantic_answer_review.SemanticReviewValidationTests.test_escaped_unpaired_surrogates_cannot_enter_validated_review_reasons",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_bound_semantic_review.SourceBoundSemanticReviewTests.test_escaped_invalid_unicode_review_is_rejected_after_durable_receipt_and_resume",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-004",
+      "title": "默认回溯日志复制审稿中的原文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_quality_trace_memory.QualityTraceMemoryTests.test_review_trace_captures_prose_only_with_opt_in_without_changing_recovery",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_bound_semantic_review.SourceBoundSemanticReviewTests.test_default_trace_keeps_review_bindings_without_copied_source_quote",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-005",
+      "title": "同索引页的第二条检索线索被去重丢弃",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_independent_leads_on_one_index_page_receive_separate_bounded_excerpts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_adaptive_retrieval.AdaptiveRetrievalTests.test_same_page_lead_crops_respect_exclusive_source_scope",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261030-006",
+      "title": "导入测试提前清理仍被工作线程占用的文件",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_import_request_failure.ImportRequestFailureTests.test_normal_import_may_exceed_the_old_polling_deadline",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_import_request_failure.ImportRequestFailureTests.test_cleanup_cancels_and_joins_before_workspace_files_are_removed",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_import_request_failure.ImportRequestFailureTests.test_update_waits_for_backup_cleanup_after_terminal_job_status",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261105-001",
+      "title": "中文紧贴路径产生不存在的源码身份",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_identity.SourceIdentityTests.test_chinese_request_touching_a_qualified_path_keeps_its_exact_identity",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_reference_fields.SourceReferenceFieldTests.test_adjacent_chinese_source_request_supplies_formula_in_first_request",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261105-002",
+      "title": "旧库升级完整性检查阻塞窗口启动",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_slow_upgrade_integrity_check_does_not_block_opening_retained_history",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_upgrade_integrity_scan_can_be_cancelled_between_database_pages",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261105-003",
+      "title": "有限关系图预览仍全库扫描",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_graph_cache.WorkspaceGraphCacheTests.test_first_preview_stops_after_its_edge_budget_on_a_large_library",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261105-004",
+      "title": "慢接口验收失败缺少请求是否到达的诊断",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_slow_precondition_reports_deadline_before_provider_receipt",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_slow_precondition_distinguishes_provider_validation_from_no_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_desktop_acceptance_scenarios.UnknownRequestAcceptanceTests.test_missing_slow_headers_keeps_failure_and_reports_diagnostics_in_scenario_row",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-001",
+      "title": "历史用户问题覆盖回答已确认的下游焦点",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_focus.ConversationFocusTests.test_answer_confirmed_subject_is_not_overwritten_by_its_earlier_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_investigation_continuity_check.InvestigationContinuityCheckTests.test_confirmed_downstream_subject_and_previous_answer_survive_restart",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-002",
+      "title": "大诊断记录挤掉小型源码引用和末尾业务规则",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_evidence_closure.ConversationEvidenceClosureTests.test_large_diagnostics_keep_late_branch_of_program_larger_than_complete_allowance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_subject_store.ConversationSubjectStoreTests.test_nested_diagnostics_cannot_use_up_earlier_reference_allowance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-003",
+      "title": "助手长文先耗尽历史预算再被排除",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_store.ConversationStoreTests.test_large_answer_does_not_evict_user_conventions_before_source_projection",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-004",
+      "title": "旧问题迟到重试答案排列到后续问题之后",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_store.ConversationStoreTests.test_late_retry_answer_keeps_its_turn_after_restart_and_before_later_retry",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-005",
+      "title": "历史投影升级后旧调查不能正确继续",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_explicit_investigation_continuation.ExplicitInvestigationContinuationTests.test_saved_run_continues_across_history_projection_upgrade",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_explicit_investigation_continuation.ExplicitInvestigationContinuationTests.test_history_projection_upgrade_does_not_replay_another_language_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-006",
+      "title": "空白新对话挤掉最近有效历史",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_history.SourceHistoryTests.test_empty_conversations_do_not_hide_saved_history_after_restart",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_history.SourceHistoryTests.test_actual_history_overflow_is_reported_and_empty_rows_do_not_count",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-007",
+      "title": "切库后失败索引升级再次自动执行",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_upgrade.WorkspaceUpgradeTests.test_failed_upgrade_stays_bound_to_its_library_across_switch_and_restart",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-008",
+      "title": "提交回执丢失可能重复创建问题和模型请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_question_submission_receipts.QuestionSubmissionReceiptTests.test_concurrent_and_completed_replays_keep_one_turn_and_one_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_question_submission_receipts.QuestionSubmissionReceiptTests.test_failure_after_start_does_not_authorize_resubmission",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_conversation.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-009",
+      "title": "大量上游调用方挤掉当前程序下游",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_incoming_hub_does_not_displace_outgoing_subroutine",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-010",
+      "title": "调用未绑定被误报实现不可用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_indexed_duplicate_implementations_are_reading_candidates_not_missing",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_field_binding_does_not_assert_missing_or_same_named_program",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-011",
+      "title": "已供应源码仍允许找不到源码的错误断言",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_availability_repairs.SourceAvailabilityRepairTests.test_failed_lookup_denials_of_supplied_source_are_corrected",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-012",
+      "title": "动态调用已有字面量线索却未供应候选实现",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_direct_literal_move_without_initial_value_supplies_candidate",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-013",
+      "title": "重复动态调用来源元数据挤出源码",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_repeated_literal_provenance_is_bounded_without_copying_statements",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-014",
+      "title": "直接业务概览问题没有浅答审查",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_answer_depth.BusinessAnswerDepthTests.test_direct_overview_and_saved_overview_review_the_same_weak_answer",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-015",
+      "title": "业务概览后处理追加无用代码说明",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_answer_depth.BusinessAnswerDepthTests.test_business_flow_keeps_syntax_candidates_out_of_final_prose",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-016",
+      "title": "大请求压缩弱化详细回答要求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_answer_depth.BusinessAnswerDepthTests.test_request_compaction_preserves_detailed_and_brief_contracts",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-017",
+      "title": "大报告同步恢复阻塞首屏服务",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_background_restore.WorkspaceBackgroundRestoreTests.test_http_shell_and_progress_are_available_while_full_report_hash_is_blocked",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-018",
+      "title": "取消后台恢复后保存设置清空原资料库登记",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workspace_background_restore.WorkspaceBackgroundRestoreTests.test_cancel_during_verification_preserves_profile_and_never_adopts_partial_state",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workspace_background_restore.WorkspaceBackgroundRestoreTests.test_cancelled_restore_can_import_another_library_without_forgetting_old_history",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-019",
+      "title": "Windows等长报告改写可绕过复用校验",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_report_view.ReportViewTests.test_windows_verification_rereads_when_equal_size_rewrite_keeps_every_stat_field",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_report_view.ReportViewTests.test_restore_session_rejects_report_changed_during_content_verification",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-020",
+      "title": "普通read没有findings便不保存回读位置",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_read_catalog_memory.ReadCatalogTests.test_valid_read_without_findings_survives_as_navigation_only",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_read_catalog_memory.ReadCatalogTests.test_checkpoint_restores_catalog_without_requiring_candidate_findings",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-021",
+      "title": "已被挤出原文的重读被去重阻止",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_read_catalog_memory.ReadCatalogRequestTests.test_ninth_actual_request_restores_evicted_order_without_optional_findings",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_read_catalog_memory.ReadCatalogRequestTests.test_second_eviction_allows_explicit_reread_after_another_actual_supply",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-022",
+      "title": "无程序名顺序问题被初始化候选占满",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_sequence_intent.BusinessSequenceIntentTests.test_concept_query_reads_execution_candidate_beyond_initialization_roots",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_sequence_intent.BusinessSequenceIntentTests.test_actual_request_reads_dynamic_candidate_and_late_business_condition",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-023",
+      "title": "顺序题被强加无关系统概览类别",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_business_sequence_intent.BusinessSequenceIntentTests.test_sequence_review_does_not_require_unasked_orientation_categories",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_sequence_intent.BusinessSequenceIntentTests.test_explicit_overview_and_sequence_requests_retain_both_source_bound_aspects",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-024",
+      "title": "通用网关错误遮盖明确服务端错误类型",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_generic_gateway_code_does_not_hide_a_specific_error_type",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_api_error_details.APIErrorDetailsTests.test_conflicting_specific_provider_reasons_remain_unconfirmed",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-025",
+      "title": "跨上下文窗口丢失累计业务条件与未决解释",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_analysis_compaction_chat.AnalysisCompactionChatTests.test_two_generations_preserve_early_condition_and_original_citation",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_analysis_ledger.PriorAnalysisLedgerTests.test_each_generation_preserves_all_prior_kinds_and_full_local_investigation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-026",
+      "title": "批次文件规则限制永久丢弃未处理分支",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_static_fanout_advances_after_the_batch_and_sql_limits_without_rereading",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_rule_path_batches_remain_open_until_the_last_related_path_is_processed",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_sixteen_logical_view_objects_remain_in_the_saved_cursor",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_continue_seed_retains_inventory_and_old_checkpoint_stays_compatible",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_same_snapshot_resumes_directory_without_database_scan",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_seventy_formulas_complete_review_in_persisted_batches_without_rechecking_finished_parts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-027",
+      "title": "每批文件额度错误限制全局调用深度",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_global_dependency_depth_is_not_capped_by_the_per_batch_file_allowance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-028",
+      "title": "后续批完成掩盖早期未解决依赖",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_earlier_unresolved_callee_is_retained_after_later_batches_are_read",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-029",
+      "title": "普通追问不继承同业务对象的累计分析",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_analysis_handoff.ConversationAnalysisHandoffTests.test_ordinary_same_object_followup_keeps_early_analysis_after_history_text_is_evicted",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_analysis_handoff.ConversationAnalysisHandoffTests.test_deictic_followup_inherits_same_locally_revalidated_program",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-030",
+      "title": "只剩一次请求的追问在发送前被压缩阻断",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_conversation_analysis_handoff.ConversationAnalysisHandoffTests.test_one_request_followup_delivers_supported_answer_and_preserves_uncompressed_global_work",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261106-901",
+      "title": "公司设备打开耗时超过一小时尚待实机结案",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261106-902",
+      "title": "现场 HTTP 500 的服务端根因尚待确认",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261106-903",
+      "title": "历史 TLS 失败现象缺独立现场确诊",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261106-904",
+      "title": "复杂业务扣费顺序的真实回答质量尚待复核",
+      "status": "unverified",
+      "scope": "field_revalidation",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261107-001",
+      "title": "完成末批后压缩续轮重扫第一批规则",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_thirty_two_primary_rules_resume_within_the_same_file",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_completed_review_batch_still_accepts_a_later_discovered_source_path",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_compaction_rule_batch_continuity.CompactionRuleBatchContinuityTests.test_completed_rules_are_not_reopened_after_compaction_and_later_reads",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-002",
+      "title": "小段待压缩来源无法通过主动继续完成",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionSelectionTests.test_visible_small_deferred_page_requires_explicit_retry",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_explicit_continue_represents_small_deferred_source_and_preserves_originals",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_still_deferred_explicit_retry_does_not_loop",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-003",
+      "title": "历史恢复反复扫描请求记录和重复校验归档",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_restore_looks_up_each_history_record_once_instead_of_per_page",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_effective_pages_validate_each_archive_once_and_revalidate_next_call",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_duplicate_request_keys_keep_the_first_record_proof",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-004",
+      "title": "大批历史原文恢复期间取消不及时",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_ordinary_handoff_stops_between_archives_without_replacing_old_checkpoint",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_same_question_resumes_after_cancellation_inside_memory_restore",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-005",
+      "title": "诊断性失败消息遮住此前有效分析",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_actual_http500_diagnostic_does_not_hide_two_generations_from_next_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_deictic_question_inherits_only_with_its_verified_same_object_lineage",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_skipped_diagnostic_with_unknown_remote_outcome_blocks_inheritance",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-006",
+      "title": "缺失或异常失败谱系引发新的恢复异常",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_missing_or_malformed_failed_lineage_is_rejected_without_an_exception",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-001",
+      "title": "删除旧测试仍可能通过回归汇总",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_deleted_old_test_is_rejected_even_if_current_discovery_is_consistent",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_committed_registry_deletion_does_not_erase_older_contract",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_committed_baseline_deletion_does_not_erase_older_tests",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-002",
+      "title": "跳过或预期失败可能被当成旧故障已验证",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_skip_cannot_count_as_bug_fixed_even_when_runner_says_passed",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_expected_failure_cannot_count_as_a_passing_fix",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_real_browser_skip_is_not_reported_as_passing",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-003",
+      "title": "新回归入口初稿漏掉维护工具测试",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_independent_maintenance_suite_must_also_complete",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-004",
+      "title": "浅克隆可隐藏被删除的历史合同",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_shallow_history_cannot_hide_removed_historical_bugs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_complete_history_can_be_audited",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-901",
+      "title": "在线开发工作目录尚未包含最新本地修复",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionSelectionTests.test_visible_small_deferred_page_requires_explicit_retry",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_explicit_continue_represents_small_deferred_source_and_preserves_originals",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_analysis_compaction_deferred_retry.DeferredCompactionChatTests.test_still_deferred_explicit_retry_does_not_loop",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_three_messages_accumulate_new_generations_and_retain_original_source_proofs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_cancelled_third_message_retains_previous_memory_for_next_ordinary_message",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_conversation_analysis_handoff_multiturn.ConversationAnalysisHandoffMultiturnTests.test_changed_early_source_after_two_messages_invalidates_all_inherited_candidates",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_restore_looks_up_each_history_record_once_instead_of_per_page",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_reset_round_numbers_still_select_the_exact_request_hash",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_duplicate_request_keys_keep_the_first_record_proof",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_source_memory_restore_efficiency.PriorSourceMemoryRestoreEfficiencyTests.test_effective_pages_validate_each_archive_once_and_revalidate_next_call",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_ordinary_handoff_stops_between_archives_without_replacing_old_checkpoint",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_source_memory_restore_cancellation.SourceMemoryRestoreCancellationTests.test_same_question_resumes_after_cancellation_inside_memory_restore",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_actual_http500_diagnostic_does_not_hide_two_generations_from_next_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_latest_available_partial_remains_authoritative_and_older_forged_handle_is_rejected",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_reset_cannot_carry_previous_topic_into_a_deictic_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_deictic_question_inherits_only_with_its_verified_same_object_lineage",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_deictic_question_without_lineage_does_not_guess_an_old_subject",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_missing_or_malformed_failed_lineage_is_rejected_without_an_exception",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_question_cannot_borrow_a_different_failed_turns_lineage",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_failed_other_object_cannot_carry_previous_topic_into_a_deictic_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_skipped_diagnostic_with_unknown_remote_outcome_blocks_inheritance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_unknown_outcome_on_retained_partial_answer_blocks_its_old_handle",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_workbench_failed_handoff.WorkbenchFailedHandoffTests.test_latest_eligible_answer_without_handle_does_not_fall_back_to_older_memory",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-007",
+      "title": "在线资料地址变化继承了旧地址凭据",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_workspace.OnlineWorkspaceTests.test_changed_material_location_never_inherits_old_credentials_implicitly",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_workspace.OnlineWorkspaceTests.test_explicit_empty_material_fields_clear_them_and_preserve_source_scope",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-008",
+      "title": "在线凭据保护改写带哈希的原文与检查点",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_workspace.OnlineWorkspaceTests.test_account_name_in_repository_and_evidence_is_never_rewritten",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_workspace.OnlineWorkspaceTests.test_credentials_never_persist_when_investigator_echoes_them_in_result",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-009",
+      "title": "在线发布回执丢失被误判为未发布",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_distribution.PublicationTests.test_final_upload_unknown_outcome_is_reconciled_by_immutable_name",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_distribution.PublicationTests.test_cli_reports_unknown_publication_without_losing_release_identity",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261107-010",
+      "title": "在线追问缺少前轮引用的源码定位线索",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_investigation.OnlineInvestigationTests.test_followup_uses_prior_citation_location_and_reads_source_again",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation.OnlineInvestigationTests.test_prior_citation_id_cannot_be_reused_without_current_source_read",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation.OnlineInvestigationTests.test_history_hint_from_another_commit_or_revision_is_rejected_before_model",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-005",
+      "title": "在线生成端部署工具缺少完整依赖清单",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_deployment.DeploymentTests.test_staged_producer_builds_with_original_code_unavailable",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_deployment.DeploymentTests.test_manifest_cannot_hide_missing_static_dependency_or_add_unreachable_code",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_deployment.DeploymentTests.test_verify_rejects_tamper_extra_missing_and_symlink",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261108-006",
+      "title": "在线索引模板没有显式选择无扩展名成员",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_pipeline_template.PipelineTemplateTests.test_script_prepares_and_publishes_selected_extensionless_members",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_pipeline_template.PipelineTemplateTests.test_invalid_configuration_stops_before_publication",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-001",
+      "title": "在线页面遗漏打包并改变本地自检资源计数",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staging_contains_each_online_resource_with_original_bytes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_online_routes_do_not_change_the_local_static_contract",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_runtime_and_cli_import_without_the_source_checkout",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_rejects_missing_online_resource_before_starting_server",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_staged_online_routes_are_served_without_initializing_remote_state",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_self_test_preserves_local_count_and_reports_online_checks_separately",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_desktop_packaging.OnlineDesktopPackagingTests.test_online_state_probe_cleans_its_profile_after_failed_http",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-002",
+      "title": "在线分页返回的后续位置无法执行",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_continues_after_first_hundred_matches",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_can_reach_matches_after_one_thousand",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_cli_exposes_offset_with_backward_compatible_default",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_search_tail_and_cli_remain_reachable_without_loading_earlier_metadata",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_relation_tail_remains_reachable_after_one_thousand",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_deep_search_page_keeps_all_query_and_page_budgets",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_incoming_rejects_invalid_offsets_without_losing_old_checkpoint_actions",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-003",
+      "title": "已落盘答案恢复绕过引用原文复核",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_revalidates_without_repeating_model_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_cannot_bypass_source_revocation_or_content_change",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_obeys_cancellation_before_source_read",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_answered_recovery_revalidates_all_cumulative_active_and_archived_sources",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_answered_checkpoint_revalidates_all_partitioned_source_hashes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_final_source_verification_budget_resumes_after_last_checked_file",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-004",
+      "title": "在线状态轮询一次失败后永久停更",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_online.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-005",
+      "title": "在线旧状态晚返回覆盖新的取消或选择结果",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_online.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-006",
+      "title": "在线操作响应丢失后没有核对服务端状态",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_online.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-007",
+      "title": "在线恢复失败重复追加同一部分答案",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_real_runner_repeated_failures_and_unknown_outcomes_keep_one_partial_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_cancelled_recovery_preserves_original_answer_without_another_copy",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_actual_completion_with_identical_text_is_a_new_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_new_partial_delivery_is_preserved_even_with_identical_text",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_changed_answer_or_citations_or_evidence_or_coverage_is_not_discarded",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_recovery_answer_history.OnlineRecoveryAnswerHistoryTests.test_identical_answer_for_a_new_question_is_not_deduplicated",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-008",
+      "title": "在线部署模板测试无法在 Windows 执行",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_pipeline_portability.PipelinePortabilityTests.test_windows_uses_discovered_git_bash_without_a_posix_absolute_executable",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_pipeline_portability.PipelinePortabilityTests.test_missing_shell_is_a_failure_and_never_a_skip",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_pipeline_portability.PipelinePortabilityTests.test_windows_paths_keep_spaces_and_use_shell_compatible_separators",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_pipeline_portability.PipelinePortabilityTests.test_shell_receives_unmodified_template_as_lf_bytes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_pipeline_portability.PipelinePortabilityTests.test_actual_shell_runs_python_wrapper_with_spaces_and_literal_arguments",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-009",
+      "title": "Windows 合成 Git 仓库的只读对象无法清理",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_readonly_git_object_tree_is_removed_and_sibling_is_preserved",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_windows_permission_callback_makes_only_failed_readonly_file_writable",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_permission_error_for_already_writable_file_remains_a_failure",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_non_permission_error_is_not_ignored",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_fixture_cleanup.OnlineFixtureCleanupTests.test_readonly_nonregular_path_never_changes_the_target_permissions",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_publish.SnapshotPublishTests.test_prepare_publish_and_read_snapshot_without_sync_integration",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-010",
+      "title": "在线测试夹具的换行字节与预期哈希不同",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_digest_fixture_is_identical_under_windows_text_defaults",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_cli_evidence_preserves_windows_crlf_bytes_and_pinned_subdirectory",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_export_and_evidence_preserve_exact_lf_crlf_and_mixed_source_bytes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_material_export_newlines.OnlineMaterialExportNewlineTests.test_newline_only_change_invalidates_the_original_index_hash",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_material_export.MaterialExportTests.test_real_index_exports_search_facts_reverse_relations_without_source_or_input_changes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_material_export.MaterialExportTests.test_read_transaction_does_not_mix_concurrent_index_updates",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_analysis.OnlineAnalysisIntegrationTests.test_evidence_cli_reads_pinned_subdirectory_and_keeps_credentials_out_of_output",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-011",
+      "title": "干净 Git 工作树的转换字节被误标为固定提交原文",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_git_identity.OnlineGitBlobIdentityTests.test_autocrlf_clean_worktree_is_rejected_when_commit_blob_has_different_bytes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_git_identity.OnlineGitBlobIdentityTests.test_custom_clean_filter_cannot_certify_transformed_worktree_bytes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_git_identity.OnlineGitBlobIdentityTests.test_matching_lf_and_crlf_blobs_build_and_verify_for_sha1_and_sha256",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_git_identity.OnlineGitBlobIdentityTests.test_verification_uses_one_tree_query_for_many_selected_files",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_git_identity.OnlineGitBlobIdentityTests.test_large_source_blob_is_hashed_with_bounded_reads",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-012",
+      "title": "Windows 预检报告独占创建仍跟随悬空符号链接",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_preflight_output_paths.PreflightOutputPathTests.test_leaf_link_is_rejected_even_if_platform_exclusive_open_would_follow_it",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_preflight_output_paths.PreflightOutputPathTests.test_real_dangling_leaf_link_preserves_link_and_does_not_create_target",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_preflight_output_paths.PreflightOutputPathTests.test_report_open_failure_is_not_swallowed_and_never_starts_checks",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_preflight.CommandTests.test_existing_missing_parent_symlink_or_invalid_commit_do_not_issue_requests",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-013",
+      "title": "Windows 维护回归的 Node 报告器路径被当作 URL 协议",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_bug_reporter_portability.BugReporterPortabilityTests.test_reporter_file_url_handles_spaces_and_fragment_characters",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_bug_regression_gate.BugRegressionGateTests.test_real_browser_skip_is_not_reported_as_passing",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261109-014",
+      "title": "TLS请求发送后的响应失败被说明成无法建立连接",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_native_tls_failure_after_received_post_keeps_phase_unconfirmed_and_outcome_unknown",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_tls_phase_diagnostic.TLSPhaseDiagnosticTests.test_legacy_reason_has_phase_unconfirmed_explanation_in_both_server_languages",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_business_chat_response_recovery.BusinessChatResponseRecoveryTests.test_classified_transport_failure_preserves_specific_safe_diagnosis",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_tls_phase_diagnostic.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-001",
+      "title": "失败轮已完成的新分析未移交给普通追问",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_completed_compaction_before_http500_is_inherited_by_next_question",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_two_failed_turns_preserve_monotonic_analysis_and_latest_owned_handle",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_older_unknown_request_blocks_even_a_newer_known_failure",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_changed_new_source_and_compilation_identity_reject_failed_donor",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_no_progress_failure_keeps_original_anchor",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_deictic_failed_chain_preserves_verified_lineage",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_forked_or_retracted_failed_checkpoint_is_not_merged",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-002",
+      "title": "流式错误事件丢失明确接口分类和已观察状态",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_explicit_sse_causes_keep_safe_headers_on_native_and_injected_paths",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_unknown_sse_code_stays_unconfirmed_without_echo",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_reflected_error_code_and_request_id_are_not_trusted",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_visible_text_is_preserved_without_retry_or_false_completion",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_sse_error_diagnostics.StreamErrorDiagnosticTests.test_ordinary_http500_keeps_existing_classification",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-003",
+      "title": "后续本机错误覆盖此前接口错误的显示与历史",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_real_failure_save_and_reopen_preserve_current_and_prior_causes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_unaccepted_projection_preserves_only_safe_prior_fields",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_prior_api_diagnostic.PriorAPIDiagnosticTests.test_invalid_prior_does_not_replace_a_valid_current_diagnostic",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_prior_api_diagnostic.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-004",
+      "title": "在线入口及独立在线页面未遵循界面语言",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_online_locale.test.cjs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_premature_answer_remains_visible_draft_with_pending_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_inventory_paging.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-005",
+      "title": "在线问答未传入已保存的回答要求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_full_saved_requirements_language_priority_and_protocol_reach_every_model_call",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prose_and_locale_fallback_match_existing_language_resolver",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_legacy_checkpoint_defaults_only_new_fields_and_rejects_other_changes",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_changed_requirements_revise_pending_answer_with_all_evidence_and_unfinished_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_answered_checkpoint_same_requirements_replays_but_changed_requirements_regenerates",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_unknown_outcome_preserves_diagnostic_and_old_requirements_until_explicit_retry",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_prompt_capacity_keeps_full_requirements_and_revision_draft_for_later_resume",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_revision_capacity_failure_retains_original_pending_answer_without_marking_answered",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_bridge_exposes_live_saved_requirements_read_only",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_new_questions_and_followups_receive_latest_full_requirements_and_locale",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_oversized_saved_requirements_leave_durable_progress_recoverable",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_changed_requirements_restate_every_saved_finding_without_losing_provenance",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_bounded_checkpoint_rehydrates_without_source_catalog_scan_and_language_restarts_review",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-006",
+      "title": "在线调查丢弃结构化接口错误详情",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_unknown_outcome_preserves_diagnostic_and_old_requirements_until_explicit_retry",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineAnswerRequirementsTests.test_http_diagnostics_are_safe_specific_only_with_evidence_and_never_auto_retried",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_diagnostics_survive_reload_unknown_gate_and_clear_on_success",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_untrusted_diagnostic_fields_are_removed_from_all_persisted_projections",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_synchronous_provider_failure_keeps_top_level_safe_diagnostic",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_online_locale.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-007",
+      "title": "首轮失败且没有可用回答锚点时普通追问不接续已完成分析",
+      "status": "unverified",
+      "scope": "source_offline",
+      "checks": []
+    },
+    {
+      "id": "BUG-20261110-008",
+      "title": "在线最近任务的错误显示到其他历史对话",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_online_locale.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-009",
+      "title": "全系统公式问题未建立全库范围与完成义务",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_global_catalog_includes_disconnected_chinese_business_alias",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_global_question_releases_previous_exclusive_scope",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_catalog_contains_every_physical_occurrence_and_every_source_window",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_partial_or_wrong_version_citation_cannot_complete_review",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_unstructured_claim_of_global_completion_cannot_finish",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_omitted_formula_reviews_cannot_finish_even_when_model_claims_batch_completion",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_original_mixed_language_request_is_whole_repository",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_explicit_multilingual_inventory_requests",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_normal_formula_and_overview_do_not_expand_scope",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_negated_or_current_file_restriction_is_not_global",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_repository_determiners_and_all_variants",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_current_named_program_restriction_takes_precedence",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-010",
+      "title": "在线全库问题未检查已知未完搜索便标记完成",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_premature_answer_remains_visible_draft_with_pending_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_review_requires_current_verified_complete_source_ranges",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_reviewed_file_without_arithmetic_still_requires_its_whole_source",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_duplicate_physical_position_cannot_satisfy_multiple_occurrences",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_ordinary_question_is_not_forced_to_review_all_lexical_hits",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_premature_model_complete_cannot_clear_unreviewed_global_work",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-011",
+      "title": "在线未完成搜索游标被观察记录窗口丢弃",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_unfinished_search_survives_prompt_and_checkpoint_observation_windows",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_later_search_page_cannot_hide_an_earlier_unvisited_page",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_unknown_outcome_retains_ledger_and_never_reissues_without_approval",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_more_than_4096_actions_remain_deduplicated_outside_checkpoint",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-012",
+      "title": "公式批次修复过度扩大未绑定字段的问题范围",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_question_scope_regressions.QuestionScopeRegressions.test_unbound_or_declared_unused_target_does_not_select_peer_formulas",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_normal_formula_and_overview_do_not_expand_scope",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_scope.RepositoryInventoryScopeTests.test_current_named_program_restriction_takes_precedence",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-013",
+      "title": "在线归档原文同时召回多页时相互挤出",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_real_online_batches_deliver_every_gold_site_after_observation_eviction",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_reviewed_original_pages_archive_and_batch_recall_without_losing_early_page",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-014",
+      "title": "在线累计业务摘要可带入未绑定的行内引用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_work.OnlineInventoryWorkTests.test_finding_summary_cannot_add_an_unverified_inline_citation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-015",
+      "title": "全库防遗漏投影可能重新插回已被审稿纠正的旧公式",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_source_review_can_correct_wrong_formula_without_restoring_the_wrong_canonical_text",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-016",
+      "title": "万文件全库结果被界面和历史投影截断且缺少完整交付入口",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_filtered_dense_cursor_reaches_first_middle_last_with_review_and_excluded_rows",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_immutable_handles_keep_corrected_history_and_all_narrative_versions",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_real_http_pages_exports_and_verified_spans_are_bound_to_message_and_revision",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_workspace_pages_complete_exports_and_source_evidence_use_owned_immutable_handle",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+          "outcome": "passed"
+        },
+        {
+          "test": "poc/tests/web_inventory_paging.test.cjs",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-017",
+      "title": "在线万文件目录和候选台账耗尽单检查点容量",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_partitioned_checkpoint_roundtrip_retains_all_pending_and_prior_findings",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_actual_model_protocol_resumes_and_delivers_all_partitioned_findings",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_unknown_resume_does_not_read_sources_or_send_model_and_retains_store",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_credential_guard_runs_before_private_records_and_publication_are_written",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-018",
+      "title": "本地全库压缩因累计来源编号增长而永久卡住",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_bounded_checkpoint_rehydrates_without_source_catalog_scan_and_language_restarts_review",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_small_windows_and_explicit_resumes_deliver_every_formula_and_all_review_parts",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_server_failure_preserves_published_batch_and_resume_does_not_repeat_it",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-019",
+      "title": "全库公式分页将审计目录序号误当结果偏移",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_filtered_dense_cursor_reaches_first_middle_last_with_review_and_excluded_rows",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-020",
+      "title": "相同原文回读因显示选择元数据变化被误判冲突",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_recalled_span_selection_metadata_does_not_conflict_but_changed_original_does",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-021",
+      "title": "在线清单存储初始化给普通问答新增目录副作用",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_workspace.OnlineWorkspaceTests.test_end_to_end_persists_online_history_without_local_source_or_index",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-022",
+      "title": "分片清单保留的早期业务叙述未纳入全部最终审稿",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_earlier_business_narrative_is_reviewed_and_corrected_without_losing_other_batches",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-023",
+      "title": "全库归档证据接口缺少逐片完整性标记导致界面拒绝显示",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_inventory_paging.test.cjs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_real_http_pages_exports_and_verified_spans_are_bound_to_message_and_revision",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_source_tampering_and_store_sidecars_are_rejected",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-024",
+      "title": "在线全库连续调查把已归档原文和长正文重复写入历史",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "poc/tests/web_inventory_paging.test.cjs",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_many_partial_deliveries_do_not_duplicate_source_windows_or_truncate_saved_prose",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_preview_citation_budget_keeps_only_visible_ids_and_full_answer_keeps_all",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_store.OnlineInventoryStoreTests.test_workspace_pages_complete_exports_and_source_evidence_use_owned_immutable_handle",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-025",
+      "title": "大库原文窗口归并误及小库导致已有完整清单停在部分完成",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-026",
+      "title": "正文相同的全库公式纠正未保存旧结果历史入口",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_same_overview_with_corrected_inventory_handle_preserves_previous_revision",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_unchanged_inventory_handle_does_not_add_duplicate_revision",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_plain_answer_without_inventory_keeps_existing_revision_rule",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-001",
+      "title": "全库无效归档回查绕过无进展停止可持续重复模型请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_invalid_archive_lookup_stops_without_default_request_or_time_limits",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_changing_empty_lookup_queries_does_not_create_source_progress",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_invalid_and_empty_lookups_stop_without_request_or_time_limits",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-002",
+      "title": "合法全库归档回查将目标对象当字典键导致系统错误",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_lookup_recalls_original_archived_source_then_all_other_work_can_finish",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_invalid_and_empty_lookups_stop_without_request_or_time_limits",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-003",
+      "title": "全库不确定分类仅改文案被误当进展持续请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-004",
+      "title": "在线全库最终来源重验未分批导致单次调查可长时间不结束",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_file_slice_preserves_cursor_and_finishes_without_model_calls",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_slow_source_stops_at_time_slice_and_resumes_without_replay",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_changed_source_in_later_verification_slice_is_rejected_without_advancing_cursor",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-005",
+      "title": "在线重复确定失败动作不计无进展导致反复继续仍白耗模型请求",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_repeated_known_failure_stops_across_checkpoint_without_becoming_completed_work",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_partitioned_inventory_repeated_failure_stops_without_claiming_checked_coverage",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_failure_then_valid_new_work_can_still_complete_normally",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_unknown_model_outcome_after_failed_action_still_requires_confirmation_before_retry",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-006",
+      "title": "在线慢速持续响应绕过空闲超时且读取中无法及时取消",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_source_deadline.OnlineSourceDeadlineTests.test_actual_workspace_source_cancels_during_body_instead_of_after_full_download",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_source_deadline.OnlineSourceDeadlineTests.test_cancelled_before_open_sends_no_request",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_source_deadline.OnlineSourceDeadlineTests.test_header_open_elapsed_time_is_rejected_on_return_without_reading_body",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_source_deadline.OnlineSourceDeadlineTests.test_ordinary_read_and_existing_socket_timeout_classification_remain_compatible",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_source_deadline.OnlineSourceDeadlineTests.test_real_continuously_arriving_body_reaches_total_deadline_and_is_not_retried",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-007",
+      "title": "Windows Git自动换行改变PF冻结夹具哈希导致跨平台验收失配",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_global_formula_fixture_checkout.GlobalFormulaFixtureCheckoutTests.test_windows_autocrlf_filter_preserves_every_frozen_original_hash_and_range",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-008",
+      "title": "Windows生成的临时原文与测试供证哈希不一致导致真实身份被拒绝",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_lf_and_crlf_sources_use_their_actual_bytes_for_index_and_evidence_identity",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_wrong_original_hash_is_still_rejected_for_both_newline_formats",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-009",
+      "title": "在线单文件查询误走全kind排序索引导致二次扫描放大",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_single_path_read_does_not_scan_thousands_of_unrelated_records",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_path_pages_preserve_order_and_filter_both_kind_and_session",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_legacy_index_upgrade_preserves_all_records_and_old_publication",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_rollback_keeps_summary_and_published_history_consistent",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-010",
+      "title": "在线每次进度重复全库JSON聚合造成大库CPU二次放大",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_summary_matches_independent_full_scan_without_reparsing_record_json",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_rollback_keeps_summary_and_published_history_consistent",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_legacy_index_upgrade_preserves_all_records_and_old_publication",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-011",
+      "title": "回归runner把中断未完成测试误标为单项通过",
+      "status": "passed",
+      "scope": "source_offline",
+      "checks": [
+        {
+          "test": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_keyboard_interrupt_records_incomplete_and_blocks_the_full_collector",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_only_completed_successful_cases_have_a_passed_outcome",
+          "outcome": "passed"
+        },
+        {
+          "test": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_failure_error_skip_expected_and_subtest_results_keep_their_precise_outcomes",
+          "outcome": "passed"
+        }
+      ]
+    }
+  ],
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "report_sha256": {
+    "python-0.json": "2e46f14c918208fa65360fa6424152a49ebc488927fe57d946f38d81e2556528",
+    "python-1.json": "b334ae6d9aee526f652f59ca35686b84c21b576596d86106ab4a0b0b09a4f27a",
+    "python-2.json": "ed2df82deea33c20e6fe60bb560a9045698901217a49e8a0eb21fb6d47654d85",
+    "python-3.json": "90045decb42526ed7a3c819e26f86dd56c4708e211514a81d0bff057636bc3d9",
+    "python-tools.json": "6bdd46f5cd205a681fcea9ea7fb87de21bf54cec89002b8d41575d21f5305497",
+    "browser.jsonl": "30487c386253ce114067ea6468cb7b039c4b3fd95e198196eb68102be8074c05"
+  },
+  "finished_at": "2026-11-10T18:36:46.488980+00:00"
+}

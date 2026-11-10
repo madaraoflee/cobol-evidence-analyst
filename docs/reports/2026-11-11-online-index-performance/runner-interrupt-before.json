@@ -1,0 +1,16 @@
+{
+  "injected_exception": "KeyboardInterrupt",
+  "test_results": [
+    {
+      "id": "__main__.Interrupted.test_interrupted",
+      "seconds": 2.2e-05,
+      "outcome": "passed"
+    }
+  ],
+  "started_ids": [
+    "__main__.Interrupted.test_interrupted"
+  ],
+  "add_success_was_not_reached": true,
+  "log": "START __main__.Interrupted.test_interrupted\nEND __main__.Interrupted.test_interrupted passed (0.000022s)\n",
+  "cause": "TimedResult.startTest initializes outcome to passed; addSuccess does not mark success, so stopTest records a pass on KeyboardInterrupt."
+}

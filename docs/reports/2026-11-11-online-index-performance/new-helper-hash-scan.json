@@ -1,0 +1,89 @@
+{
+  "scope": "new_test_and_tool_files_since_previous_main",
+  "files": [
+    {
+      "path": "poc/tests/global_formula_oracle.py",
+      "write_lines": [],
+      "digest_lines": [
+        21
+      ]
+    },
+    {
+      "path": "poc/tests/large_repository_fixture.py",
+      "write_lines": [
+        33,
+        37,
+        45
+      ],
+      "digest_lines": [
+        36,
+        41
+      ]
+    },
+    {
+      "path": "poc/tests/test_global_formula_fixture_checkout.py",
+      "write_lines": [],
+      "digest_lines": [
+        26
+      ]
+    },
+    {
+      "path": "poc/tests/test_large_repository_inventory_acceptance.py",
+      "write_lines": [],
+      "digest_lines": [
+        43,
+        45,
+        73,
+        116
+      ]
+    },
+    {
+      "path": "poc/tests/test_online_inventory_work.py",
+      "write_lines": [
+        342
+      ],
+      "digest_lines": []
+    },
+    {
+      "path": "poc/tests/test_repository_formula_inventory.py",
+      "write_lines": [
+        42
+      ],
+      "digest_lines": [
+        53,
+        54
+      ]
+    },
+    {
+      "path": "poc/tests/test_repository_inventory_store.py",
+      "write_lines": [],
+      "digest_lines": [
+        28,
+        35
+      ]
+    },
+    {
+      "path": "tools/check_global_inventory_continuity.py",
+      "write_lines": [
+        38,
+        121,
+        307
+      ],
+      "digest_lines": []
+    },
+    {
+      "path": "tools/verify_large_local_inventory.py",
+      "write_lines": [
+        109,
+        115,
+        116,
+        121
+      ],
+      "digest_lines": [
+        54,
+        66,
+        120
+      ]
+    }
+  ]
+}

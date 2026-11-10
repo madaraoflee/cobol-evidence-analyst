@@ -1,0 +1,14 @@
+[
+  {
+    "test_id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+    "reason": "Real directory permission failures require a non-root POSIX user.",
+    "existing_in_previous_main": true,
+    "previous_main_skip_decorator": "@unittest.skipUnless(os.name == \"posix\" and getattr(os, \"geteuid\", lambda: 0)() != 0,\n                         \"Real directory permission failures require a non-root POSIX user.\")\n    def"
+  },
+  {
+    "test_id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+    "reason": "Real source permissions require a non-root POSIX user.",
+    "existing_in_previous_main": true,
+    "previous_main_skip_decorator": "@unittest.skipUnless(os.name == \"posix\" and getattr(os, \"geteuid\", lambda: 0)() != 0,\n                         \"Real source permissions require a non-root POSIX user.\")\n    def"
+  }
+]

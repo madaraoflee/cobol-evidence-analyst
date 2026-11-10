@@ -1,0 +1,108 @@
+{
+  "scope": "Windows source regressions; no native compilation or release",
+  "source_commit": "b2995f2e154c846f09f76c1f08edf5b4e20e5119",
+  "discovered_tests": 5278,
+  "shards": [
+    {
+      "shard": 0,
+      "status": "failed",
+      "selected": 1320,
+      "tests_run": 1320,
+      "failures": 4,
+      "errors": 1,
+      "skips": 1,
+      "elapsed_seconds": 596.194765
+    },
+    {
+      "shard": 1,
+      "status": "passed",
+      "selected": 1320,
+      "tests_run": 1320,
+      "failures": 0,
+      "errors": 0,
+      "skips": 1,
+      "elapsed_seconds": 1242.052404
+    },
+    {
+      "shard": 2,
+      "status": "runner_error",
+      "selected": 1319,
+      "tests_run": 706,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "elapsed_seconds": 2699.894197
+    },
+    {
+      "shard": 3,
+      "status": "passed",
+      "selected": 1319,
+      "tests_run": 1319,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "elapsed_seconds": 1265.323658
+    }
+  ],
+  "all_selected_once": true,
+  "all_started_once": false,
+  "all_completed_once": false,
+  "outcomes": {
+    "passed": 4658,
+    "failed": 4,
+    "error": 1,
+    "skipped": 2
+  },
+  "failures": [
+    {
+      "id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_repository_formula_inventory.py\", line 164, in test_additional_formula_is_bound_to_reviewed_original_window\n    self.assertEqual(len(self.state[\"additional_findings\"]), 1)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 0 != 1\n"
+    },
+    {
+      "id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_repository_formula_inventory.py\", line 177, in test_changed_language_rephrases_saved_findings_without_discarding_source_review\n    self.assertTrue(all(item[\"kind\"] == \"formula\" for item in inventory_batch(self.state)))\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n"
+    },
+    {
+      "id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_repository_formula_inventory.py\", line 135, in test_render_retains_business_sections_and_traditional_language\n    self.assertIn(\"## \u696d\u52d9\u56e0\u679c\", answer)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '## \u696d\u52d9\u56e0\u679c' not found in '\u5df2\u6838\u5c0d\u56fa\u5b9a\u7d22\u5f15\u5feb\u7167\u4e2d\u5df2\u7d0d\u5165\u539f\u59cb\u78bc\u7684 0/2 \u9805\u539f\u6587\u7a97\u53e3\u8207\u516c\u5f0f\u4f4d\u7f6e\u3002\\n\\n### \u7d2f\u8a08\u516c\u5f0f\u4f4d\u7f6e\u8207\u696d\u52d9\u898f\u5247\\n\\n\u4ecd\u6709 2 \u9805\u5f85\u6838\u5c0d\u6216\u5206\u985e\uff1b\u4ee5\u4e0a\u662f\u5df2\u78ba\u8a8d\u5167\u5bb9\uff0c\u5c1a\u4e0d\u80fd\u4f5c\u70ba\u5168\u5eab\u5b8c\u6574\u6e05\u55ae\u3002\\n\\n- entry.cbl:1-11 (source_review)\\n- entry.cbl:10-10 (formula)'\n"
+    },
+    {
+      "id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_repository_formula_inventory.py\", line 125, in test_uncertain_classification_does_not_block_unseen_batch_or_count_complete\n    self.assertFalse({r[\"candidate_id\"] for r in items} & {r[\"candidate_id\"] for r in remaining})\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: {'inventory_05da41de277cba114686064c', 'inventory_ee1fb3116bee4abc5f170d3f', 'inventory_ffba4dae1149b1567a5dd5a4', 'inventory_7f56c8248e37ff4b20cc8f40', 'inventory_7b23a2d1f04517d344352306', 'inventory_79f285a1ba5ac566db29d955', 'inventory_8bdb67e1b400f51cc95877e5', 'inventory_c988eb0d2d7a2f99702f0a1f', 'inventory_8ece847db755cd85500f0551', 'inventory_1a9b1cb2b0746d2928e1823c', 'inventory_552a7444c119a158c61db093', 'inventory_dbdb58af5ed4208fb2a03584', 'inventory_1d590e9c10a4ed5c2e267d54', 'inventory_1ae7fd821bc596e4cf8548ac', 'inventory_753275fc31cb9591be37aca7', 'inventory_3f90ee82a0faaa7b1abdca60'} is not false\n"
+    }
+  ],
+  "errors": [
+    {
+      "id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_repository_formula_inventory.py\", line 146, in test_directory_and_citation_without_business_formula_is_not_final_delivery\n    formula = next(row for row in self.state[\"findings\"].values() if row[\"kind\"] == \"formula\")\nStopIteration\n"
+    }
+  ],
+  "skipped": [
+    {
+      "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+      "reason": "Real directory permission failures require a non-root POSIX user."
+    },
+    {
+      "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+      "reason": "Real source permissions require a non-root POSIX user."
+    }
+  ],
+  "all_tests_passed": false,
+  "artifact_sha256": {
+    "shard-0.zip": "e0f3ce5c042cdf49caf9ae9b3df3bafeb01e901aa21b20d3375d6445ef53a467",
+    "shard-1.zip": "b874418ca109ede2239bcaddc8e9e3296260064e2a486d8a1ce426da4c9ced9f",
+    "shard-2.zip": "45432176caccf3be945db4c0c9168106737acc30cf2d6f12d0687b5650306ab5",
+    "shard-3.zip": "08ea10936f19c9e44344ddcd86de37d6f43a36f9ff43193b2e7477722018c024"
+  },
+  "native_exe_built": false,
+  "candidate_released": false,
+  "interrupted_test_incorrectly_marked_passed": {
+    "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+    "reported_outcome": "passed",
+    "actual_outcome": "interrupted_by_45_minute_step_timeout",
+    "must_count_as_passed": false
+  },
+  "confirmed_passed_tests": 4657,
+  "not_started_tests": 613,
+  "warning": "Original JSON and logs preserved byte-for-byte; a per-test passed entry is not evidence of completion when its runner was interrupted."
+}

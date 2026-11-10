@@ -1,0 +1,58 @@
+[
+  {
+    "query": "SELECT kind,count(*) FROM records WHERE session=? GROUP BY kind",
+    "plan": [
+      [
+        6,
+        0,
+        55,
+        "SEARCH records USING COVERING INDEX record_path (session=?)"
+      ]
+    ],
+    "vm_steps": 400128,
+    "elapsed_seconds_with_step_callback": 0.4127564579830505,
+    "rows": 5
+  },
+  {
+    "query": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'",
+    "plan": [
+      [
+        4,
+        0,
+        62,
+        "SEARCH records USING INDEX record_path (session=? AND kind=?)"
+      ]
+    ],
+    "vm_steps": 60027,
+    "elapsed_seconds_with_step_callback": 1.059088582987897,
+    "rows": 1
+  },
+  {
+    "query": "SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+    "plan": [
+      [
+        4,
+        0,
+        62,
+        "SEARCH records USING INDEX record_path (session=? AND kind=?)"
+      ]
+    ],
+    "vm_steps": 70033,
+    "elapsed_seconds_with_step_callback": 0.11614120902959257,
+    "rows": 1
+  },
+  {
+    "query": "SELECT key,data FROM records WHERE session=? AND kind=? AND path=? ORDER BY key LIMIT ? OFFSET ?",
+    "plan": [
+      [
+        8,
+        0,
+        62,
+        "SEARCH records USING INDEX sqlite_autoindex_records_1 (session=? AND kind=?)"
+      ]
+    ],
+    "vm_steps": 50052,
+    "elapsed_seconds_with_step_callback": 0.023920915962662548,
+    "rows": 1
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "status": "source_and_tests_frozen",
+  "source_sha256": {
+    "poc/online_inventory_store.py": "b3f12ac5b2efb229ab8666459e73cedea9d34873df30ae582774ad5ad6d9ae3d",
+    "poc/tests/test_online_inventory_query_cost.py": "bcb5438bb069f9cc01c78285d10fc927a243925f0296af85fa88cc4e7c27b631"
+  },
+  "test_ids": [
+    "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_legacy_index_upgrade_preserves_all_records_and_old_publication",
+    "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_path_pages_preserve_order_and_filter_both_kind_and_session",
+    "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_rollback_keeps_summary_and_published_history_consistent",
+    "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_single_path_read_does_not_scan_thousands_of_unrelated_records",
+    "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_summary_matches_independent_full_scan_without_reparsing_record_json"
+  ],
+  "targeted_online_regression": {
+    "tests_run": 332,
+    "seconds": 29.285,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "online-all-targeted.log"
+  },
+  "before_commit": "ba553af03bff6a31352efe4a436dd83bcaa13dd6",
+  "before_store_sha256": "5fc9d4801f8592bce4bfb8c10d72334da80479eb973157b163f2d124373f35eb",
+  "evidence": [
+    "10001-query-plans.json",
+    "path-index-before-after.json",
+    "expression-index-before-after.json",
+    "expression-index-explicit-query.json",
+    "combined.json",
+    "indexed-combined.json",
+    "product-summary-counts.json"
+  ],
+  "full_current_10001_status": "passed",
+  "boundary": "Query costs and complete retention are measured on actual neutral source/tool pipelines; no real model, corporate repository or Windows device time is claimed. Added-index-only 1k/2k comparison did not establish total latency improvement and remains archived. The complete replacement-index 10001 pipeline passed in 182.93 seconds on this Mac; actual Windows build must be measured separately.",
+  "full_current_10001_result": "current-10001/result.json",
+  "full_current_10001": {
+    "seconds": 182.9271866250201,
+    "status": "answered",
+    "all_formula_positions": 10001,
+    "missing": 0,
+    "duplicates": 0,
+    "unexpected": 0,
+    "invalid": 0,
+    "complete_export": true,
+    "source_reviews": 10001,
+    "older_handle_unchanged": true,
+    "final_model_requests": 2,
+    "durable_actions": 40106,
+    "initial_action_retained": true,
+    "real_model_semantics_verified": false
+  },
+  "frozen_hashes_still_match": true
+}

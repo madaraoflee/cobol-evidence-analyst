@@ -1,0 +1,60 @@
+{
+  "elapsed_seconds": 182.9271866250201,
+  "status": "answered",
+  "statistics": {
+    "inventory_files": 10001,
+    "reviewed_files": 10001,
+    "restores": 47,
+    "maximum_checkpoint_bytes": 2397,
+    "source_reads_before_delivery": 10001,
+    "final_source_reads": 10003,
+    "final_model_requests": 2,
+    "final_runs": 41,
+    "older_handle_unchanged": true,
+    "recall_requests": [
+      "E34674cbd03e3cd13defc7ca2"
+    ],
+    "first_final_request_recalled_source": true,
+    "final_answer_citations": [
+      "E34674cbd03e3cd13defc7ca2"
+    ],
+    "durable_completed_actions": 40106,
+    "initial_completed_action_retained": true,
+    "reviewed_source_roles_and_formulas": true,
+    "real_model_semantics_verified": false
+  },
+  "page_count": 101,
+  "page_delivery": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "export_delivery": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "source_reviews": 10001,
+  "files_sha256": {
+    "poc/online_inventory_store.py": "b3f12ac5b2efb229ab8666459e73cedea9d34873df30ae582774ad5ad6d9ae3d",
+    "poc/tests/test_online_inventory_query_cost.py": "bcb5438bb069f9cc01c78285d10fc927a243925f0296af85fa88cc4e7c27b631"
+  }
+}

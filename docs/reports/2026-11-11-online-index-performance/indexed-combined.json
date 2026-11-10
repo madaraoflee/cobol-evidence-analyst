@@ -1,0 +1,216 @@
+[
+  {
+    "files": 1000,
+    "elapsed_seconds": 16.60681616596412,
+    "complete": true,
+    "top_sql": [
+      {
+        "query": "PRAGMA synchronous=FULL",
+        "calls": 33286,
+        "seconds": 1.1223655071808025
+      },
+      {
+        "query": "INSERT INTO versions(session,kind,key,path,data) VALUES (?,?,?,?,?)",
+        "calls": 8000,
+        "seconds": 0.6460913051269017
+      },
+      {
+        "query": "INSERT INTO records VALUES (?,?,?,?,?,?) ON CONFLICT(session,kind,key) DO UPDATE SET path=excluded.path,seq=excluded.seq,data=excluded.data",
+        "calls": 8000,
+        "seconds": 0.5490380233386531
+      },
+      {
+        "query": "SELECT data FROM records WHERE session=? AND kind=? AND key=?",
+        "calls": 28036,
+        "seconds": 0.23119796445826069
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind=? AND path=? ORDER BY key LIMIT ? OFFSET ?",
+        "calls": 12039,
+        "seconds": 0.2204840003978461
+      },
+      {
+        "query": "DELETE FROM tasks WHERE session=? AND group_key=?",
+        "calls": 7010,
+        "seconds": 0.1955490541877225
+      },
+      {
+        "query": "INSERT OR IGNORE INTO actions VALUES (?,?)",
+        "calls": 4011,
+        "seconds": 0.17396301042754203
+      },
+      {
+        "query": "UPDATE sessions SET meta=? WHERE id=?",
+        "calls": 5020,
+        "seconds": 0.113526763219852
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind=? AND path=?",
+        "calls": 10020,
+        "seconds": 0.055259105865843594
+      },
+      {
+        "query": "SELECT meta FROM sessions WHERE id=?",
+        "calls": 5097,
+        "seconds": 0.05057871190365404
+      },
+      {
+        "query": "SELECT count(*) FROM tasks WHERE session=?",
+        "calls": 1051,
+        "seconds": 0.0502917286939919
+      },
+      {
+        "query": "SELECT key FROM records WHERE session=? AND kind='rewrite' AND path=? AND json_extract(data,'$.pending')=1",
+        "calls": 5010,
+        "seconds": 0.044076572463382035
+      },
+      {
+        "query": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'",
+        "calls": 25,
+        "seconds": 0.02200804091989994
+      },
+      {
+        "query": "SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+        "calls": 25,
+        "seconds": 0.02138741797534749
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind='files' AND key>? ORDER BY key LIMIT 1",
+        "calls": 1004,
+        "seconds": 0.01833024522056803
+      },
+      {
+        "query": "SELECT data FROM tasks WHERE session=? ORDER BY group_key,ordinal LIMIT ? OFFSET ?",
+        "calls": 1026,
+        "seconds": 0.0165234295418486
+      },
+      {
+        "query": "SELECT count(*) FROM versions v JOIN (SELECT key,max(seq) seq FROM versions WHERE session=? AND kind='findings' AND seq<=? GROUP BY key) selected ON selected.seq=v.seq WHERE json_extract(v.data,'$.disposition')='included' AND NOT EXISTS (SELECT 1 FROM versions r WHERE r.session=v.session AND r.kind='rewrite' AND r.key=v.key AND r.seq=(SELECT max(r2.seq) FROM versions r2 WHERE r2.session=r.session AND r2.kind='rewrite' AND r2.key=r.key AND r2.seq<=8000) AND json_extract(r.data,'$.pending')=1)",
+        "calls": 5,
+        "seconds": 0.010434333991724998
+      },
+      {
+        "query": "SELECT r.path,j.value FROM records r,json_each(r.data,'$.reviews') j WHERE r.session=? AND r.kind='files' ORDER BY r.seq DESC,j.key LIMIT ? OFFSET ?",
+        "calls": 2,
+        "seconds": 0.0022337499540299177
+      },
+      {
+        "query": "SELECT coalesce(max(seq),0) FROM versions WHERE session=?",
+        "calls": 6,
+        "seconds": 0.0019630410242825747
+      },
+      {
+        "query": "SELECT kind,count(*) FROM records WHERE session=? GROUP BY kind",
+        "calls": 25,
+        "seconds": 0.0017946289153769612
+      }
+    ]
+  },
+  {
+    "files": 2000,
+    "elapsed_seconds": 38.084169457957614,
+    "complete": true,
+    "top_sql": [
+      {
+        "query": "PRAGMA synchronous=FULL",
+        "calls": 66502,
+        "seconds": 2.083153215702623
+      },
+      {
+        "query": "INSERT INTO versions(session,kind,key,path,data) VALUES (?,?,?,?,?)",
+        "calls": 16000,
+        "seconds": 1.2015316360630095
+      },
+      {
+        "query": "INSERT INTO records VALUES (?,?,?,?,?,?) ON CONFLICT(session,kind,key) DO UPDATE SET path=excluded.path,seq=excluded.seq,data=excluded.data",
+        "calls": 16000,
+        "seconds": 1.0145333470427431
+      },
+      {
+        "query": "SELECT data FROM records WHERE session=? AND kind=? AND key=?",
+        "calls": 56068,
+        "seconds": 0.42749783187173307
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind=? AND path=? ORDER BY key LIMIT ? OFFSET ?",
+        "calls": 24081,
+        "seconds": 0.4172949092462659
+      },
+      {
+        "query": "INSERT OR IGNORE INTO actions VALUES (?,?)",
+        "calls": 8021,
+        "seconds": 0.3696301805903204
+      },
+      {
+        "query": "DELETE FROM tasks WHERE session=? AND group_key=?",
+        "calls": 14020,
+        "seconds": 0.3547201370820403
+      },
+      {
+        "query": "UPDATE sessions SET meta=? WHERE id=?",
+        "calls": 10034,
+        "seconds": 0.21367428806843236
+      },
+      {
+        "query": "SELECT count(*) FROM tasks WHERE session=?",
+        "calls": 2085,
+        "seconds": 0.18634926801314577
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind=? AND path=?",
+        "calls": 20040,
+        "seconds": 0.09477109712315723
+      },
+      {
+        "query": "SELECT meta FROM sessions WHERE id=?",
+        "calls": 10169,
+        "seconds": 0.08977498259628192
+      },
+      {
+        "query": "SELECT key FROM records WHERE session=? AND kind='rewrite' AND path=? AND json_extract(data,'$.pending')=1",
+        "calls": 10020,
+        "seconds": 0.08026012754999101
+      },
+      {
+        "query": "SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+        "calls": 41,
+        "seconds": 0.07179616537177935
+      },
+      {
+        "query": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'",
+        "calls": 41,
+        "seconds": 0.07098762586247176
+      },
+      {
+        "query": "SELECT count(*) FROM versions v JOIN (SELECT key,max(seq) seq FROM versions WHERE session=? AND kind='findings' AND seq<=? GROUP BY key) selected ON selected.seq=v.seq WHERE json_extract(v.data,'$.disposition')='included' AND NOT EXISTS (SELECT 1 FROM versions r WHERE r.session=v.session AND r.kind='rewrite' AND r.key=v.key AND r.seq=(SELECT max(r2.seq) FROM versions r2 WHERE r2.session=r.session AND r2.kind='rewrite' AND r2.key=r.key AND r2.seq<=16000) AND json_extract(r.data,'$.pending')=1)",
+        "calls": 9,
+        "seconds": 0.0393051240243949
+      },
+      {
+        "query": "SELECT key,data FROM records WHERE session=? AND kind='files' AND key>? ORDER BY key LIMIT 1",
+        "calls": 2008,
+        "seconds": 0.03286616620607674
+      },
+      {
+        "query": "SELECT data FROM tasks WHERE session=? ORDER BY group_key,ordinal LIMIT ? OFFSET ?",
+        "calls": 2044,
+        "seconds": 0.03161321458173916
+      },
+      {
+        "query": "SELECT coalesce(max(seq),0) FROM versions WHERE session=?",
+        "calls": 10,
+        "seconds": 0.007405707961879671
+      },
+      {
+        "query": "SELECT kind,count(*) FROM records WHERE session=? GROUP BY kind",
+        "calls": 41,
+        "seconds": 0.0052237489726394415
+      },
+      {
+        "query": "SELECT r.path,j.value FROM records r,json_each(r.data,'$.reviews') j WHERE r.session=? AND r.kind='files' ORDER BY r.seq DESC,j.key LIMIT ? OFFSET ?",
+        "calls": 2,
+        "seconds": 0.004449457046575844
+      }
+    ]
+  }
+]

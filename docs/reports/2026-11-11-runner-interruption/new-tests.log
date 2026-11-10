@@ -1,0 +1,8 @@
+test_failure_error_skip_expected_and_subtest_results_keep_their_precise_outcomes (test_python_regression_interruptions.PythonRegressionInterruptionTests.test_failure_error_skip_expected_and_subtest_results_keep_their_precise_outcomes) ... ok
+test_keyboard_interrupt_records_incomplete_and_blocks_the_full_collector (test_python_regression_interruptions.PythonRegressionInterruptionTests.test_keyboard_interrupt_records_incomplete_and_blocks_the_full_collector) ... ok
+test_only_completed_successful_cases_have_a_passed_outcome (test_python_regression_interruptions.PythonRegressionInterruptionTests.test_only_completed_successful_cases_have_a_passed_outcome) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.330s
+
+OK
