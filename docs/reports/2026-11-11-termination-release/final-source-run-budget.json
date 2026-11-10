@@ -1,0 +1,22 @@
+{
+  "before": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 0,
+    "actions": 0,
+    "actual_source_requests": 4,
+    "source_paths": [
+      "SHARED-RECORD.cpy",
+      "dynamic.cbl",
+      "main.cbl",
+      "worker.cbl"
+    ],
+    "elapsed_seconds": 0.15004783403128386,
+    "progress_phases": []
+  },
+  "source_commit": "41ec9b55ee9e7e2ecea8ee2546aa2ec09f2b3a58",
+  "source_sha256": {
+    "poc/online_inventory_store.py": "87dcd8df3d3b23ca7c88f1b08267d1501a77702bc20bceb8ef49dd940e77ccda",
+    "poc/online_investigation.py": "b1c580ad9f8553043357b353db7496ab781ccac92c884c8da4781be1feb018af"
+  }
+}

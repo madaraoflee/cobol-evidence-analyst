@@ -7532,6 +7532,268 @@
           "limitations": "本轮已授权全库完整结果及历史交付的最小专属接线；只比较paged inventory版本变化，保留普通回答原判断。原清单仍在归档，须新增历史入口回归及完整旧缺陷验证。"
         }
       ]
+    },
+    {
+      "id": "BUG-20261111-001",
+      "title": "全库无效归档回查绕过无进展停止可持续重复模型请求",
+      "symptom": "默认不设请求数上限时，模型重复返回空query的inventory_lookup，实际连续12次相同批次且pending不变；只有测试注入HTTP500才停止。",
+      "root_cause": "无效inventory_lookup异常分支直接continue，没有累计无进展或重复动作停止判断。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/lookup-invalid.json",
+        "docs/reports/2026-11-11-termination-release/local_lookup_probe.py",
+        "poc/business_chat.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_invalid_archive_lookup_stops_without_default_request_or_time_limits"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_changing_empty_lookup_queries_does_not_create_source_progress"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_invalid_and_empty_lookups_stop_without_request_or_time_limits"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "中性源码及注入响应的定向复现/回归通过；完整固定源码结果以本轮终止与候选报告为准。仅修显式全库/重复动作的实际无进展、错误或分批边界，不以减少全局内容换停止。真实模型业务质量、公司API速度、目标设备仍未验收；来源30秒时间片不是严格整轮墙钟保证，当前单次请求仍沿用既有超时。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-termination-fix",
+          "limitations": "中性源码和注入响应实际复现；测试第12次HTTP500为安全停止，不能记成产品自行停止。需保留已完成全局及待办，不能靠删内容或自动重发未知请求处理。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-002",
+      "title": "合法全库归档回查将目标对象当字典键导致系统错误",
+      "symptom": "合法inventory_lookup查询在合并priority_targets时触发TypeError cannot use dict as dict key，即使归档无匹配仍可能出现系统错误。",
+      "root_cause": "priority_targets元素是目标对象，归档回查分支误当字符串键测试其是否存在于archive_pages。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/local_lookup_probe.py",
+        "poc/business_chat.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_lookup_recalls_original_archived_source_then_all_other_work_can_finish"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_invalid_and_empty_lookups_stop_without_request_or_time_limits"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "中性源码及注入响应的定向复现/回归通过；完整固定源码结果以本轮终止与候选报告为准。仅修显式全库/重复动作的实际无进展、错误或分批边界，不以减少全局内容换停止。真实模型业务质量、公司API速度、目标设备仍未验收；来源30秒时间片不是严格整轮墙钟保证，当前单次请求仍沿用既有超时。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-termination-fix",
+          "limitations": "需验证合法查回原文、无匹配、重复查询有界停止及恢复不丢待办。源码验证不能代替最终EXE与公司模型验收。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-003",
+      "title": "全库不确定分类仅改文案被误当进展持续请求",
+      "symptom": "模型每轮为相同批次返回uncertain并改summary，16次请求后reviewed仍0且pending24不变，需测试注入500才停止。",
+      "root_cause": "按记录文字变化增加accepted，而非实际核对完成或未见批次推进，导致无进展检查失效。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/uncertain-before.json",
+        "poc/business_chat.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "中性源码及注入响应的定向复现/回归通过；完整固定源码结果以本轮终止与候选报告为准。仅修显式全库/重复动作的实际无进展、错误或分批边界，不以减少全局内容换停止。真实模型业务质量、公司API速度、目标设备仍未验收；来源30秒时间片不是严格整轮墙钟保证，当前单次请求仍沿用既有超时。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-termination-fix",
+          "limitations": "需先核对所有未见批次，再对无实质进展有界停止；全部不确定结论与待办仍需保留。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-004",
+      "title": "在线全库最终来源重验未分批导致单次调查可长时间不结束",
+      "symptom": "真实4文件中性库存已完成后，单轮max_actions=1仍零模型请求、零动作地连续重读4份原文，未报告阶段进度；万文件小源码可在单轮重读整个库。",
+      "root_cause": "最终verify_sources仅受总字节和取消限制，未按来源数或时间片分批，源读取时间随全库文件数累加。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/final-source-run-budget.json",
+        "poc/online_inventory_store.py",
+        "poc/online_investigation.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_file_slice_preserves_cursor_and_finishes_without_model_calls"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_slow_source_stops_at_time_slice_and_resumes_without_replay"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_changed_source_in_later_verification_slice_is_rejected_without_advancing_cursor"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "中性源码及注入响应的定向复现/回归通过；完整固定源码结果以本轮终止与候选报告为准。仅修显式全库/重复动作的实际无进展、错误或分批边界，不以减少全局内容换停止。真实模型业务质量、公司API速度、目标设备仍未验收；来源30秒时间片不是严格整轮墙钟保证，当前单次请求仍沿用既有超时。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-termination-fix",
+          "limitations": "这是长耗时和缺少单轮边界，未声称有限文件目录为字面无限。应保留逐源校验游标，分批继续直到所有来源重验完成，不删原文校验。读取本身仍受既有传输超时/取消规则约束。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-005",
+      "title": "在线重复确定失败动作不计无进展导致反复继续仍白耗模型请求",
+      "symptom": "相同越界读取连续六次均失败但no_progress_rounds始终0，跨检查点继续后又六次相同失败且无新证据。",
+      "root_cause": "重复动作检查只看completed_actions，失败动作不属于完成记录，确定相同失败绕过停止逻辑。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/failed-action-repetition.json",
+        "poc/online_investigation.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_repeated_known_failure_stops_across_checkpoint_without_becoming_completed_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_partitioned_inventory_repeated_failure_stops_without_claiming_checked_coverage"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_failure_then_valid_new_work_can_still_complete_normally"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_unknown_model_outcome_after_failed_action_still_requires_confirmation_before_retry"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "中性源码及注入响应的定向复现/回归通过；完整固定源码结果以本轮终止与候选报告为准。仅修显式全库/重复动作的实际无进展、错误或分批边界，不以减少全局内容换停止。真实模型业务质量、公司API速度、目标设备仍未验收；来源30秒时间片不是严格整轮墙钟保证，当前单次请求仍沿用既有超时。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-termination-fix",
+          "limitations": "需区分确定失败、完成和未知远程结果，不能把失败标完成或自动重发未知模型请求；保留全部全局待办。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-006",
+      "title": "在线慢速持续响应绕过空闲超时且读取中无法及时取消",
+      "symptom": "真实本机慢滴HTTP测试中50毫秒配置超时仍读到380毫秒成功；40毫秒请求取消，仍继续读取约321毫秒才感知。按真实30秒配置可等待远超整次预期时限。",
+      "root_cause": "socket timeout仅限定相邻数据的闲置时间；读取缺整次绝对deadline，取消回调没有进入body chunk循环。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/slow-drip-before.json",
+        "docs/reports/2026-11-11-termination-release/reproduce_slow_drip.py",
+        "poc/online_source_client.py",
+        "poc/online_workspace.py",
+        "poc/tests/test_online_source_deadline.py",
+        "docs/reports/2026-11-11-termination-release/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_source_deadline.OnlineSourceDeadlineTests.test_actual_workspace_source_cancels_during_body_instead_of_after_full_download"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_deadline.OnlineSourceDeadlineTests.test_cancelled_before_open_sends_no_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_deadline.OnlineSourceDeadlineTests.test_header_open_elapsed_time_is_rejected_on_return_without_reading_body"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_deadline.OnlineSourceDeadlineTests.test_ordinary_read_and_existing_socket_timeout_classification_remain_compatible"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_deadline.OnlineSourceDeadlineTests.test_real_continuously_arriving_body_reaches_total_deadline_and_is_not_retried"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "真实本机慢滴body与取消回归；读取前后核对总deadline及取消，不重试，不改URL/授权策略。open/header内部仍依赖既有socket空闲超时，返回后才检查超时，不能宣称所有网络阶段严格墙钟截止。公司环境和最终EXE结果另行报告。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "phase": "before-source-body-deadline-fix",
+          "status": "open",
+          "limitations": "受控本机慢响应实证，不能据此推定公司500根因。需保留现有URL/授权策略和错误分类，不重试未知请求，新增整次截止与读取中取消；旧空闲超时不是整次墙钟保证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261111-007",
+      "title": "Windows Git自动换行改变PF冻结夹具哈希导致跨平台验收失配",
+      "symptom": "18文件冻结业务金标在Windows autocrlf配置下唯一RATEPF.pf被Git从64字节LF改成66字节CRLF，与固定原文SHA不一致。",
+      "root_cause": ".gitattributes对CBL/CPY/DDS等固定LF，却遗漏新增PF夹具扩展名，Windows checkout过滤会改写被金标冻结的字节。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-termination-release/windows-gold-checkout-before.json",
+        ".gitattributes",
+        "docs/reports/2026-11-11-termination-release/windows-gold-checkout-after.json",
+        "poc/tests/test_global_formula_fixture_checkout.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_fixture_checkout.GlobalFormulaFixtureCheckoutTests.test_windows_autocrlf_filter_preserves_every_frozen_original_hash_and_range"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "真实Git Windows autocrlf过滤逐条18份原文SHA/行数通过，原gold/夹具/旧测试未改。正式Windows构建另行验证；本轮全套结果以第二轮固定快照报告为准。",
+      "verification_history": [
+        {
+          "date": "2026-11-11",
+          "status": "open",
+          "phase": "before-fixed-pf-checkout",
+          "limitations": "须固定PF文本换行且保持原fixture/gold/旧断言不变，用真实Git Windows过滤逐条重验全部18文件。源码离线检查不代替实际Windows构建与最终EXE。"
+        }
+      ]
     }
   ],
   "updated_at": "2026-11-10"

@@ -1,0 +1,31 @@
+{
+  "mode": "valid",
+  "calls": 1,
+  "requests": [
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    }
+  ],
+  "runtime_sha256": "1dc764434ad4ba23fce6bf0d2f7f181262a704b04e5f395aefa988de88ae07b4",
+  "exception": "TypeError",
+  "message": "cannot use 'dict' as a dict key (unhashable type: 'dict')",
+  "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/cobol-termination-audit-20261111/local_valid_and_uncertain.py\", line 22, in <module>\n    r=run_business_chat('\u5217\u51fa\u7cfb\u7edf\u6240\u6709\u8ba1\u7b97\u6240\u6709premium formula \u7684\u5730\u65b9',case.fixture.database,case.fixture.source,case.fixture.config,transport=transport,allow_network=False,framework_reference_path='',conversation_id='termination-'+mode,policy=AgentPolicy())['agent_result'];extra={'status':r['status'],'stop_reason':r.get('stop_reason'),'inventory_counts':r.get('repository_inventory',{}).get('counts')}\n      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_explanation_cache.py\", line 183, in wrapped\n    return function(*args, **kwargs)\n  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_chat.py\", line 5819, in run_business_chat\n    return _run_business_chat(question, database_path, source_root, config,\n                              source_session=session, resume_state=resume, **kwargs)\n  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_chat.py\", line 3893, in _run_business_chat\n    priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]\n                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')\n"
+}

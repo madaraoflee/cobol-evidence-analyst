@@ -1,0 +1,138 @@
+test_changing_empty_lookup_queries_does_not_create_source_progress (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_changing_empty_lookup_queries_does_not_create_source_progress) ... ERROR
+test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope) ... FAIL
+test_invalid_archive_lookup_stops_without_default_request_or_time_limits (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_invalid_archive_lookup_stops_without_default_request_or_time_limits) ... FAIL
+test_lookup_recalls_original_archived_source_then_all_other_work_can_finish (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_lookup_recalls_original_archived_source_then_all_other_work_can_finish) ... ERROR
+test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings) ... ERROR
+test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending) ... FAIL
+test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work) ... ERROR
+
+======================================================================
+ERROR: test_changing_empty_lookup_queries_does_not_create_source_progress (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_changing_empty_lookup_queries_does_not_create_source_progress)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 85, in test_changing_empty_lookup_queries_does_not_create_source_progress
+    result = self.run_turn()
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 56, in run_turn
+    return run_business_chat("列出系统所有计算所有premium formula 的地方", self.fixture.database,
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.fixture.source, self.fixture.config, transport=self.transport, allow_network=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        framework_reference_path="", conversation_id="inventory-convergence", policy=AgentPolicy(), **options)["agent_result"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_explanation_cache.py", line 183, in wrapped
+    return function(*args, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 5819, in run_business_chat
+    return _run_business_chat(question, database_path, source_root, config,
+                              source_session=session, resume_state=resume, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 3893, in _run_business_chat
+    priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]
+                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')
+
+======================================================================
+ERROR: test_lookup_recalls_original_archived_source_then_all_other_work_can_finish (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_lookup_recalls_original_archived_source_then_all_other_work_can_finish)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 109, in test_lookup_recalls_original_archived_source_then_all_other_work_can_finish
+    result = self.run_turn()
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 56, in run_turn
+    return run_business_chat("列出系统所有计算所有premium formula 的地方", self.fixture.database,
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.fixture.source, self.fixture.config, transport=self.transport, allow_network=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        framework_reference_path="", conversation_id="inventory-convergence", policy=AgentPolicy(), **options)["agent_result"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_explanation_cache.py", line 183, in wrapped
+    return function(*args, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 5819, in run_business_chat
+    return _run_business_chat(question, database_path, source_root, config,
+                              source_session=session, resume_state=resume, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 3893, in _run_business_chat
+    priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]
+                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')
+
+======================================================================
+ERROR: test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 118, in test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings
+    result = self.run_turn()
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 56, in run_turn
+    return run_business_chat("列出系统所有计算所有premium formula 的地方", self.fixture.database,
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.fixture.source, self.fixture.config, transport=self.transport, allow_network=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        framework_reference_path="", conversation_id="inventory-convergence", policy=AgentPolicy(), **options)["agent_result"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_explanation_cache.py", line 183, in wrapped
+    return function(*args, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 5819, in run_business_chat
+    return _run_business_chat(question, database_path, source_root, config,
+                              source_session=session, resume_state=resume, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 3893, in _run_business_chat
+    priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]
+                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')
+
+======================================================================
+ERROR: test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 78, in test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work
+    result = self.run_turn()
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 56, in run_turn
+    return run_business_chat("列出系统所有计算所有premium formula 的地方", self.fixture.database,
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.fixture.source, self.fixture.config, transport=self.transport, allow_network=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        framework_reference_path="", conversation_id="inventory-convergence", policy=AgentPolicy(), **options)["agent_result"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_explanation_cache.py", line 183, in wrapped
+    return function(*args, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 5819, in run_business_chat
+    return _run_business_chat(question, database_path, source_root, config,
+                              source_session=session, resume_state=resume, **kwargs)
+  File "/private/tmp/cobol-termination-audit-20261111/before/business_chat.py", line 3893, in _run_business_chat
+    priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]
+                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: cannot use 'dict' as a dict key (unhashable type: 'dict')
+
+======================================================================
+FAIL: test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 153, in test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope
+    self.assert_stopped_with_pending(first)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 61, in assert_stopped_with_pending
+    self.assertEqual(result["status"], "PARTIAL")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'ABSTAINED' != 'PARTIAL'
+- ABSTAINED
++ PARTIAL
+
+
+======================================================================
+FAIL: test_invalid_archive_lookup_stops_without_default_request_or_time_limits (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_invalid_archive_lookup_stops_without_default_request_or_time_limits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 72, in test_invalid_archive_lookup_stops_without_default_request_or_time_limits
+    self.assertEqual(len(self.payloads), 2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 21 != 2
+
+======================================================================
+FAIL: test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending (test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_inventory_termination.py", line 140, in test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending
+    self.assertLess(len(self.payloads), 12)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 21 not less than 12
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.784s
+
+FAILED (failures=3, errors=4)
+{'old_runtime_failed_tests': 3, 'old_runtime_errors': 4, 'tests_run': 7}

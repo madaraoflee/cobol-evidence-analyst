@@ -1,0 +1,27 @@
+{
+  "timeout": {
+    "configured_timeout": 0.05,
+    "elapsed_seconds": 0.3795971659710631,
+    "bytes": 10,
+    "returned_success": true,
+    "real_network": "localhost_http_connection_injected_into_https_client"
+  },
+  "cancel": {
+    "configured_timeout": 0.05,
+    "elapsed_seconds": 0.36221016600029543,
+    "cancel_requested_after": 0.04072520800400525,
+    "cancel_observed_after": 0.36216270801378414,
+    "post_cancel_read_seconds": 0.3214849579962902,
+    "outcome": "ONLINE_CANCELLED",
+    "checks": [
+      {
+        "after": 2.7909991331398487e-06,
+        "requested": false
+      },
+      {
+        "after": 0.36216270801378414,
+        "requested": true
+      }
+    ]
+  }
+}

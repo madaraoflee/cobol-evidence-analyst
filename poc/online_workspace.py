@@ -372,7 +372,7 @@ class OnlineWorkbench:
             return self.source_factory(deepcopy(repository), dict(credentials), check_cancel)
         workspace, slug = repository["identity"].split("/")
         client = PinnedSourceClient(workspace, slug, repository["commit"], token=credentials.get("source_token"),
-                                    username=credentials.get("source_username"))
+                                    username=credentials.get("source_username"), check_cancel=check_cancel)
         prefix = repository["subdirectory"] + "/" if repository["subdirectory"] else ""
         def read(path, *, max_bytes):
             check_cancel()

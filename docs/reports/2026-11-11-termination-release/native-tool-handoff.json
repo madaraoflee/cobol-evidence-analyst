@@ -1,0 +1,90 @@
+{
+  "owned_files_frozen": true,
+  "files_sha256": {
+    "tools/check_global_inventory_continuity.py": "3a9df5d0dcf26aeadd085ba89d4c1a478157c65988ea79f495f02bc4e955bc4f",
+    "poc/tests/test_global_inventory_continuity.py": "86070fd199424720ca69d8b22981b3bf0d204b7aa2249ad9d6a0fd51e4c4e512",
+    ".github/workflows/windows-desktop.yml": "3bc5258f28066a8e333025755f8e0805650959d1633925116ba832fdffc09392"
+  },
+  "new_test_ids": [
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_controlled_provider_rejects_completed_batch_replay",
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_equal_counts_do_not_hide_missing_middle_and_duplicate_neighbor",
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_fixture_exceeds_production_paging_threshold_with_independent_roots",
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_formula_source_identity_and_business_content_are_required",
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_invalid_and_empty_lookups_stop_without_request_or_time_limits",
+    "test_global_inventory_continuity.GlobalInventoryContinuityTests.test_source_http_preview_exercises_failure_restore_pages_export_and_history"
+  ],
+  "targeted_tests": {
+    "new": 6,
+    "old_desktop_build_contract": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "source_preview_report": "/private/tmp/cobol-global-inventory-native-source-preview-20261111-final/GLOBAL-INVENTORY-CONTINUITY.json",
+  "source_preview_status": "passed",
+  "workflow_result_artifact": "global-inventory-continuity-${{ github.sha }}-${{ github.run_attempt }}",
+  "original_candidate_eight_assets_unchanged": true,
+  "boundaries": [
+    "Final EXE verification awaits the actual Windows workflow; source preview is not native acceptance.",
+    "257 short independent neutral source files test persistent state and delivery; deep business semantics and company API latency remain unverified.",
+    "The first development negative-control tests used the wrong exception class (ValueError vs inherited AssertionError); corrected without reducing rejection assertions."
+  ],
+  "source_preview_checks": {
+    "failure_restart_and_explicit_continuation_preserve_completed_work": true,
+    "every_original_and_business_position_classified_once": true,
+    "strict_review_completed_after_analysis": true,
+    "all_pages_deliver_every_business_formula": true,
+    "complete_export_retains_formulas_and_business_explanations": true,
+    "all_exported_business_explanations_passed_strict_review": true,
+    "first_middle_last_originals_are_accessible": true,
+    "earlier_published_result_does_not_follow_later_progress": true,
+    "only_the_planned_failure_occurred": true,
+    "invalid_lookup_stops_after_two_requests_without_deployment_ceiling": true,
+    "invalid_lookup_preserves_every_pending_item": true,
+    "empty_lookup_stops_after_two_requests_without_deployment_ceiling": true,
+    "empty_lookup_preserves_every_pending_item": true
+  },
+  "lookup_stop_cases": [
+    {
+      "phase": "invalid_lookup",
+      "run_id": "80ccb8f7b1686701a3066c0d",
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "model_requests": 2,
+      "counts": {
+        "candidates": 514,
+        "excluded": 0,
+        "files": 257,
+        "included": 0,
+        "pending": 514,
+        "review_pending": 514,
+        "reviewed": 0
+      },
+      "convergence_stop_reason": "no_evidence_progress",
+      "request_limit": null,
+      "hard_seconds": null,
+      "elapsed_seconds": 0.31921362498542294
+    },
+    {
+      "phase": "empty_lookup",
+      "run_id": "880994775fe0a0476a281229",
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "model_requests": 2,
+      "counts": {
+        "candidates": 514,
+        "excluded": 0,
+        "files": 257,
+        "included": 0,
+        "pending": 514,
+        "review_pending": 514,
+        "reviewed": 0
+      },
+      "convergence_stop_reason": "no_evidence_progress",
+      "request_limit": null,
+      "hard_seconds": null,
+      "elapsed_seconds": 0.24482991703553125
+    }
+  ],
+  "source_preview_model_requests": 143
+}

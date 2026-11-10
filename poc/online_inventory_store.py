@@ -11,11 +11,14 @@ import json
 import re
 import secrets
 import sqlite3
+import time
 
 from online_material_format import MaterialError, canonical_json, decode_json, digest
 
 _ID = re.compile(r"[0-9a-f]{32}\Z")
 _MAX_RECORD = 4 * 1024 * 1024
+_MAX_VERIFICATION_FILES_PER_RUN = 256
+_VERIFICATION_SECONDS_PER_RUN = 30.0
 
 
 class OnlineInventoryStore:
@@ -135,6 +138,7 @@ class InventorySession:
 
     def verify_sources(self, query, sources, state, verified):
         from online_investigation import _tick
+        started, checked = time.monotonic(), 0
         meta = self.meta()
         verification = meta.get("verification")
         if not verification or not verification.get("active"):
@@ -153,12 +157,16 @@ class InventorySession:
             path, raw = row
             entry = json.loads(raw)
             _tick(sources.cancel)
+            if (checked >= _MAX_VERIFICATION_FILES_PER_RUN
+                    or time.monotonic() - started >= _VERIFICATION_SECONDS_PER_RUN):
+                raise MaterialError("SOURCE_BUDGET_EXCEEDED")
             value = query.evidence(path, 1, 1, sources, max_characters=1000)
             if value["citation"]["hash"] != entry["sha256"]:
                 raise MaterialError("ONLINE_EVIDENCE_CHANGED")
             verification["after"] = path
             with self.store.connection() as db:
                 self._save_meta(db, meta)
+            checked += 1
 
     def source_reviews(self, *, offset=0, limit=40, path=None):
         sql = " FROM records r,json_each(r.data,'$.reviews') j WHERE r.session=? AND r.kind='files'"
@@ -171,6 +179,16 @@ class InventorySession:
             rows = [{"path": name, **json.loads(value)} for name, value in db.execute(
                 "SELECT r.path,j.value" + sql + " ORDER BY r.seq DESC,j.key LIMIT ? OFFSET ?", [*args, limit, offset])]
         return rows, total
+
+    def verification_progress(self):
+        verification = self.meta().get("verification", {})
+        if not verification.get("active"):
+            return None
+        with self.store.connection() as db:
+            total = db.execute("SELECT count(*) FROM records WHERE session=? AND kind='files'", (self.id,)).fetchone()[0]
+            checked = db.execute("SELECT count(*) FROM records WHERE session=? AND kind='files' AND key<=?",
+                                 (self.id, verification["after"])).fetchone()[0]
+        return {"total": total, "checked": checked, "pending": total - checked}
 
     def meta(self):
         with self.store.connection() as db:

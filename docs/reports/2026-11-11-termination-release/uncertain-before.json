@@ -1,0 +1,339 @@
+{
+  "mode": "uncertain",
+  "calls": 16,
+  "requests": [
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d",
+        "inventory_9611607fa6fe6c377a8e550f",
+        "inventory_c678701c4dfb9d0351337099",
+        "inventory_f8646a6f4c1facd1c5c50f51",
+        "inventory_47eb44652679dca0fe3b95c8",
+        "inventory_17677e0e0d8ad8edd33eb3e8",
+        "inventory_95e0dd6e8d630b0aa8785e7a",
+        "inventory_36950bb2cf1909a871f8982c",
+        "inventory_0d6d38f59b599059edf9c297"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_f8646a6f4c1facd1c5c50f51",
+        "inventory_47eb44652679dca0fe3b95c8",
+        "inventory_17677e0e0d8ad8edd33eb3e8",
+        "inventory_95e0dd6e8d630b0aa8785e7a",
+        "inventory_36950bb2cf1909a871f8982c",
+        "inventory_0d6d38f59b599059edf9c297"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    },
+    {
+      "items": [
+        "inventory_5a6aae681b4b74cc43071931",
+        "inventory_a96c8418466c54f06274c873",
+        "inventory_b205f18e8e277063238281b1",
+        "inventory_8c6e61bf5110cc747fb0a247",
+        "inventory_37965514da1287f54ea56424",
+        "inventory_e1a872c9c8d5bc3d9d45bc46",
+        "inventory_aa20f5909018d2394bd6319c",
+        "inventory_1a1baa874203245e4f420627",
+        "inventory_78fc3dc0d6d39e00a037756b",
+        "inventory_06374475d4378ee19c7064ea",
+        "inventory_f3aee545574de6df6b594252",
+        "inventory_917973112f031eced9f50b29",
+        "inventory_876f8780f1a941916a1eabeb",
+        "inventory_d4748d10930d6a8e07e35fda",
+        "inventory_33ddf1a586e2a2f8e1dc1647",
+        "inventory_c4475d048505be8701da202d"
+      ],
+      "pending": 24
+    }
+  ],
+  "runtime_sha256": "1dc764434ad4ba23fce6bf0d2f7f181262a704b04e5f395aefa988de88ae07b4",
+  "status": "PARTIAL",
+  "stop_reason": "HTTP_ERROR",
+  "inventory_counts": {
+    "candidates": 24,
+    "excluded": 0,
+    "files": 12,
+    "included": 0,
+    "pending": 24,
+    "review_pending": 27,
+    "reviewed": 0
+  }
+}

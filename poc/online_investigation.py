@@ -807,6 +807,17 @@ def _observe(state, action, result):
         state["observations"].pop(0)
 
 
+def _previous_action_failed(state, action):
+    """A known tool failure is no progress, but never a completed action."""
+    for observation in reversed(state["observations"]):
+        if not isinstance(observation, dict) or observation.get("action") != action:
+            continue
+        result = observation.get("result")
+        code = result.get("error") if isinstance(result, dict) else None
+        return isinstance(code, str) and _CODE.fullmatch(code) is not None
+    return False
+
+
 def _checkpoint(state):
     session = state.get("work_ledger", {}).get("_session")
     if session is None:
@@ -1209,6 +1220,12 @@ an already received response is consumed without another model request.
                     f"当前是未完成草稿：已复核 {summary['files_reviewed']}/{summary['files_discovered']} 个已发现文件，仍有 {summary['pending_count']} 项待查。草稿中的全部、唯一等范围结论尚未通过覆盖核对。",
                     f"This is an unfinished draft: {summary['files_reviewed']}/{summary['files_discovered']} discovered files reviewed; {summary['pending_count']} work items remain. Any exhaustive or exclusive scope claims in the draft have not passed coverage verification.",
                     f"目前是未完成草稿：已覆核 {summary['files_reviewed']}/{summary['files_discovered']} 個已發現檔案，仍有 {summary['pending_count']} 項待查。草稿中的全部、唯一等範圍結論尚未通過覆蓋核對。")
+                verification = inventory_session.verification_progress() if inventory_session else None
+                if summary["complete"] and verification:
+                    boundary = localized_text(language,
+                        f"业务清点已完成，交付前的来源复核尚未结束：已复核 {verification['checked']}/{verification['total']} 个文件，剩余 {verification['pending']} 个。完整结论和复核进度已保存，本轮尚未宣称全部来源验证完成。",
+                        f"The business inventory is checked, but final source verification is unfinished: {verification['checked']}/{verification['total']} files verified, {verification['pending']} remain. Complete findings and verification progress are saved; source verification is not yet complete.",
+                        f"業務清點已完成，交付前的來源覆核尚未結束：已覆核 {verification['checked']}/{verification['total']} 個檔案，剩餘 {verification['pending']} 個。完整結論和覆核進度已保存，本輪尚未宣稱全部來源驗證完成。")
                 answer = boundary + ("\n\n" + answer if answer else "")
             if work["presentation_pending"]:
                 answer += "\n\n" + localized_text(language,
@@ -1329,9 +1346,13 @@ an already received response is consumed without another model request.
                     state["pending_actions"] = response["actions"]
                     state["remaining"] = response["remaining"]
                     duplicate = all((inventory_session.action_done(digest(canonical_json(item))) if inventory_session else
-                                     digest(canonical_json(item)) in state["completed_actions"]) for item in response["actions"])
+                                     digest(canonical_json(item)) in state["completed_actions"])
+                                    or _previous_action_failed(state, item) for item in response["actions"])
                     state["no_progress_rounds"] = state["no_progress_rounds"] + 1 if duplicate else 0
                     if state["no_progress_rounds"] >= 3:
+                        # Drop repeated execution instructions, not outstanding
+                        # business/source obligations in the durable work ledger.
+                        state["pending_actions"] = []
                         return finish("failed", "ONLINE_NO_PROGRESS")
                 else:
                     if not set(response["citations"]) <= set(state["request_evidence"]):

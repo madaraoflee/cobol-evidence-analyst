@@ -2016,6 +2016,23 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         inventory_state = prepare_inventory(database_path, base_snapshot_id, question,
             resume_checkpoint.get("repository_inventory_state"))
         set_inventory_requirements(inventory_state, answer_language, answer_instructions)
+    inventory_idle_responses = 0
+    inventory_lookup_sources = set()
+
+    def inventory_response_stalled(progressed, *, stage):
+        """Only new original material or actual review work extends this loop.
+
+        A deliberate continuation gets another finite attempt. The complete
+        inventory and every uncertain item stay in their existing checkpoint.
+        """
+        nonlocal inventory_idle_responses
+        inventory_idle_responses = 0 if progressed else inventory_idle_responses + 1
+        if inventory_idle_responses < 2:
+            return False
+        continuation.stop_reason = "no_evidence_progress"
+        boundaries.append({"reason": "no_evidence_progress", "stage": stage,
+            "pending_actions_preserved": True})
+        return True
     prior_paths = list(dict.fromkeys(ref.get("relative_path") for item in (history or [])[-8:]
                                     for ref in item.get("evidence_refs", [])
                                     if isinstance(ref, dict) and ref.get("relative_path")))[:12]
@@ -3875,23 +3892,35 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     except (ValueError, TypeError, AttributeError):
                         lookup = None
                     if isinstance(lookup, dict) and not force_answer:
+                        archive_pages = {}
                         try:
                             recalled = inventory_store(inventory_state).search(inventory_state["store_handle"],
                                 lookup.get("query"), cursor=lookup.get("cursor", 0))
                         except (ValueError, TypeError):
-                            inventory_state["lookup_result"] = {"error": "INVENTORY_QUERY_INVALID",
+                            recalled = {"error": "INVENTORY_QUERY_INVALID",
                                 "instruction": "Use a nonempty query up to 256 characters and a nonnegative integer cursor."}
-                            remember_draft()
-                            continue
-                        archive_pages = {}
-                        for row in recalled["rows"]:
+                        for row in recalled.get("rows", []):
                             for index, identifier in enumerate(row.get("evidence_ids", [])):
                                 archive_pages[identifier] = inventory_store(inventory_state).evidence(
                                     inventory_state["store_handle"], row["candidate_id"], index)["spans"][0]
                         accept({"pages": list(archive_pages.values())}, "inventory_archive_recall")
                         inventory_state["lookup_result"] = recalled
-                        priority_targets = list(archive_pages) + [identifier for identifier in priority_targets if identifier not in archive_pages]
+                        # Priority targets include source coordinates as well as
+                        # string IDs. List membership preserves both forms.
+                        recalled_ids = list(archive_pages)
+                        priority_targets = recalled_ids + [target for target in priority_targets if target not in recalled_ids]
+                        progressed = bool(set(archive_pages) - inventory_lookup_sources)
+                        inventory_lookup_sources.update(archive_pages)
+                        stalled = inventory_response_stalled(progressed, stage="repository_inventory_lookup")
+                        if stalled:
+                            answer = render_inventory(inventory_state, language=answer_language)
+                            answer_round, answer_rounds = f"round-{turns}", [f"round-{turns}"]
+                            answer_manifest = visible
+                            answer_investigation = inventory_investigation(inventory_state,
+                                [page for bundle in payload.get("source_context", []) for page in bundle.get("pages", [])])
                         remember_draft()
+                        if stalled:
+                            break
                         continue
                 if inventory_state is not None and not action and not invalid_action:
                     supplied = (source_memory.effective_pages(payload, verify_archive=True) if source_memory else
@@ -3899,6 +3928,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     before_narratives = set(inventory_state.get("narratives", {}))
                     before_additional = set(inventory_state["additional_findings"])
                     before_presentation = set(inventory_state.get("presentation_pending", []))
+                    before_inventory_ids = set(inventory_state["findings"])
+                    before_reviewed_count = inventory_state["reviewed_count"]
                     before_ids = {key for key, row in inventory_state["findings"].items()
                                   if row.get("disposition") != "uncertain"}
                     accepted = (accept_inventory_response(inventory_state, redactor._sanitize(reply.text), supplied,
@@ -3939,7 +3970,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     answer_investigation = inventory_investigation(inventory_state, supplied,
                         max_actions=policy.max_reads_per_turn + policy.max_business_context_actions_per_turn)
                     last_investigation = answer_investigation
+                    progressed = (bool(set(inventory_state["findings"]) - before_inventory_ids)
+                        or inventory_state["reviewed_count"] > before_reviewed_count
+                        or bool(before_presentation - set(inventory_state.get("presentation_pending", []))))
+                    if progressed:
+                        inventory_lookup_sources.clear()
+                    stalled = inventory_response_stalled(progressed, stage="repository_inventory_classification")
                     remember_draft()
+                    if stalled:
+                        break
                     if (not force_answer and not truncated and inventory_pending(inventory_state) and
                             (accepted or answer_investigation["planned_actions"])):
                         recovery_reason = "继续核对固定源码快照中的未完成公式位置，已确认业务内容已累计保存"

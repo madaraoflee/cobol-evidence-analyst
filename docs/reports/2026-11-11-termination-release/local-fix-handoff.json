@@ -1,0 +1,30 @@
+{
+  "head": "41ec9b55ee9e7e2ecea8ee2546aa2ec09f2b3a58",
+  "files_sha256": {
+    "poc/business_chat.py": "d04c380cfc13e06bde73411e3bdbb6169ecbae6b5da74ec82a39a19a2868c970",
+    "poc/tests/test_repository_inventory_termination.py": "351bbcdbf17a1af35a9c514a056a37b984520869b80461712a32f050ae6b491b"
+  },
+  "new_test_ids": [
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_changing_empty_lookup_queries_does_not_create_source_progress",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_explicit_continue_after_stall_resolves_saved_items_without_rebuilding_scope",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_invalid_archive_lookup_stops_without_default_request_or_time_limits",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_lookup_recalls_original_archived_source_then_all_other_work_can_finish",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_repeated_nonempty_lookup_stops_and_keeps_previously_classified_findings",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_uncertain_rewording_checks_every_unseen_item_then_stops_without_losing_pending",
+    "test_repository_inventory_termination.RepositoryInventoryTerminationTests.test_valid_empty_lookup_accepts_coordinate_priorities_and_stops_repeated_work"
+  ],
+  "targeted": {
+    "new_tests": 7,
+    "existing_inventory": 16,
+    "independent_business": 9,
+    "all_passed": true
+  },
+  "before_runtime": {
+    "sha256": "1dc764434ad4ba23fce6bf0d2f7f181262a704b04e5f395aefa988de88ae07b4",
+    "new_tests": 7,
+    "failures": 3,
+    "errors": 4,
+    "log": "before/new-regressions-old-runtime.log"
+  },
+  "scope": "Only explicit repository formula investigations; no default global request cap, no reduced source scope, no unknown-outcome automatic retry."
+}
