@@ -1,0 +1,722 @@
+{
+  "name": "disconnected-chinese-premium",
+  "question": "列出系统所有计算所有premium formula 的地方",
+  "instructions": "",
+  "business_overview": false,
+  "files": [
+    "a.cbl",
+    "b.cbl",
+    "c.cbl"
+  ],
+  "discovery": {
+    "selected_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "matched_file_count": 1,
+    "repository_file_count": 3,
+    "fallback_all": false,
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "boundaries": [],
+    "search_terms": [
+      "列出系统所有计算所有",
+      "列出系统",
+      "出系统所",
+      "系统所有",
+      "统所有计",
+      "所有计算",
+      "有计算所",
+      "计算所有",
+      "列出系",
+      "出系统",
+      "系统所",
+      "统所有",
+      "所有计",
+      "有计算",
+      "计算所",
+      "算所有",
+      "列出",
+      "出系",
+      "系统",
+      "统所",
+      "有计",
+      "计算",
+      "算所",
+      "premium",
+      "formula",
+      "的地方",
+      "的地",
+      "地方"
+    ]
+  },
+  "mapping": {
+    "direct_paths": [
+      "a.cbl"
+    ],
+    "selected_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "relations": [
+      {
+        "relation_id": "rel_a4a2950d89c7e3923f7975c2",
+        "relation_type": "CALLS",
+        "target_name": "STEP-B",
+        "evidence_id": "ev_d01d11b232d03fff2f712806",
+        "caller_line": 11,
+        "target_path": "b.cbl",
+        "caller_program": "ENTRY-A",
+        "caller_path": "a.cbl",
+        "resolution": "confirmed"
+      }
+    ],
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "rule_lead_coverage": {
+      "scope": "navigation_candidates",
+      "preview_budget": 32,
+      "preview_candidates": 1,
+      "omitted_previews": 0,
+      "path_budget": 80,
+      "path_candidates": 1,
+      "omitted_paths": 0,
+      "per_path_rule_budget": 4,
+      "global_rule_budget": 48,
+      "candidate_rules": 2,
+      "selected_rules": 2,
+      "omitted_rules_per_path": {},
+      "omitted_rules_global": 0,
+      "query_frontier": [],
+      "candidate_selection_complete": true,
+      "omitted_rule_query_terms": 0,
+      "related_rules_added": 1,
+      "semantic_anchor_candidates": 2,
+      "semantic_anchor_budget": 4,
+      "omitted_semantic_anchors": 0
+    }
+  },
+  "all_pages_supplied_planner": {
+    "scope": "source_candidates",
+    "state": "located",
+    "can_answer": true,
+    "can_answer_locally": null,
+    "candidate_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation"
+      ],
+      "entities": [],
+      "paths": [
+        "a.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 4,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      }
+    ],
+    "open_gaps": [],
+    "pending_work": null,
+    "investigation_complete": null,
+    "investigation_frontier_state": null,
+    "global_coverage": null
+  },
+  "request_count": 1,
+  "request_pages": [
+    [
+      "a.cbl",
+      "b.cbl"
+    ]
+  ],
+  "request_investigations": [
+    {
+      "scope": "source_candidates",
+      "state": "located",
+      "can_answer": true,
+      "can_answer_locally": null,
+      "candidate_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "analysis_plan": {
+        "intents": [
+          "calculation"
+        ],
+        "entities": [],
+        "paths": [
+          "a.cbl"
+        ],
+        "tools": [
+          "explain_assignment",
+          "backward_slice"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "assignment_expression",
+          "input_definitions",
+          "numeric_layout"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [
+          "conversation_program_not_uniquely_bound"
+        ],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v13"
+      },
+      "required_items": [
+        {
+          "id": "calculation_procedure_body",
+          "kind": "procedure_body",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_formula",
+          "kind": "formula",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 2,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_declarations",
+          "kind": "declarations",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 4,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_inputs",
+          "kind": "inputs",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572"
+          ],
+          "candidate_count": 2,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied",
+          "source_flow_origins": [
+            {
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_73e06dce30b859ff2ef77572"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-3"
+                }
+              ]
+            },
+            {
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_73e06dce30b859ff2ef77572"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-4"
+                }
+              ]
+            }
+          ],
+          "source_flow_origins_shared_fields": {
+            "relative_path": "a.cbl",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "reader_occurrences": [
+              "128f4a8297406dedbc319eae"
+            ],
+            "unknown_reasons": [],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          }
+        },
+        {
+          "id": "calculation_conditions",
+          "kind": "conditions",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_result_adjustments",
+          "kind": "result_adjustments",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 2,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_dependencies",
+          "kind": "dependencies",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572"
+          ],
+          "candidate_count": 1,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        }
+      ],
+      "open_gaps": [],
+      "pending_work": null,
+      "investigation_complete": null,
+      "investigation_frontier_state": null,
+      "global_coverage": null
+    }
+  ],
+  "request_ledger_generations": [
+    null
+  ],
+  "result": {
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "answer_available": true,
+    "answer_origin": "model",
+    "answer": "a.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_73e06dce30b859ff2ef77572]\n\nb.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_79c589438cc83517cbfc5055]\n\n以上是本系统全部保费计算位置。",
+    "answer_completion": {
+      "status": "not_assessed",
+      "reason": null,
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "limitation_detected": false,
+      "source_selection_limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "sql_boundary_review": {
+        "method": "bounded_sql_boundary_heuristic",
+        "semantic_verification": false,
+        "review_required": false,
+        "risks": [],
+        "source_scan_truncated": false,
+        "answer_scan_truncated": false,
+        "omitted_risk_count": 0,
+        "report_byte_limit": 8000
+      },
+      "required_aspects": [
+        "formula"
+      ],
+      "missing_aspects": [],
+      "semantic_risk_candidates": []
+    },
+    "boundaries": []
+  },
+  "final_investigation": {
+    "scope": "source_candidates",
+    "state": "located",
+    "can_answer": true,
+    "can_answer_locally": null,
+    "candidate_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation"
+      ],
+      "entities": [],
+      "paths": [
+        "a.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 4,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied",
+        "source_flow_origins": [
+          {
+            "relative_path": "a.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_73e06dce30b859ff2ef77572"
+            ],
+            "reader_occurrences": [
+              "128f4a8297406dedbc319eae"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "5fe91f59a71adf7742841daa2705109b06df2142be8149455f0e7affc0f0df85"
+                  },
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "a.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_73e06dce30b859ff2ef77572"
+            ],
+            "reader_occurrences": [
+              "128f4a8297406dedbc319eae"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "5fe91f59a71adf7742841daa2705109b06df2142be8149455f0e7affc0f0df85"
+                  },
+                  {
+                    "relative_path": "a.cbl",
+                    "source_sha256": "c2e04483ddf5955cbcad5c41e7206197c343c87224cb20a95b00783bc79f6d10",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          }
+        ]
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      }
+    ],
+    "open_gaps": [],
+    "pending_work": null,
+    "investigation_complete": null,
+    "investigation_frontier_state": null,
+    "global_coverage": null
+  },
+  "public_scope": {
+    "scope_kind": "retrieved_context",
+    "full_repository_semantics_verified": false,
+    "selected_paths": [
+      "b.cbl",
+      "a.cbl"
+    ],
+    "query_expansion_attempted": false
+  },
+  "saved_frontier": {
+    "investigation_frontier_state": null,
+    "source_frontier_state": null,
+    "analysis_compaction_pending_ids": []
+  },
+  "saved_ledger_generations": 0
+}

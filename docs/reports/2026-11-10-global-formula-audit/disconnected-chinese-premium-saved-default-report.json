@@ -1,0 +1,760 @@
+{
+  "name": "disconnected-chinese-premium-saved-default",
+  "question": "列出系统所有计算所有premium formula 的地方",
+  "instructions": "请面向刚接触这项业务的新人解释，不要逐行翻译代码。\n开头用一小段业务概览讲清处理什么对象、关键规则和最终结果；若材料包含多条独立业务，简短区分，不补造关联。\n随后直接按本题实际涉及的类别说明职责和数据交接。详细条件、步骤和异常放在负责该处理的类别中讲一次，不要先写一遍完整流程，再用分类、表格和结尾重复：\n1. Batch job（批处理作业）：作业或入口、处理范围、主要步骤、业务条件、输入输出及上下游关系。只有资料有依据时才写调度频率。\n2. Online function / Programs（在线功能与程序）：用户或外部请求要完成什么、入口及程序分工、输入、校验、返回结果；没有在线入口依据的程序只说明其职责。\n3. Tables（数据表）：每个表保存什么业务数据、哪些步骤读写它、关键字段或关联如何影响业务；区分数据库表与程序内部表。\n4. Files（文件）：每个文件承载什么业务记录、由谁产生、由谁读取、输入输出如何衔接；区分业务数据文件与源码/COPY定义。\n每个名称第一次出现时解释业务角色，说明这些对象如何共同完成本题业务，不要只罗列名字。\n先把本题涉及的各类职责与关系讲完整，再按需要补充细节；不展开用户未问且不影响核心结论的假设场景。\n使用现有来源支持结论并保留引用；未涉及或没有依据的类别不单列空章节，不为凑齐类别反复写“当前资料未确认”。只说明确实影响本题结论的未知事项，不补造缺失环节。\n追问只展开这次所问的内容；已经讲清的概览不必重复。",
+  "business_overview": true,
+  "files": [
+    "a.cbl",
+    "b.cbl",
+    "c.cbl"
+  ],
+  "discovery": {
+    "selected_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "matched_file_count": 1,
+    "repository_file_count": 3,
+    "fallback_all": false,
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "boundaries": [],
+    "search_terms": [
+      "列出系统所有计算所有",
+      "列出系统",
+      "出系统所",
+      "系统所有",
+      "统所有计",
+      "所有计算",
+      "有计算所",
+      "计算所有",
+      "列出系",
+      "出系统",
+      "系统所",
+      "统所有",
+      "所有计",
+      "有计算",
+      "计算所",
+      "算所有",
+      "列出",
+      "出系",
+      "系统",
+      "统所",
+      "有计",
+      "计算",
+      "算所",
+      "premium",
+      "formula",
+      "的地方",
+      "的地",
+      "地方"
+    ]
+  },
+  "mapping": {
+    "direct_paths": [
+      "a.cbl"
+    ],
+    "selected_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "relations": [
+      {
+        "relation_id": "rel_a4a2950d89c7e3923f7975c2",
+        "relation_type": "CALLS",
+        "target_name": "STEP-B",
+        "evidence_id": "ev_d01d11b232d03fff2f712806",
+        "caller_line": 11,
+        "target_path": "b.cbl",
+        "caller_program": "ENTRY-A",
+        "caller_path": "a.cbl",
+        "resolution": "confirmed"
+      }
+    ],
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "rule_lead_coverage": {
+      "scope": "navigation_candidates",
+      "preview_budget": 32,
+      "preview_candidates": 1,
+      "omitted_previews": 0,
+      "path_budget": 80,
+      "path_candidates": 1,
+      "omitted_paths": 0,
+      "per_path_rule_budget": 4,
+      "global_rule_budget": 48,
+      "candidate_rules": 2,
+      "selected_rules": 2,
+      "omitted_rules_per_path": {},
+      "omitted_rules_global": 0,
+      "query_frontier": [],
+      "candidate_selection_complete": true,
+      "omitted_rule_query_terms": 0,
+      "related_rules_added": 1,
+      "semantic_anchor_candidates": 2,
+      "semantic_anchor_budget": 4,
+      "omitted_semantic_anchors": 0
+    }
+  },
+  "all_pages_supplied_planner": {
+    "scope": "source_candidates",
+    "state": "located",
+    "can_answer": true,
+    "can_answer_locally": true,
+    "candidate_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation",
+        "business_overview"
+      ],
+      "entities": [],
+      "paths": [
+        "a.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice",
+        "inspect_business_context",
+        "trace_parameter",
+        "explain_external_effect"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout",
+        "control_conditions",
+        "calls",
+        "external_effects"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 4,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710",
+          "ev_20bfc08e325b3b5dbfbce205"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_efc71f508cf915b4a5f53710"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_file_io",
+        "kind": "file_io",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_file_definitions",
+        "kind": "file_definitions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_dds_definitions",
+        "kind": "dds_definitions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      }
+    ],
+    "open_gaps": [],
+    "pending_work": {
+      "rule_path_count": 0,
+      "primary_rule_batch_count": 0,
+      "source_window_count": 0,
+      "source_path_count": 0,
+      "source_expansion_count": 0
+    },
+    "investigation_complete": true,
+    "investigation_frontier_state": {
+      "schema_version": 1,
+      "scope_key": "a28f362a2869377ad4a6942f8c26e8a7bbe8a2f526723927345f99f5a96b16e1",
+      "snapshot_id": "sha256:0998de915e49dbe36d24fbea7d74313499bc7047a3b4efe29d16ef20f8e4229b",
+      "known_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "active_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "completed_paths": [],
+      "batch_complete": true,
+      "processed_rule_ids": [],
+      "active_rule_ids": [
+        "rule_efc71f508cf9_a256f2a30f7e577165a89946",
+        "rule_20bfc08e325b_cbd770c2622cd2d3ce51159f"
+      ],
+      "primary_rules_remaining": false,
+      "remaining_paths": [],
+      "batch_key": "a6d427b068c9348af62f950c2150ff6c9baa0a5e766c82e7682cb92eb575fa05"
+    },
+    "global_coverage": null
+  },
+  "request_count": 1,
+  "request_pages": [
+    [
+      "a.cbl",
+      "b.cbl"
+    ]
+  ],
+  "request_investigations": [
+    {
+      "scope": "source_candidates",
+      "state": "located",
+      "can_answer": true,
+      "can_answer_locally": true,
+      "candidate_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "analysis_plan": {
+        "intents": [
+          "calculation",
+          "business_overview"
+        ],
+        "entities": [],
+        "paths": [
+          "a.cbl"
+        ],
+        "tools": [
+          "explain_assignment",
+          "backward_slice",
+          "inspect_business_context",
+          "trace_parameter",
+          "explain_external_effect"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "assignment_expression",
+          "input_definitions",
+          "numeric_layout",
+          "control_conditions",
+          "calls",
+          "external_effects"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [
+          "conversation_program_not_uniquely_bound"
+        ],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v13"
+      },
+      "required_items": [
+        {
+          "navigation_fact_ref": "nav-1",
+          "id": "calculation_procedure_body",
+          "kind": "procedure_body",
+          "evidence_ids": []
+        },
+        {
+          "id": "calculation_formula",
+          "kind": "formula",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 2,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_declarations",
+          "kind": "declarations",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 4,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_inputs",
+          "kind": "inputs",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572"
+          ],
+          "candidate_count": 2,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "navigation_fact_ref": "nav-1",
+          "id": "calculation_conditions",
+          "kind": "conditions",
+          "evidence_ids": []
+        },
+        {
+          "id": "calculation_result_adjustments",
+          "kind": "result_adjustments",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572",
+            "ev_page_79c589438cc83517cbfc5055"
+          ],
+          "candidate_count": 2,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_dependencies",
+          "kind": "dependencies",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_73e06dce30b859ff2ef77572"
+          ],
+          "candidate_count": 1,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "navigation_fact_ref": "nav-1",
+          "id": "calculation_file_io",
+          "kind": "file_io",
+          "evidence_ids": []
+        },
+        {
+          "navigation_fact_ref": "nav-1",
+          "id": "calculation_file_definitions",
+          "kind": "file_definitions",
+          "evidence_ids": []
+        },
+        {
+          "navigation_fact_ref": "nav-1",
+          "id": "calculation_dds_definitions",
+          "kind": "dds_definitions",
+          "evidence_ids": []
+        }
+      ],
+      "open_gaps": [],
+      "pending_work": {
+        "rule_path_count": 0,
+        "primary_rule_batch_count": 0,
+        "source_window_count": 0,
+        "source_path_count": 0,
+        "source_expansion_count": 0
+      },
+      "investigation_complete": true,
+      "investigation_frontier_state": null,
+      "global_coverage": {
+        "observed_batch_count": 1,
+        "completed_batch_count": 1,
+        "open_gap_count": 0,
+        "unresolved_source_boundary_count": 0,
+        "semantic_execution_verified": false
+      }
+    }
+  ],
+  "request_ledger_generations": [
+    null
+  ],
+  "result": {
+    "status": "ANALYZED",
+    "stop_reason": "sufficient_material",
+    "answer_available": true,
+    "answer_origin": "model",
+    "answer": "a.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_73e06dce30b859ff2ef77572]\n\nb.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_79c589438cc83517cbfc5055]\n\n以上是本系统全部保费计算位置。",
+    "answer_completion": {
+      "status": "not_assessed",
+      "reason": null,
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "limitation_detected": false,
+      "source_selection_limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "sql_boundary_review": {
+        "method": "bounded_sql_boundary_heuristic",
+        "semantic_verification": false,
+        "review_required": false,
+        "risks": [],
+        "source_scan_truncated": false,
+        "answer_scan_truncated": false,
+        "omitted_risk_count": 0,
+        "report_byte_limit": 8000
+      },
+      "business_explanation_review": {
+        "method": "source_bound_relationship_mentions_v1",
+        "semantic_verification": false,
+        "aspects": {
+          "business_purpose": {
+            "status": "no_supplied_basis",
+            "items": []
+          },
+          "program_handoffs": {
+            "status": "not_assessable",
+            "items": [
+              {
+                "relation": "requests_program_call",
+                "left_names": [
+                  "ENTRY-A",
+                  "a.cbl"
+                ],
+                "right_names": [
+                  "STEP-B"
+                ],
+                "supplied_reference_ids": [
+                  "ev_page_73e06dce30b859ff2ef77572",
+                  "ev_page_79c589438cc83517cbfc5055"
+                ],
+                "handoff_id": "bh_870ce2b185217d0bed049c4e",
+                "status": "not_assessable"
+              }
+            ]
+          },
+          "data_flow": {
+            "status": "no_supplied_basis",
+            "items": []
+          }
+        },
+        "obvious_missing_aspects": [],
+        "revision_recommended": false,
+        "recognized_purpose_only": false,
+        "recognized_names_only": false,
+        "answer_review_truncated": false,
+        "limitation": "Mention signals do not verify direction, conditions, correctness, completeness or readability.",
+        "technical_inventory_only": false,
+        "required_aspects": [
+          "program_roles"
+        ],
+        "missing_aspects": []
+      },
+      "required_aspects": [
+        "formula",
+        "program_roles"
+      ],
+      "missing_aspects": [],
+      "semantic_risk_candidates": []
+    },
+    "boundaries": []
+  },
+  "final_investigation": {
+    "scope": "source_candidates",
+    "state": "located",
+    "can_answer": true,
+    "can_answer_locally": true,
+    "candidate_paths": [
+      "a.cbl",
+      "b.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation",
+        "business_overview"
+      ],
+      "entities": [],
+      "paths": [
+        "a.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice",
+        "inspect_business_context",
+        "trace_parameter",
+        "explain_external_effect"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout",
+        "control_conditions",
+        "calls",
+        "external_effects"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 4,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572",
+          "ev_page_79c589438cc83517cbfc5055"
+        ],
+        "candidate_count": 2,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_73e06dce30b859ff2ef77572"
+        ],
+        "candidate_count": 1,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_file_io",
+        "kind": "file_io",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_file_definitions",
+        "kind": "file_definitions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_dds_definitions",
+        "kind": "dds_definitions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      }
+    ],
+    "open_gaps": [],
+    "pending_work": {
+      "rule_path_count": 0,
+      "primary_rule_batch_count": 0,
+      "source_window_count": 0,
+      "source_path_count": 0,
+      "source_expansion_count": 0
+    },
+    "investigation_complete": true,
+    "investigation_frontier_state": null,
+    "global_coverage": {
+      "observed_batch_count": 1,
+      "completed_batch_count": 1,
+      "open_gap_count": 0,
+      "unresolved_source_boundary_count": 0,
+      "semantic_execution_verified": false
+    }
+  },
+  "public_scope": {
+    "scope_kind": "retrieved_context",
+    "full_repository_semantics_verified": false,
+    "selected_paths": [
+      "b.cbl",
+      "a.cbl"
+    ],
+    "query_expansion_attempted": false
+  },
+  "saved_frontier": {
+    "investigation_frontier_state": {
+      "schema_version": 1,
+      "scope_key": "a28f362a2869377ad4a6942f8c26e8a7bbe8a2f526723927345f99f5a96b16e1",
+      "snapshot_id": "sha256:0998de915e49dbe36d24fbea7d74313499bc7047a3b4efe29d16ef20f8e4229b",
+      "known_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "active_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "completed_paths": [],
+      "batch_complete": true,
+      "processed_rule_ids": [],
+      "active_rule_ids": [
+        "rule_efc71f508cf9_a256f2a30f7e577165a89946",
+        "rule_20bfc08e325b_cbd770c2622cd2d3ce51159f"
+      ],
+      "primary_rules_remaining": false,
+      "remaining_paths": [],
+      "batch_key": "a6d427b068c9348af62f950c2150ff6c9baa0a5e766c82e7682cb92eb575fa05"
+    },
+    "source_frontier_state": {
+      "schema_version": 1,
+      "snapshot_id": "sha256:0998de915e49dbe36d24fbea7d74313499bc7047a3b4efe29d16ef20f8e4229b",
+      "scope_key": "994c75fbdf2b0006afddd25a6aed4f77c3c13465062c61fa0bb5727b9dcd501c",
+      "root_paths": [
+        "a.cbl"
+      ],
+      "pending_paths": [],
+      "pending_expansions": [],
+      "read_candidate_paths": [
+        "a.cbl",
+        "b.cbl"
+      ],
+      "unresolved_boundaries": []
+    },
+    "analysis_compaction_pending_ids": []
+  },
+  "saved_ledger_generations": 0
+}

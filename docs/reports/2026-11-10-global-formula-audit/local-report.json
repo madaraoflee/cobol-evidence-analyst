@@ -1,0 +1,192 @@
+{
+  "source_commit": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "read_only": true,
+  "repository_modified": false,
+  "question": "列出系统所有计算所有premium formula 的地方",
+  "external_model_calls": 0,
+  "socket_network_blocked": true,
+  "core_judgment": "已证明的问题发生于全库范围建立和已知待办推进，并非本组用例的上下文压缩失忆；压缩尚未发生便已遗漏范围。",
+  "confirmed_findings": [
+    {
+      "ledger_id": "BUG-20261110-009",
+      "title": "全库公式请求未建立全库范围及完成义务",
+      "reproduction": "3个源文件：a含PREMIUM-AMT并静态CALL b；c的中文注释明确写“此项为保费金额。”，紧接PRM-AMT乘法公式。查询仅选a+b，c未进入候选、任何请求或待办；注入可引用的全部系统位置结论，系统接受ANALYZED/sufficient_material。",
+      "truth_source": "disconnected-chinese-premium/source/c.cbl 中的中文保费注释及其紧邻公式，非仅凭PRM缩写猜测。",
+      "controls": "空answer_instructions和保存DEFAULT_ANSWER_INSTRUCTIONS两组均复现。后者虽启用business_overview，pending全0也仅表示命中闭包处理结束。静态子程序b正确被追踪。",
+      "evidence": [
+        "disconnected-chinese-premium/report.json",
+        "disconnected-chinese-premium/truth-and-coverage.json",
+        "disconnected-chinese-premium-saved-default/report.json",
+        "disconnected-chinese-premium-saved-default/truth-and-coverage.json"
+      ],
+      "code": [
+        {
+          "path": "poc/repository_discovery.py",
+          "line": 895,
+          "reason": "把问句转为词法terms，无独立的全库公式范围契约。"
+        },
+        {
+          "path": "poc/repository_discovery.py",
+          "line": 968,
+          "reason": "只有无任何seed才fallback_all；已有一个命中则使用seed依赖闭包。"
+        },
+        {
+          "path": "poc/business_chat.py",
+          "line": 2588,
+          "reason": "can_discover在已有公式候选时不强制扩展语义同义词或扫描未访问文件。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 1373,
+          "reason": "计算root只来自direct_paths或已绑定历史对象。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 1386,
+          "reason": "计算路径只沿已选root的确认CALL/COPY扩展。"
+        },
+        {
+          "path": "poc/business_chat.py",
+          "line": 2876,
+          "reason": "global_coverage只统计已观察的调查批次，不是整个索引库的穷尽凭据。"
+        },
+        {
+          "path": "poc/business_chat.py",
+          "line": 4835,
+          "reason": "终答只读取已经建立的pending/gaps；未发现范围不成为阻断。"
+        },
+        {
+          "path": "poc/business_chat.py",
+          "line": 4900,
+          "reason": "底层仍明确full_repository_semantics_verified=False，不能把ANALYZED解释为全库完备证明。"
+        }
+      ],
+      "secondary_reproduction": {
+        "description": "上一轮“只看a.cbl”，下一轮原始全系统问句仍继承exclusive_source_scope=true。同一索引无历史可发现a+c，带历史实际只供应a；两文件均明确PREMIUM-AMT。",
+        "evidence": "global-after-exclusive-file/report.json",
+        "negative_control": "global-after-explicit-file/report.json",
+        "boundary": "结果为PARTIAL/answer_incomplete，故此复现只证明全库范围被旧范围覆盖，不作为虚假完成证据。",
+        "code": [
+          {
+            "path": "poc/conversation_focus.py",
+            "line": 34,
+            "reason": "_RESET没有覆盖本次“系统所有…formula”问法。"
+          },
+          {
+            "path": "poc/conversation_focus.py",
+            "line": 463,
+            "reason": "未触发新范围保护，继续使用历史subject。"
+          },
+          {
+            "path": "poc/conversation_focus.py",
+            "line": 531,
+            "reason": "旧exclusive_source_scope继续继承。"
+          },
+          {
+            "path": "poc/repository_discovery.py",
+            "line": 975,
+            "reason": "exclusive范围把selected_paths重新限制到旧文件。"
+          }
+        ]
+      }
+    },
+    {
+      "ledger_id": "BUG-20261106-026",
+      "disposition": "reopen_without_removing_existing_evidence_or_test_mappings",
+      "title": "formula-only已知路径超过8时缺少可推进的持久游标",
+      "reproduction": "12个独立程序全部明确PREMIUM-AMT；空保存要求下首次只供应8路径，剩4记located_path_budget但无pending_work/frontier；显式继续仍同8文件，新增路径0，仍相同4项缺口。",
+      "evidence": [
+        "twelve-matched-paths/report.json",
+        "twelve-matched-paths/continuation.json",
+        "twelve-matched-paths/continuation-requests.json"
+      ],
+      "boundary": "两轮都PARTIAL/question_evidence_incomplete，没有虚假完成。单轮配置8请求，但实际各仅1请求，未触及请求预算。",
+      "positive_control": "保存DEFAULT_ANSWER_INSTRUCTIONS后overview=True，出现rule_path_count=4游标，第二模型请求覆盖12文件，最终待办0。最终答复PARTIAL/answer_incomplete由合成答复未满足完整业务要求产生，不能当作真实答案质量结论。",
+      "positive_control_evidence": "twelve-matched-paths-saved-default/report.json",
+      "code": [
+        {
+          "path": "poc/business_synthesis.py",
+          "line": 485,
+          "reason": "公式问法默认不启用business_overview。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 35,
+          "reason": "_MAX_PATHS=8。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 577,
+          "reason": "只为paths前8建立候选，后续路径仅记located_path_budget。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 1912,
+          "reason": "只有business_overview才建立prepare_investigation_frontier。"
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 2359,
+          "reason": "没有rule_frontier就没有持久pending_work。"
+        },
+        {
+          "path": "poc/source_frontier.py",
+          "line": 41,
+          "reason": "持久known_paths及批次推进机制存在，但此问法未进入该机制。"
+        }
+      ]
+    }
+  ],
+  "negative_controls": [
+    {
+      "hypothesis": "同段落同写字段group_rank=1导致两个不同公式遗漏",
+      "result": "未复现，不登记。第10行乘法与第311行加法虽仅一条formula分类，第二条被result_adjustments保留；只供应前30行时会计划读取307-319行。",
+      "evidence": "same-paragraph-two-formulas/grouping-check.json",
+      "code": [
+        {
+          "path": "poc/question_investigation.py",
+          "line": 746
+        },
+        {
+          "path": "poc/question_investigation.py",
+          "line": 802
+        }
+      ]
+    },
+    {
+      "hypothesis": "所有历史问题都会使新全库查询只读旧文件",
+      "result": "否。上一轮仅显式提a.cbl但未限定“只看”时，a+c均供应。已确认范围误继承限于此前exclusive的用例。",
+      "evidence": "global-after-explicit-file/report.json"
+    },
+    {
+      "hypothesis": "37规则就会静默报告完成",
+      "result": "本用例未发生。原规则及输入候选上限被保留为gaps，结果PARTIAL。不得将32上限本身宣称静默漏报。",
+      "evidence": "thirty-seven-formulas/report.json"
+    }
+  ],
+  "compaction_and_dependencies": {
+    "compaction": "本组所有小规模主复现尚未生成压缩代次，源码范围在进入模型前已缺失。analysis_compaction.py:32只处理memory.pages中已实际供给的源码；压缩无法主动补上从未入候选的独立程序。",
+    "calls": "disconnected-chinese-premium案例确认静态CALL的b被选择并供给；不支持“所有subroutine都被忽略”的结论。",
+    "logical_views": "静态阅读既有test_dependency_source_availability.py:146以及test_persistent_investigation_frontier.py:380可见七跳调用/COPY/LF/PF和43对象DDS游标回归；本次未重新执行它们，不声称此审计完成真实公司LV链路验证。",
+    "known_limits": "source_candidates每批8路径、32主公式、32关联规则、输入深度4、每规则最多64个occurrence参与候选校验；既有完整源码读取/overview游标可扩展部分预算，不能把这些数字解释为统一全系统硬上限。"
+  },
+  "minimal_repair_direction": [
+    "独立识别明确的全库枚举意图；范围不得依赖写作模板是否触发overview，当前全库要求应解除旧exclusive对象限制。",
+    "以固定源码快照建立全库候选/尚未审查/已排除及未解决记录；词法命中与依赖闭包只是起点，同义词和字段缩写只可作为检索候选。",
+    "让全库formula复用可持久推进的路径/规则游标，保留已有预算与压缩机制，继续时推进尚未处理的条目。",
+    "终答区分已确认公式清单与全库穷尽程度；未有全库覆盖证明时不得接受全部系统位置的完成断言。"
+  ],
+  "limits": [
+    "注入模型答复用于验证编排/结束合同，不证明真实模型一定如此回答。",
+    "未访问公司源码、公司API或真实模型；未构建应用；当前GitHub源码与用户已有EXE不能混为同一验收对象。",
+    "本地冻结未解除，未实施任何修复。"
+  ],
+  "scripts": [
+    "audit_local.py",
+    "check_business_synonym.py",
+    "check_formula_continue.py",
+    "check_grouped_formulas.py",
+    "check_history_global_scope.py",
+    "check_history_global_exclusive.py"
+  ]
+}

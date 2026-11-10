@@ -1,0 +1,33 @@
+{
+  "schema": "global-premium-eval-plan/v1",
+  "status": "proposal_only_not_executed",
+  "neutral_names_only": true,
+  "question": "列出这个系统所有计算 premium 的地方，说明每项怎样算、何时适用、调用派生、logical view 来源和最后影响。",
+  "oracle_policy": "Hand-author business sites and evidence spans before indexing. Never derive expected site IDs/counts from the same retrieval/ranker/parser being tested.",
+  "gold_site_identity": ["repository_commit", "relative_path", "physical_span", "copy_instance_or_replacement", "business_branch", "output_role"],
+  "modules": [
+    {"id": "M01", "name": "multiple_disconnected_roots", "shape": "Six independent roots: quote, issue, renewal, endorsement, cancellation, collection. Include premium calculations in every root; no single CALL closure reaches them all.", "trap": "A one-entry answer must not pass a repository-wide question."},
+    {"id": "M02", "name": "business_alias_and_parameter_mapping", "shape": "Document premium/PRM/due-charge terminology in a neutral approved glossary. CALL USING changes PREMIUM-AMOUNT to IO-VALUE in a generic calculator with no premium token. Include one unrelated IO-VALUE elsewhere.", "trap": "Name match alone cannot merge identities or miss a call-derived calculation."},
+    {"id": "M03", "name": "logical_view_input_lineage", "shape": "SELECT an LF; DDS maps it to a physical rate record. Rate affects a downstream formula. A second LF with the same spelling under another library remains ambiguous without library binding.", "trap": "Mapping-only LV is an input dependency, not a formula; source filenames alone do not establish runtime binding."},
+    {"id": "M04", "name": "business_calculation_forms", "shape": "Include COMPUTE, ADD/SUBTRACT/MULTIPLY/DIVIDE sequences, per-item accumulation, per-payment factor, fee, discount, tax, prorating, refund, rounded output and error-path clearing.", "trap": "COMPUTE-only retrieval misses business arithmetic; raw MOVE inventory is not business explanation."},
+    {"id": "M05", "name": "copy_instances_and_overwrites", "shape": "Two callers include one procedure COPY with different REPLACING factors; place guards in callers, formula in nested COPY and late override after returning. Include identical physical names in different directories.", "trap": "Neither deduplication nor compaction may merge incompatible instances or omit later business adjustments."},
+    {"id": "M06", "name": "decoys_and_hidden_tail", "shape": "More than 80 high-ranking premium DISPLAY/comment/heading decoys; a true calculation at a lexically late path and deep physical span. Include counters and report-only moves.", "trap": "Top-k hits cannot be treated as an exhaustive universe; negative controls must remain excluded."},
+    {"id": "M07", "name": "resumable_scale", "shape": "Parameterize at least 37 calculation sites in a file, more than 16 LV objects, more than 4 source paths per batch and a 12-layer call chain; add known sites across disconnected roots.", "trap": "A completed current batch is not completed enumeration. Preserve an independent oracle for generated site count and exact locations."},
+    {"id": "M08", "name": "declared_boundaries", "shape": "Variants with dynamic unresolved call, missing COPY, skipped extension/file, unreadable source, partial line, duplicate target name and missing runtime rate rows.", "trap": "Retain the known detailed business inventory, list exact gaps, and prohibit an exhaustive claim."},
+    {"id": "M09", "name": "recovery_and_requirement_change", "shape": "Force compaction between batches, save/reopen, known HTTP 500 after completed reading, unknown remote outcome, and follow-up in a different locale.", "trap": "No loss/repetition of completed enumeration, no automatic retry of unknown outcome, and no stale complete answer under new requirements."}
+  ],
+  "proposed_checks": [
+    "unscoped_question_discovers_every_independent_business_root",
+    "final_inventory_matches_gold_sites_across_alias_call_copy_and_lv_dependencies",
+    "all_supported_arithmetic_forms_are_explained_in_business_terms",
+    "decoy_search_hits_and_late_true_sites_do_not_change_gold_recall",
+    "unfinished_traversal_or_missing_source_cannot_claim_exhaustiveness",
+    "omitted_final_answer_site_is_rejected_even_if_its_source_was_read",
+    "compaction_failure_and_restart_preserve_global_inventory_and_pending_work",
+    "online_and_local_paths_are_scored_separately_on_the_same_fixture",
+    "exclusive_file_scope_does_not_expand_into_repository_inventory"
+  ],
+  "offline_required_metrics": {"complete_fixture_site_recall": 1.0, "site_precision": 1.0, "version_bound_citation_precision": 1.0, "unsupported_exhaustiveness_claims": 0, "lost_previously_verified_sites_after_resume": 0, "unknown_remote_requests_replayed_without_approval": 0},
+  "real_model_required_judgment": ["all gold sites appear in the delivered answer or complete export", "each site's business role, applicability, derivation and output consequence are correct", "known rules are not replaced with a blanket inability to answer", "unknown binding/runtime data are distinguished from source absence"],
+  "execution_boundary": "This is an unimplemented neutral fixture design. No repository mutation, no source/model/network access and no success claim. Building a test later does not imply company validation."
+}

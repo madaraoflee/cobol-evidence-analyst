@@ -1,0 +1,14 @@
+{
+  "source_truth": {
+    "path": "c.cbl",
+    "comment": "此项为保费金额。",
+    "expression": "COMPUTE PRM-AMT = BASIS * FACTOR.",
+    "business_meaning": "The Chinese source comment explicitly labels this amount as insurance premium; not inferred solely from PRM abbreviation."
+  },
+  "undiscovered": true,
+  "not_supplied_in_any_request": true,
+  "query_expansion_attempted": false,
+  "stop_reason": "sufficient_material",
+  "status": "ANALYZED",
+  "global_claim_retained": true
+}

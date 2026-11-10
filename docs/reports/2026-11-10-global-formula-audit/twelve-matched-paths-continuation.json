@@ -1,0 +1,38 @@
+{
+  "original_run_id": "3c761991e689a822dbcfb35e",
+  "continued_run_id": "01ad7fc2e6695705d13c54ed",
+  "model_requests": 1,
+  "initial_request_paths": [
+    "calc-00.cbl",
+    "calc-01.cbl",
+    "calc-02.cbl",
+    "calc-05.cbl",
+    "calc-06.cbl",
+    "calc-09.cbl",
+    "calc-10.cbl",
+    "calc-11.cbl"
+  ],
+  "continued_request_paths": [
+    "calc-00.cbl",
+    "calc-01.cbl",
+    "calc-02.cbl",
+    "calc-05.cbl",
+    "calc-06.cbl",
+    "calc-09.cbl",
+    "calc-10.cbl",
+    "calc-11.cbl"
+  ],
+  "new_paths": [],
+  "status": "PARTIAL",
+  "stop_reason": "question_evidence_incomplete",
+  "gaps": [
+    {
+      "kind": "formula",
+      "reason": "located_path_budget",
+      "omitted_count": 4
+    }
+  ],
+  "pending_work": null,
+  "saved_frontier": null,
+  "previous_unchanged": true
+}

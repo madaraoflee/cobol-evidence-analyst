@@ -5231,12 +5231,16 @@
       "id": "BUG-20261106-026",
       "title": "批次文件规则限制永久丢弃未处理分支",
       "symptom": "当前批可以回答后，全局未读文件、关系或规则不再推进。",
-      "root_cause": "批次上限被当成全局结束，未保存可恢复的来源和规则游标。",
-      "status": "fixed",
+      "root_cause": "批次上限被当成全局结束，未保存可恢复的来源和规则游标。 2026-11-10复核发现旧修复覆盖不完整：只有business_overview分支创建持久路径游标，formula-only分支的已发现路径仍受8项批次限制，余项只有located_path_budget而没有可推进待办。",
+      "status": "open",
       "evidence": [
         "https://github.com/madaraoflee/cobol-evidence-analyst/commit/6a67df0b16528d99733d248b689a5df5d298315b",
         "docs/reports/2026-11-06-cumulative-analysis/README.md",
-        "poc/tests/test_persistent_investigation_frontier.py"
+        "poc/tests/test_persistent_investigation_frontier.py",
+        "docs/reports/2026-11-10-global-formula-audit/twelve-matched-paths-report.json",
+        "docs/reports/2026-11-10-global-formula-audit/twelve-matched-paths-continuation.json",
+        "docs/reports/2026-11-10-global-formula-audit/defect-id-mapping.json",
+        "docs/reports/2026-11-10-global-formula-audit/README.md"
       ],
       "regressions": [
         {
@@ -5253,7 +5257,7 @@
         }
       ],
       "verification_scope": "source_offline",
-      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。 2026-11-10重新打开：12个已发现且都明确PREMIUM-AMT的独立程序，原句与空保存要求下首次及显式继续均读相同8个，新增路径为0，余4个持续PARTIAL。保留全部旧回归和既有通过记录；旧测试仍通过不证明此遗漏分支已修复，本次未改变运行代码。"
     },
     {
       "id": "BUG-20261106-027",
@@ -6733,6 +6737,53 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "仅在线界面核对诊断所属对话和工作区；不改变任务状态、重试或数据。已测试当前、异对话、异工作区、接入任务与无关后台任务继续轮询；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-009",
+      "title": "全系统公式问题未建立全库范围与完成义务",
+      "symptom": "用户要求列出全系统premium公式时，英文命中及其调用闭包被当作完整候选；含中文保费注释的独立计算根未被发现，仍接受系统全部的终答。另在明确单文件历史后，全系统追问可能继续沿用旧exclusive范围。",
+      "root_cause": "规划器只识别calculation及已有源码焦点，没有独立全库枚举/覆盖义务；全局问法也未可靠解除历史排他范围。候选集完整被误用为问题完成依据。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-report.json",
+        "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-truth-and-coverage.json",
+        "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-saved-default-truth-and-coverage.json",
+        "docs/reports/2026-11-10-global-formula-audit/global-after-exclusive-file-report.json",
+        "docs/reports/2026-11-10-global-formula-audit/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "合成源码的中文注释明确标注保费，不凭PRM缩写猜含义。默认已保存回答要求不能补上全库发现。历史排他范围复现仅证明范围未解除，不声称该例虚假完成。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+    },
+    {
+      "id": "BUG-20261110-010",
+      "title": "在线全库问题未检查已知未完搜索便标记完成",
+      "symptom": "25个明确premium搜索命中只读1个，前轮明确剩24个，终答complete=true且remaining为空后仍answered，工作区删除pending。",
+      "root_cause": "在线终答只核对引用属于当前原文，再信任模型complete/remaining；没有将分页未完、已发现未复核位置与完成状态对账。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-audit/online-report.json",
+        "docs/reports/2026-11-10-global-formula-audit/online-result.json",
+        "docs/reports/2026-11-10-global-formula-audit/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "分页本身可按20+5查全，不是固定只能查前20条。脚本响应证明控制流程接受不完整输出，不能证明真实模型必然如此，也不认定公司漏掉哪些公式。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+    },
+    {
+      "id": "BUG-20261110-011",
+      "title": "在线未完成搜索游标被观察记录窗口丢弃",
+      "symptom": "未翻完的搜索在13次读页后不再进入模型上下文；显式多轮继续共98动作后，搜索记录从持久检查点消失，而已读97页仍在。",
+      "root_cause": "仅保存最近96条观察、发送最近12条观察，未完成搜索义务没有独立持久记录；模型remaining可被空列表替换，证据召回工具不能找回遗漏的搜索任务。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-audit/online-report.json",
+        "docs/reports/2026-11-10-global-formula-audit/online-result.json",
+        "docs/reports/2026-11-10-global-formula-audit/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "与BUG-20261109-002不同：该旧缺陷是分页偏移不可执行；本次合法游标可执行但被遗忘。现有每次6个模型请求、24动作的预算会正常needs_continuation，本次不把预算停止本身当bug。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
     }
   ],
   "updated_at": "2026-11-10"

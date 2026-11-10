@@ -1,0 +1,60 @@
+{
+  "recommendation": "Register all three as new defects; do not reopen an existing ID based only on shared incomplete-answer symptoms. Preserve old scopes and statuses.",
+  "basis": "Parent supplied confirmed reproductions; this agent compared recorded root causes/triggers and current observation-window code without executing reproductions or modifying the repository.",
+  "items": [
+    {
+      "new_id": "BUG-20261110-009",
+      "reopen_old_id": false,
+      "trigger": "Unscoped all-system premium question has positive English matches a+CALL b, but independent c with Chinese business wording is undiscovered; matched closure completion accepts an exhaustive claim.",
+      "distinction": "This is universe discovery/exhaustiveness, not zero-hit random-source contamination or truncation within an already discovered local closure.",
+      "cross_reference_only": [
+        "BUG-20261001-001",
+        "BUG-20261001-006",
+        "BUG-20261106-022",
+        "BUG-20261106-026",
+        "BUG-20261106-027",
+        "BUG-20261106-028",
+        "BUG-20261106-904"
+      ]
+    },
+    {
+      "new_id": "BUG-20261110-010",
+      "reopen_old_id": false,
+      "trigger": "Independent online pipeline has 25 known premium matches, reads one while pagination remains, accepts answered and clears pending.",
+      "distinction": "Known unfinished result enumeration is not enforced by online completion; different module and gate from local source/rule-frontier batching and cross-batch unresolved-callee ledger.",
+      "cross_reference_only": [
+        "BUG-20261106-026",
+        "BUG-20261106-028",
+        "BUG-20261109-002"
+      ]
+    },
+    {
+      "new_id": "BUG-20261110-011",
+      "reopen_old_id": false,
+      "trigger": "Unfinished search next_offset falls outside newest 12 prompt observations and newest 96 checkpoint observations; no durable pending-search obligation preserves it.",
+      "distinction": "BUG-20261109-002 repaired executable offsets and reachable deep pages. Here the offset is valid but forgotten. It also differs from local processed-rule reset, source-reference eviction, and assistant-anchor inheritance.",
+      "cross_reference_only": [
+        "BUG-20261109-002",
+        "BUG-20261107-001",
+        "BUG-20261107-010",
+        "BUG-20261026-104",
+        "BUG-20261110-001",
+        "BUG-20261110-007"
+      ]
+    }
+  ],
+  "deduplication_boundary": "010 and 011 remain separate: 010 reproduces immediately before eviction; 011 loses continuation state while investigation can still be ongoing. Do not register absence of an online inventory tool as a fourth defect.",
+  "formula_only_known_path_stall": {
+    "recommendation": "Reopen BUG-20261106-026 as an incompletely covered original fix; do not allocate BUG-20261110-012.",
+    "known_trigger": "Twelve already-discovered independent PREMIUM-AMT programs; empty saved requirements keeps formula-only intent. First eight receive obligations, remaining four appear only as located_path_budget; explicit continue selects the same eight and new_paths remains empty. Both answers remain PARTIAL.",
+    "same_underlying_mechanism": "The same local question_investigation path-batch mechanism lacks durable next-batch progress. The old defect root cause is batch limits without recoverable source/rule cursors. Current code creates prepare_investigation_frontier only under business_overview, so formula-only bypasses the earlier repair.",
+    "source_refs": [
+      "poc/question_investigation.py:1912",
+      "poc/question_investigation.py:2360",
+      "docs/reports/2026-11-06-cumulative-analysis/README.md",
+      "docs/bugs/registry.json BUG-20261106-026"
+    ],
+    "not_a_new_code_regression": "Existing overview tests can still pass. Record this as a missing branch in the earlier fix, preserve prior test/evidence history, append formula-only and saved-requirement branch comparison regression.",
+    "distinguish_009": "009 has an undiscovered independent root and false exhaustive acceptance; this case has all twelve known paths but no forward progress beyond the first eight."
+  }
+}
