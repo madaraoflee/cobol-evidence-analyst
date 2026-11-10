@@ -1076,6 +1076,62 @@ function unfinishedQuestionFor(message){
 function canContinueInvestigation(message){
   return Boolean(message && /^[a-f0-9]{24}$/.test(message.investigation_run_id || '') && !unknownRemoteOutcome(message));
 }
+const repositoryInventoryPages=new Map(),repositoryInventoryRequests=new Map();
+function inventoryMessage(messageId,revisionId=null){
+  const current=state.conversation?.messages?.find(item=>item.id===messageId);
+  return revisionId?current?.answer_revisions?.find(item=>item.revision_id===revisionId):current;
+}
+function inventoryPageKey(messageId,revisionId,handle){
+  return JSON.stringify([state.conversation?.id,messageId,revisionId || '',handle]);
+}
+function inventoryPath(messageId,revisionId,descriptor){
+  return `/api/repository-inventory?handle=${encodeURIComponent(descriptor.handle)}&conversation_id=${encodeURIComponent(state.conversation.id)}&message_id=${encodeURIComponent(messageId)}${revisionId?'&revision_id='+encodeURIComponent(revisionId):''}`;
+}
+function repositoryInventoryMarkup(message,revision=null){
+  const descriptor=message.repository_inventory;
+  if(!descriptor?.paged || typeof descriptor.handle!=='string')return '';
+  const messageId=String(message.id || ''),revisionId=revision?.id || '';
+  const page=repositoryInventoryPages.get(inventoryPageKey(messageId,revisionId,descriptor.handle)) || descriptor;
+  const rows=Array.isArray(page.rows)?page.rows:[],total=Number(descriptor.total)||0;
+  const cursor=Number(page.cursor)||0,size=Number(descriptor.page_size)||50;
+  const attrs=`data-inventory-message="${escapeHTML(messageId)}" data-inventory-revision="${escapeHTML(revisionId)}"`;
+  const button=(label,offset,disabled)=>`<button ${attrs} data-inventory-page="${offset}" ${disabled?'disabled':''}>${escapeHTML(t(label))}</button>`;
+  const navigation=`<nav class="inventory-pagination" aria-label="${escapeHTML(t('公式清單分頁'))}">${button(rows.length?'首頁':'載入公式清單',0,rows.length>0&&cursor===0 || total===0)}${button('上一頁',Math.max(0,cursor-size),cursor===0)}${button('下一頁',Number(page.next_cursor)||0,page.next_cursor==null || rows.length===0)}${button('末頁',Math.max(0,Math.floor((total-1)/size)*size),cursor+rows.length>=total)}<button ${attrs} data-inventory-export>${escapeHTML(t('匯出完整分析清單'))}</button></nav>`;
+  const pending=Number(descriptor.counts?.pending)||0;
+  return `<details class="message-related repository-inventory" open><summary>${escapeHTML(t('業務公式清單'))} · ${formatNumber(total)}</summary><p>${escapeHTML(t('已記錄內容完整保存；分頁只控制本頁顯示。'))}</p>${!descriptor.complete?`<p role="status">${escapeHTML(t('仍有範圍待核對'))}${pending>0?' · '+formatNumber(pending):''}</p>`:''}${navigation}<div class="inventory-rows">${rows.map(row=>`<section class="inventory-row narrative-body"><h4>${escapeHTML(row.relative_path)} · ${Number(row.start_line)}–${Number(row.end_line)}</h4>${narrativeMarkup([row.summary,row.formula,row.conditions].filter(Boolean).join('\n\n'),[],[])}<div>${(row.evidence_ids || []).map((id,index)=>`<button ${attrs} data-inventory-evidence="${escapeHTML(row.candidate_id)}" data-inventory-index="${index}">${escapeHTML(t('查看源碼依據'))} ${index+1}</button>`).join('')}</div></section>`).join('')}</div><p>${escapeHTML(t('目前顯示'))} ${rows.length?formatNumber(cursor+1):'0'}–${formatNumber(cursor+rows.length)} / ${formatNumber(total)}</p>${navigation}</details>`;
+}
+async function loadRepositoryInventoryPage(messageId,revisionId,cursor){
+  const message=inventoryMessage(messageId,revisionId),descriptor=message?.repository_inventory;
+  if(!descriptor?.handle || !Number.isSafeInteger(cursor) || cursor<0)return;
+  const conversationId=state.conversation.id,key=inventoryPageKey(messageId,revisionId,descriptor.handle);
+  const ticket=(repositoryInventoryRequests.get(key)||0)+1;repositoryInventoryRequests.set(key,ticket);
+  try{
+    const data=await api(inventoryPath(messageId,revisionId,descriptor)+`&cursor=${cursor}&page_size=${Number(descriptor.page_size)||50}`);
+    if(state.conversation?.id!==conversationId || inventoryMessage(messageId,revisionId)?.repository_inventory?.handle!==descriptor.handle || repositoryInventoryRequests.get(key)!==ticket)return;
+    if(data.handle!==descriptor.handle || data.snapshot_id!==descriptor.snapshot_id || !Array.isArray(data.rows))throw Error(t('清單版本不一致，請重新讀取對話。'));
+    repositoryInventoryPages.set(key,{...data,cursor});
+    while(repositoryInventoryPages.size>16)repositoryInventoryPages.delete(repositoryInventoryPages.keys().next().value);
+    render();
+  }catch(error){if(state.conversation?.id===conversationId && repositoryInventoryRequests.get(key)===ticket)toast(error.message);}
+}
+async function exportRepositoryInventory(messageId,revisionId){
+  const descriptor=inventoryMessage(messageId,revisionId)?.repository_inventory;if(!descriptor?.handle)return;
+  try{const data=await api(inventoryPath(messageId,revisionId,descriptor)+'&export=jsonl');
+    if(data.handle!==descriptor.handle || data.snapshot_id!==descriptor.snapshot_id || typeof data.jsonl!=='string')throw Error(t('清單版本不一致，請重新讀取對話。'));
+    download(data.jsonl,'application/x-ndjson;charset=utf-8','business-formula-inventory.jsonl');
+  }catch(error){toast(error.message);}
+}
+async function loadRepositoryInventoryEvidence(messageId,revisionId,candidateId,index){
+  const descriptor=inventoryMessage(messageId,revisionId)?.repository_inventory;if(!descriptor?.handle)return;
+  const conversationId=state.conversation.id,ticket=++state.evidenceTicket;
+  try{const data=await api(inventoryPath(messageId,revisionId,descriptor)+`&action=evidence&candidate_id=${encodeURIComponent(candidateId)}&index=${index}`);
+    if(ticket!==state.evidenceTicket || state.conversation?.id!==conversationId)return;
+    const original=data.spans?.[0];
+    if(data.status!=='READY' || !original || original.integrity!=='VALID')throw Error(t('源碼已變更，保留原回答的引用位置；請重新提問以取得目前源碼依據。'));
+    const span={...original,source_text:original.source_text ?? original.text};
+    state.conversationEvidence={messageId,revisionId,ref:span,span,error:''};render();
+  }catch(error){if(ticket===state.evidenceTicket && state.conversation?.id===conversationId)toast(error.message);}
+}
 function conversationMessage(message,revision=null){
   const user=message.role==='user';
   const id=String(message.id || '');
@@ -1105,7 +1161,7 @@ function conversationMessage(message,revision=null){
   const reading=user || revision?{content:markup,outline:''}:answerReadingView(markup,id);
   const revisions=!revision && Array.isArray(message.answer_revisions)?message.answer_revisions:[];
   const revisionMarkup=revisions.length?`<details id="answer-revisions-${escapeHTML(id)}" class="answer-revisions"><summary>${escapeHTML(t('補查前的回答'))} · ${revisions.length}</summary><p>${escapeHTML(t('目前顯示最新回答；以下保留每次補查前的原文、引用與調查記錄。'))}</p>${revisions.map((item,index)=>({item,index})).reverse().map(({item,index})=>`<details id="answer-revision-${escapeHTML(item.revision_id)}" class="answer-revision"><summary>${escapeHTML(t('補查前版本'))} ${index+1} · ${escapeHTML(item.saved_at || '')}</summary>${conversationMessage(item,{id:item.revision_id})}<details class="revision-investigation"><summary>${escapeHTML(t('當時的調查記錄'))}</summary><pre>${escapeHTML(JSON.stringify({run_id:item.run_id,investigation_run_id:item.investigation_run_id,snapshot_id:item.snapshot_id,source_version:item.source_version,analysis_options:item.analysis_options,metrics:item.metrics,investigation_state:item.investigation_state},null,2))}</pre></details></details>`).join('')}</details>`:'';
-  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}${revision?' prior-answer':''}" data-message="${escapeHTML(displayId)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t(diagnosticOnly?'請求狀態':'業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+(unknownRemoteOutcome(message)?'':failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly}))}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${continueMarkup}${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}${revisionMarkup}</div></article>`;
+  return ui`<article class="conversation-message ${user?'from-user':'from-assistant'}${revision?' prior-answer':''}" data-message="${escapeHTML(displayId)}">${reading.outline}<div class="answer-main"><div class="message-author">${user?t('你'):t('馨弦')}<span>${user?'':t(diagnosticOnly?'請求狀態':'業務解讀 · 請結合證據覆核')}</span></div>${versionMarkup}${user?'':answerCompletionNotice(message)+(unknownRemoteOutcome(message)?'':failureDiagnosticsView(message,{retainedAnswer:Boolean(answer.trim())&&!diagnosticOnly}))}<div class="message-content narrative-body">${reading.content || (failed&&!diagnosticOnly?`<p>${escapeHTML(t('本次未取得回答。可保留對話並重試。'))}</p>`:'')}</div>${user?'':repositoryInventoryMarkup(message,revision)}${continueMarkup}${relatedMarkup}${impactMarkup}${referenceMarkup}${retryMarkup}${revisionMarkup}</div></article>`;
 }
 function conversationProgress(){
   const v=progressViewModel();
@@ -1860,6 +1916,9 @@ document.addEventListener('click',event=>{
   if(target.dataset.continueMessage)continueConversationMessage(target.dataset.continueMessage);
   if(target.dataset.impactMore)loadImpactPage(target.dataset.impactMore);
   if(target.dataset.impactExport)exportImpact(target.dataset.impactExport);
+  if(target.hasAttribute('data-inventory-page'))loadRepositoryInventoryPage(target.dataset.inventoryMessage,target.dataset.inventoryRevision || null,Number(target.dataset.inventoryPage));
+  if(target.hasAttribute('data-inventory-export'))exportRepositoryInventory(target.dataset.inventoryMessage,target.dataset.inventoryRevision || null);
+  if(target.dataset.inventoryEvidence)loadRepositoryInventoryEvidence(target.dataset.inventoryMessage,target.dataset.inventoryRevision || null,target.dataset.inventoryEvidence,Number(target.dataset.inventoryIndex));
   if(target.hasAttribute('data-reconcile-submission')){reconcileQuestionSubmission();return;}
   if(target.hasAttribute('data-retry-pending') && state.pendingMessage && !state.unconfirmedSubmission){state.question=state.pendingMessage.content;state.pendingMessage=null;render();$('question-input')?.focus?.();}
   if(target.dataset.demoCase){if(state.busy)return;selectDemoCase(target.dataset.demoCase);}

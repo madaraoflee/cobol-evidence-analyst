@@ -1,0 +1,2944 @@
+{
+  "source_files_sha256": {
+    "poc/business_chat.py": "1dc764434ad4ba23fce6bf0d2f7f181262a704b04e5f395aefa988de88ae07b4",
+    "poc/repository_inventory.py": "75cecd2da8b70cd7330233dc9d79ecfd7351a5bd89471ba49b5da104c61d2a0d",
+    "poc/repository_inventory_store.py": "90a7ae8229c52873cc2c5b51eec7efa48fc4258c0f46ec24fc15ea8b9af1f396",
+    "poc/question_investigation.py": "9fe704a18dadee3f8c03ef2e82bd98ef9f44acfe4f14c4c607d60f98c6ba7b0d",
+    "poc/business_map.py": "f1f1b12c421cbcb6f6d2c6afd1b4a1b3a66b40263ba6f78a1332be4a714175aa",
+    "poc/conversation_focus.py": "f4caa931ce0c853e86c3c20600adb98ceda81ca56b1f41a815c3f5125aa0dbe2",
+    "poc/repository_discovery.py": "90045e2a12464bd6beac16231d6f9ded2f2bb7207938adad40513c1b503643ce",
+    "poc/complete_working_set.py": "ccdfe8e3881b3f7277f5fb652449e749110d11bc752be72a9b2cf259ceb9cdd5",
+    "poc/source_frontier.py": "56addd6e75cae72baf80a45667bc04d8970122c235d89f9e3b92677e60351f6b",
+    "poc/repository_scope.py": "210af31927e90cbed96e6c999784a751611cc71c92bfed920bcd405a67740160",
+    "poc/web_app.py": "16b83bf74d58b574fe8323670dff195453b24b4bb3a3de1e50373139076dc9f0",
+    "poc/report_view.py": "9a6cb5fd305205c251a3ab106192907de22f949e501bf829ee636583eb45d884"
+  },
+  "analysis_requests": 3332,
+  "review_requests": 2084,
+  "compaction_requests": 0,
+  "wire_max": 63267,
+  "turns": [
+    {
+      "turn": 0,
+      "seconds": 3.145,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 101,
+        "pending": 19800,
+        "review_pending": 20034,
+        "reviewed": 202
+      },
+      "checkpoint_bytes": 5287938,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 1,
+      "seconds": 2.976,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 197,
+        "pending": 19608,
+        "review_pending": 20066,
+        "reviewed": 394
+      },
+      "checkpoint_bytes": 5287321,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 2,
+      "seconds": 2.974,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 293,
+        "pending": 19416,
+        "review_pending": 20098,
+        "reviewed": 586
+      },
+      "checkpoint_bytes": 5287391,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 3,
+      "seconds": 3.011,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 389,
+        "pending": 19224,
+        "review_pending": 20130,
+        "reviewed": 778
+      },
+      "checkpoint_bytes": 5287329,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 4,
+      "seconds": 3.065,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 485,
+        "pending": 19032,
+        "review_pending": 20162,
+        "reviewed": 970
+      },
+      "checkpoint_bytes": 5287328,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 5,
+      "seconds": 3.108,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 581,
+        "pending": 18840,
+        "review_pending": 20194,
+        "reviewed": 1162
+      },
+      "checkpoint_bytes": 5287428,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 6,
+      "seconds": 3.111,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 677,
+        "pending": 18648,
+        "review_pending": 20226,
+        "reviewed": 1354
+      },
+      "checkpoint_bytes": 5287366,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 7,
+      "seconds": 3.493,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 773,
+        "pending": 18456,
+        "review_pending": 20258,
+        "reviewed": 1546
+      },
+      "checkpoint_bytes": 5287443,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 8,
+      "seconds": 3.155,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 869,
+        "pending": 18264,
+        "review_pending": 20290,
+        "reviewed": 1738
+      },
+      "checkpoint_bytes": 5287365,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 9,
+      "seconds": 3.734,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 965,
+        "pending": 18072,
+        "review_pending": 20322,
+        "reviewed": 1930
+      },
+      "checkpoint_bytes": 5287365,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 10,
+      "seconds": 3.19,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1061,
+        "pending": 17880,
+        "review_pending": 20354,
+        "reviewed": 2122
+      },
+      "checkpoint_bytes": 5287459,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 11,
+      "seconds": 3.22,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1157,
+        "pending": 17688,
+        "review_pending": 20386,
+        "reviewed": 2314
+      },
+      "checkpoint_bytes": 5287398,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 12,
+      "seconds": 3.255,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1253,
+        "pending": 17496,
+        "review_pending": 20418,
+        "reviewed": 2506
+      },
+      "checkpoint_bytes": 5287459,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 13,
+      "seconds": 3.253,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1349,
+        "pending": 17304,
+        "review_pending": 20450,
+        "reviewed": 2698
+      },
+      "checkpoint_bytes": 5287397,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 14,
+      "seconds": 3.301,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1445,
+        "pending": 17112,
+        "review_pending": 20482,
+        "reviewed": 2890
+      },
+      "checkpoint_bytes": 5287393,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 15,
+      "seconds": 3.328,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1541,
+        "pending": 16920,
+        "review_pending": 20514,
+        "reviewed": 3082
+      },
+      "checkpoint_bytes": 5287455,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 16,
+      "seconds": 3.44,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1637,
+        "pending": 16728,
+        "review_pending": 20546,
+        "reviewed": 3274
+      },
+      "checkpoint_bytes": 5287408,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 17,
+      "seconds": 3.331,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1733,
+        "pending": 16536,
+        "review_pending": 20578,
+        "reviewed": 3466
+      },
+      "checkpoint_bytes": 5287467,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 18,
+      "seconds": 3.443,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1829,
+        "pending": 16344,
+        "review_pending": 20610,
+        "reviewed": 3658
+      },
+      "checkpoint_bytes": 5287396,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 19,
+      "seconds": 3.359,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 1925,
+        "pending": 16152,
+        "review_pending": 20642,
+        "reviewed": 3850
+      },
+      "checkpoint_bytes": 5287399,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 20,
+      "seconds": 3.451,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2021,
+        "pending": 15960,
+        "review_pending": 20674,
+        "reviewed": 4042
+      },
+      "checkpoint_bytes": 5287453,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 21,
+      "seconds": 3.403,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2117,
+        "pending": 15768,
+        "review_pending": 20706,
+        "reviewed": 4234
+      },
+      "checkpoint_bytes": 5287403,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 22,
+      "seconds": 3.402,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2213,
+        "pending": 15576,
+        "review_pending": 20738,
+        "reviewed": 4426
+      },
+      "checkpoint_bytes": 5287466,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 23,
+      "seconds": 3.392,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2309,
+        "pending": 15384,
+        "review_pending": 20770,
+        "reviewed": 4618
+      },
+      "checkpoint_bytes": 5287407,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 24,
+      "seconds": 3.459,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2405,
+        "pending": 15192,
+        "review_pending": 20802,
+        "reviewed": 4810
+      },
+      "checkpoint_bytes": 5287394,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 25,
+      "seconds": 3.515,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2501,
+        "pending": 15000,
+        "review_pending": 20834,
+        "reviewed": 5002
+      },
+      "checkpoint_bytes": 5287469,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 26,
+      "seconds": 3.57,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2597,
+        "pending": 14808,
+        "review_pending": 20866,
+        "reviewed": 5194
+      },
+      "checkpoint_bytes": 5287394,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 27,
+      "seconds": 3.596,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2693,
+        "pending": 14616,
+        "review_pending": 20898,
+        "reviewed": 5386
+      },
+      "checkpoint_bytes": 5287456,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 28,
+      "seconds": 3.591,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2789,
+        "pending": 14424,
+        "review_pending": 20930,
+        "reviewed": 5578
+      },
+      "checkpoint_bytes": 5287402,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 29,
+      "seconds": 3.608,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2885,
+        "pending": 14232,
+        "review_pending": 20962,
+        "reviewed": 5770
+      },
+      "checkpoint_bytes": 5287407,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 30,
+      "seconds": 3.601,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 2981,
+        "pending": 14040,
+        "review_pending": 20994,
+        "reviewed": 5962
+      },
+      "checkpoint_bytes": 5287462,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 31,
+      "seconds": 3.643,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3077,
+        "pending": 13848,
+        "review_pending": 21026,
+        "reviewed": 6154
+      },
+      "checkpoint_bytes": 5287402,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 32,
+      "seconds": 3.76,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3173,
+        "pending": 13656,
+        "review_pending": 21058,
+        "reviewed": 6346
+      },
+      "checkpoint_bytes": 5287468,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 33,
+      "seconds": 3.938,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3269,
+        "pending": 13464,
+        "review_pending": 21090,
+        "reviewed": 6538
+      },
+      "checkpoint_bytes": 5287406,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 34,
+      "seconds": 3.721,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3365,
+        "pending": 13272,
+        "review_pending": 21122,
+        "reviewed": 6730
+      },
+      "checkpoint_bytes": 5287407,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 35,
+      "seconds": 3.71,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3461,
+        "pending": 13080,
+        "review_pending": 21154,
+        "reviewed": 6922
+      },
+      "checkpoint_bytes": 5287457,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 36,
+      "seconds": 3.695,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3557,
+        "pending": 12888,
+        "review_pending": 21186,
+        "reviewed": 7114
+      },
+      "checkpoint_bytes": 5287410,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 37,
+      "seconds": 3.788,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3653,
+        "pending": 12696,
+        "review_pending": 21218,
+        "reviewed": 7306
+      },
+      "checkpoint_bytes": 5287470,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 38,
+      "seconds": 3.988,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3749,
+        "pending": 12504,
+        "review_pending": 21250,
+        "reviewed": 7498
+      },
+      "checkpoint_bytes": 5287402,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 39,
+      "seconds": 4.005,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3845,
+        "pending": 12312,
+        "review_pending": 21282,
+        "reviewed": 7690
+      },
+      "checkpoint_bytes": 5287399,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 40,
+      "seconds": 3.847,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 3941,
+        "pending": 12120,
+        "review_pending": 21314,
+        "reviewed": 7882
+      },
+      "checkpoint_bytes": 5287455,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 41,
+      "seconds": 3.845,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4037,
+        "pending": 11928,
+        "review_pending": 21346,
+        "reviewed": 8074
+      },
+      "checkpoint_bytes": 5287404,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 42,
+      "seconds": 3.819,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4133,
+        "pending": 11736,
+        "review_pending": 21378,
+        "reviewed": 8266
+      },
+      "checkpoint_bytes": 5287459,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 43,
+      "seconds": 3.831,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4229,
+        "pending": 11544,
+        "review_pending": 21410,
+        "reviewed": 8458
+      },
+      "checkpoint_bytes": 5287394,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 44,
+      "seconds": 3.853,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4325,
+        "pending": 11352,
+        "review_pending": 21442,
+        "reviewed": 8650
+      },
+      "checkpoint_bytes": 5287388,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 45,
+      "seconds": 5.06,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4421,
+        "pending": 11160,
+        "review_pending": 21474,
+        "reviewed": 8842
+      },
+      "checkpoint_bytes": 5287454,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 46,
+      "seconds": 3.969,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4517,
+        "pending": 10968,
+        "review_pending": 21506,
+        "reviewed": 9034
+      },
+      "checkpoint_bytes": 5287401,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 47,
+      "seconds": 4.042,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4613,
+        "pending": 10776,
+        "review_pending": 21538,
+        "reviewed": 9226
+      },
+      "checkpoint_bytes": 5287458,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 48,
+      "seconds": 3.982,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4709,
+        "pending": 10584,
+        "review_pending": 21570,
+        "reviewed": 9418
+      },
+      "checkpoint_bytes": 5287394,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 49,
+      "seconds": 3.929,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4805,
+        "pending": 10392,
+        "review_pending": 21602,
+        "reviewed": 9610
+      },
+      "checkpoint_bytes": 5287401,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 50,
+      "seconds": 4.07,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4901,
+        "pending": 10200,
+        "review_pending": 21634,
+        "reviewed": 9802
+      },
+      "checkpoint_bytes": 5287462,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 51,
+      "seconds": 4.087,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 4997,
+        "pending": 10008,
+        "review_pending": 21666,
+        "reviewed": 9994
+      },
+      "checkpoint_bytes": 5287406,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 52,
+      "seconds": 4.216,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5093,
+        "pending": 9816,
+        "review_pending": 21698,
+        "reviewed": 10186
+      },
+      "checkpoint_bytes": 5287429,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 53,
+      "seconds": 4.453,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5189,
+        "pending": 9624,
+        "review_pending": 21730,
+        "reviewed": 10378
+      },
+      "checkpoint_bytes": 5287362,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 54,
+      "seconds": 4.351,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5285,
+        "pending": 9432,
+        "review_pending": 21762,
+        "reviewed": 10570
+      },
+      "checkpoint_bytes": 5287365,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 55,
+      "seconds": 5.175,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5381,
+        "pending": 9240,
+        "review_pending": 21794,
+        "reviewed": 10762
+      },
+      "checkpoint_bytes": 5287433,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 56,
+      "seconds": 4.6,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5477,
+        "pending": 9048,
+        "review_pending": 21826,
+        "reviewed": 10954
+      },
+      "checkpoint_bytes": 5287357,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 57,
+      "seconds": 4.288,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5573,
+        "pending": 8856,
+        "review_pending": 21858,
+        "reviewed": 11146
+      },
+      "checkpoint_bytes": 5287417,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 58,
+      "seconds": 4.242,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5669,
+        "pending": 8664,
+        "review_pending": 21890,
+        "reviewed": 11338
+      },
+      "checkpoint_bytes": 5287357,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 59,
+      "seconds": 4.099,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5765,
+        "pending": 8472,
+        "review_pending": 21922,
+        "reviewed": 11530
+      },
+      "checkpoint_bytes": 5287369,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 60,
+      "seconds": 4.203,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5861,
+        "pending": 8280,
+        "review_pending": 21954,
+        "reviewed": 11722
+      },
+      "checkpoint_bytes": 5287423,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 61,
+      "seconds": 4.165,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 5957,
+        "pending": 8088,
+        "review_pending": 21986,
+        "reviewed": 11914
+      },
+      "checkpoint_bytes": 5287359,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 62,
+      "seconds": 4.161,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6053,
+        "pending": 7896,
+        "review_pending": 22018,
+        "reviewed": 12106
+      },
+      "checkpoint_bytes": 5287429,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 63,
+      "seconds": 4.301,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6149,
+        "pending": 7704,
+        "review_pending": 22050,
+        "reviewed": 12298
+      },
+      "checkpoint_bytes": 5287363,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 64,
+      "seconds": 4.184,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6245,
+        "pending": 7512,
+        "review_pending": 22082,
+        "reviewed": 12490
+      },
+      "checkpoint_bytes": 5287369,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 65,
+      "seconds": 4.209,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6341,
+        "pending": 7320,
+        "review_pending": 22114,
+        "reviewed": 12682
+      },
+      "checkpoint_bytes": 5287427,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 66,
+      "seconds": 4.223,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6437,
+        "pending": 7128,
+        "review_pending": 22146,
+        "reviewed": 12874
+      },
+      "checkpoint_bytes": 5287371,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 67,
+      "seconds": 4.266,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6533,
+        "pending": 6936,
+        "review_pending": 22178,
+        "reviewed": 13066
+      },
+      "checkpoint_bytes": 5287421,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 68,
+      "seconds": 4.366,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6629,
+        "pending": 6744,
+        "review_pending": 22210,
+        "reviewed": 13258
+      },
+      "checkpoint_bytes": 5287357,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 69,
+      "seconds": 4.328,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6725,
+        "pending": 6552,
+        "review_pending": 22242,
+        "reviewed": 13450
+      },
+      "checkpoint_bytes": 5287360,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 70,
+      "seconds": 4.258,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6821,
+        "pending": 6360,
+        "review_pending": 22274,
+        "reviewed": 13642
+      },
+      "checkpoint_bytes": 5287423,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 71,
+      "seconds": 4.309,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 6917,
+        "pending": 6168,
+        "review_pending": 22306,
+        "reviewed": 13834
+      },
+      "checkpoint_bytes": 5287358,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 72,
+      "seconds": 4.382,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7013,
+        "pending": 5976,
+        "review_pending": 22338,
+        "reviewed": 14026
+      },
+      "checkpoint_bytes": 5287417,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 73,
+      "seconds": 4.36,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7109,
+        "pending": 5784,
+        "review_pending": 22370,
+        "reviewed": 14218
+      },
+      "checkpoint_bytes": 5287353,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 74,
+      "seconds": 4.398,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7205,
+        "pending": 5592,
+        "review_pending": 22402,
+        "reviewed": 14410
+      },
+      "checkpoint_bytes": 5287362,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 75,
+      "seconds": 4.463,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7301,
+        "pending": 5400,
+        "review_pending": 22434,
+        "reviewed": 14602
+      },
+      "checkpoint_bytes": 5287422,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 76,
+      "seconds": 4.674,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7397,
+        "pending": 5208,
+        "review_pending": 22466,
+        "reviewed": 14794
+      },
+      "checkpoint_bytes": 5287360,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 77,
+      "seconds": 4.472,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7493,
+        "pending": 5016,
+        "review_pending": 22498,
+        "reviewed": 14986
+      },
+      "checkpoint_bytes": 5287415,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 78,
+      "seconds": 4.552,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7589,
+        "pending": 4824,
+        "review_pending": 22530,
+        "reviewed": 15178
+      },
+      "checkpoint_bytes": 5287351,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 79,
+      "seconds": 4.506,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7685,
+        "pending": 4632,
+        "review_pending": 22562,
+        "reviewed": 15370
+      },
+      "checkpoint_bytes": 5287358,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 80,
+      "seconds": 4.643,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7781,
+        "pending": 4440,
+        "review_pending": 22594,
+        "reviewed": 15562
+      },
+      "checkpoint_bytes": 5287426,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 81,
+      "seconds": 4.488,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7877,
+        "pending": 4248,
+        "review_pending": 22626,
+        "reviewed": 15754
+      },
+      "checkpoint_bytes": 5287375,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 82,
+      "seconds": 4.487,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 7973,
+        "pending": 4056,
+        "review_pending": 22658,
+        "reviewed": 15946
+      },
+      "checkpoint_bytes": 5287428,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 83,
+      "seconds": 4.515,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8069,
+        "pending": 3864,
+        "review_pending": 22690,
+        "reviewed": 16138
+      },
+      "checkpoint_bytes": 5287365,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 84,
+      "seconds": 4.555,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8165,
+        "pending": 3672,
+        "review_pending": 22722,
+        "reviewed": 16330
+      },
+      "checkpoint_bytes": 5287362,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 85,
+      "seconds": 4.532,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8261,
+        "pending": 3480,
+        "review_pending": 22754,
+        "reviewed": 16522
+      },
+      "checkpoint_bytes": 5287422,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 86,
+      "seconds": 4.58,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8357,
+        "pending": 3288,
+        "review_pending": 22786,
+        "reviewed": 16714
+      },
+      "checkpoint_bytes": 5287358,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 87,
+      "seconds": 4.794,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8453,
+        "pending": 3096,
+        "review_pending": 22818,
+        "reviewed": 16906
+      },
+      "checkpoint_bytes": 5287432,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 88,
+      "seconds": 4.767,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8549,
+        "pending": 2904,
+        "review_pending": 22850,
+        "reviewed": 17098
+      },
+      "checkpoint_bytes": 5287375,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 89,
+      "seconds": 4.827,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8645,
+        "pending": 2712,
+        "review_pending": 22882,
+        "reviewed": 17290
+      },
+      "checkpoint_bytes": 5287367,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 90,
+      "seconds": 4.953,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8741,
+        "pending": 2520,
+        "review_pending": 22914,
+        "reviewed": 17482
+      },
+      "checkpoint_bytes": 5287424,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 91,
+      "seconds": 5.136,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8837,
+        "pending": 2328,
+        "review_pending": 22946,
+        "reviewed": 17674
+      },
+      "checkpoint_bytes": 5287371,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 92,
+      "seconds": 5.958,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 8933,
+        "pending": 2136,
+        "review_pending": 22978,
+        "reviewed": 17866
+      },
+      "checkpoint_bytes": 5287426,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 93,
+      "seconds": 5.058,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9029,
+        "pending": 1944,
+        "review_pending": 23010,
+        "reviewed": 18058
+      },
+      "checkpoint_bytes": 5287363,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 94,
+      "seconds": 4.96,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9125,
+        "pending": 1752,
+        "review_pending": 23042,
+        "reviewed": 18250
+      },
+      "checkpoint_bytes": 5287371,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 95,
+      "seconds": 4.783,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9221,
+        "pending": 1560,
+        "review_pending": 23074,
+        "reviewed": 18442
+      },
+      "checkpoint_bytes": 5287424,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 96,
+      "seconds": 4.711,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9317,
+        "pending": 1368,
+        "review_pending": 23106,
+        "reviewed": 18634
+      },
+      "checkpoint_bytes": 5287355,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 97,
+      "seconds": 4.803,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9413,
+        "pending": 1176,
+        "review_pending": 23138,
+        "reviewed": 18826
+      },
+      "checkpoint_bytes": 5287436,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 98,
+      "seconds": 4.877,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9509,
+        "pending": 984,
+        "review_pending": 23170,
+        "reviewed": 19018
+      },
+      "checkpoint_bytes": 5287345,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 99,
+      "seconds": 4.486,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9605,
+        "pending": 792,
+        "review_pending": 23202,
+        "reviewed": 19210
+      },
+      "checkpoint_bytes": 5287276,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 100,
+      "seconds": 4.454,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9701,
+        "pending": 600,
+        "review_pending": 23234,
+        "reviewed": 19402
+      },
+      "checkpoint_bytes": 5287325,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 101,
+      "seconds": 4.6,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9797,
+        "pending": 408,
+        "review_pending": 23266,
+        "reviewed": 19594
+      },
+      "checkpoint_bytes": 5287279,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 102,
+      "seconds": 4.716,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9893,
+        "pending": 216,
+        "review_pending": 23298,
+        "reviewed": 19786
+      },
+      "checkpoint_bytes": 5287334,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 103,
+      "seconds": 4.58,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 9989,
+        "pending": 24,
+        "review_pending": 23330,
+        "reviewed": 19978
+      },
+      "checkpoint_bytes": 5287231,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 104,
+      "seconds": 2.551,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 22886,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5082326,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 105,
+      "seconds": 2.202,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 22374,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072847,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 106,
+      "seconds": 2.274,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 21862,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072872,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 107,
+      "seconds": 2.331,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 21350,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072886,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 108,
+      "seconds": 2.332,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 20838,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072923,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 109,
+      "seconds": 2.508,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 20326,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072911,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 110,
+      "seconds": 2.477,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 19814,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072882,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 111,
+      "seconds": 2.39,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 19302,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072927,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 112,
+      "seconds": 2.512,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 18790,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072922,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 113,
+      "seconds": 2.651,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 18278,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072916,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 114,
+      "seconds": 2.39,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 17766,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072920,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 115,
+      "seconds": 2.462,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 17254,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072875,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 116,
+      "seconds": 2.536,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 16742,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072915,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 117,
+      "seconds": 2.52,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 16230,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072918,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 118,
+      "seconds": 2.443,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 15718,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072912,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 119,
+      "seconds": 2.494,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 15206,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072920,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 120,
+      "seconds": 2.58,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 14694,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072867,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 121,
+      "seconds": 2.562,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 14182,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072923,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 122,
+      "seconds": 2.562,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 13670,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072920,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 123,
+      "seconds": 2.591,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 13158,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072907,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 124,
+      "seconds": 2.914,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 12646,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072922,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 125,
+      "seconds": 2.791,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 12134,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072882,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 126,
+      "seconds": 2.613,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 11622,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072916,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 127,
+      "seconds": 2.601,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 11110,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072916,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 128,
+      "seconds": 2.611,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 10598,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072916,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 129,
+      "seconds": 2.695,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 10086,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072918,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 130,
+      "seconds": 2.863,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 9574,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072880,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 131,
+      "seconds": 3.037,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 9062,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072922,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 132,
+      "seconds": 2.68,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 8550,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072917,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 133,
+      "seconds": 2.751,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 8038,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072918,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 134,
+      "seconds": 2.776,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 7526,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072914,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 135,
+      "seconds": 2.754,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 7014,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072872,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 136,
+      "seconds": 2.802,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 6502,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072917,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 137,
+      "seconds": 2.788,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 5990,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072922,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 138,
+      "seconds": 2.865,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 5478,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072915,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 139,
+      "seconds": 2.868,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 4966,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072927,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 140,
+      "seconds": 2.867,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 4454,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072884,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 141,
+      "seconds": 2.815,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 3942,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072935,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 142,
+      "seconds": 2.837,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 3430,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5072932,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 143,
+      "seconds": 2.4,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 3232,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5115251,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 144,
+      "seconds": 2.161,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 3104,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131856,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 145,
+      "seconds": 2.236,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2976,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131871,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 146,
+      "seconds": 2.339,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2848,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5134219,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 147,
+      "seconds": 2.537,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2720,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131867,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 148,
+      "seconds": 2.3,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2592,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131858,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 149,
+      "seconds": 2.298,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2464,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131873,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 150,
+      "seconds": 2.214,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2336,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131883,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 151,
+      "seconds": 2.153,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2208,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131822,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 152,
+      "seconds": 2.133,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 2080,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131836,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 153,
+      "seconds": 2.162,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1952,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131846,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 154,
+      "seconds": 2.143,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1824,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131889,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 155,
+      "seconds": 2.173,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1696,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131858,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 156,
+      "seconds": 2.148,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1568,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131871,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 157,
+      "seconds": 2.178,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1440,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131847,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 158,
+      "seconds": 2.152,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1312,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131865,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 159,
+      "seconds": 2.186,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1184,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131856,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 160,
+      "seconds": 2.191,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 1056,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131845,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 161,
+      "seconds": 2.15,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 928,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131818,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 162,
+      "seconds": 2.178,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 800,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131850,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 163,
+      "seconds": 2.17,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 672,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131859,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 164,
+      "seconds": 2.16,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 544,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131868,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 165,
+      "seconds": 2.182,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 416,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131854,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 166,
+      "seconds": 2.191,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 288,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131848,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 167,
+      "seconds": 2.16,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 160,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131814,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 168,
+      "seconds": 2.206,
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 32,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 5131807,
+      "inventory_checkpoint_bytes": 304
+    },
+    {
+      "turn": 169,
+      "seconds": 0.944,
+      "status": "ANALYZED",
+      "stop_reason": "sufficient_material",
+      "counts": {
+        "candidates": 20002,
+        "excluded": 0,
+        "files": 10001,
+        "included": 10001,
+        "pending": 0,
+        "review_pending": 0,
+        "reviewed": 20002
+      },
+      "checkpoint_bytes": 4961464,
+      "inventory_checkpoint_bytes": 304
+    }
+  ],
+  "seconds": 589.18,
+  "status": "ANALYZED",
+  "answer_characters": 214,
+  "report_bytes": 2443912,
+  "export_bytes": 26675184,
+  "oracle": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "unique_review_parts": 2084,
+  "narrative_review_count": 3332,
+  "current_narrative_count": 3332,
+  "unique_classifications": 20002,
+  "final_counts": {
+    "candidates": 20002,
+    "excluded": 0,
+    "files": 10001,
+    "included": 10001,
+    "pending": 0,
+    "review_pending": 0,
+    "reviewed": 20002
+  }
+}

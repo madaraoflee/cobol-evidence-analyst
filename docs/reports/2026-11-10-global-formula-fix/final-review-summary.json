@@ -1,0 +1,40 @@
+{
+  "review": "read_only_final_diff_review",
+  "confirmed_regressions_found": 3,
+  "confirmed_regressions_rechecked_fixed": 3,
+  "unresolved_confirmed_findings": [],
+  "regressions": {
+    "cumulative_citation_restore": {
+      "existing_bug": "BUG-20261109-003",
+      "before": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-online-findings.json",
+      "after": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-online-recheck.json",
+      "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_answered_recovery_revalidates_all_cumulative_active_and_archived_sources"
+    },
+    "saved_requirements_cumulative_prose": {
+      "existing_bug": "BUG-20261110-005",
+      "before": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-online-findings.json",
+      "after": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-online-recheck.json",
+      "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_changed_requirements_restate_every_saved_finding_without_losing_provenance"
+    },
+    "inline_citation_in_cumulative_finding": {
+      "before": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-inline-citation.json",
+      "after": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-online-recheck.json",
+      "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_finding_summary_cannot_add_an_unverified_inline_citation"
+    }
+  },
+  "checks": {
+    "latest_targeted_tests_passed": 14,
+    "latest_log": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-14-regressions.log",
+    "scope_and_online_unknown_tests_passed": 7,
+    "scope_and_unknown_log": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-scope-unknown.log",
+    "local_global_unknown_requests": "/private/tmp/cobol-global-formula-audit-20261110/evals/final-review-local-unknown.json",
+    "tracked_old_test_and_workflow_diff": "",
+    "frozen_fixture_oracle_files_unchanged": true,
+    "whitespace_check": 0
+  },
+  "limits": [
+    "This is targeted source review, not the complete mandatory regression run.",
+    "Synthetic model responses test delivery and provenance contracts, not real-model semantic quality.",
+    "No live company source/API, device, executable, build or release validation."
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "phase": "in-development, before source fix accepted",
+  "command": "python3 -m unittest discover -s poc/tests -p test_question_scope_regressions.py -q",
+  "tests_run": 21,
+  "failures": [
+    {
+      "test_id": "test_question_scope_regressions.QuestionScopeRegressions.test_unbound_or_declared_unused_target_does_not_select_peer_formulas",
+      "assertion": "formula candidate_count: expected 0, observed 1",
+      "line": 121
+    }
+  ],
+  "old_tests_modified": false,
+  "interpretation": "Extending the persistent frontier to all calculation questions widened an explicitly unbound field to unrelated formulas. This is a development regression, not a released version claim.",
+  "implementation_retest": {
+    "same_command": true,
+    "tests_run": 21,
+    "failures": 0,
+    "old_test_file_changed": false,
+    "scope": "targeted development check only; full fixed-snapshot gate still required"
+  }
+}

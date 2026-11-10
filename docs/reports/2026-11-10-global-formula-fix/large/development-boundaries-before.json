@@ -1,0 +1,18 @@
+{
+  "020": {
+    "old_storage_rejected_same_original": "INVENTORY_SOURCE_CONFLICT",
+    "source_sha256_unchanged": true,
+    "text_unchanged": true,
+    "executed_module_sha256": "5a210ce775df4941ed275af93b954f8ac19ddf839f748d7c4ac41a65966f10bc",
+    "module": "/private/tmp/cobol-large-inventory-audit-20261110/local/pre-020-source-binding.py"
+  },
+  "022": {
+    "status": "ANALYZED",
+    "exported_business_narratives": 3,
+    "narratives_not_in_review": 3,
+    "formula_review_parts_executed": 2,
+    "reapplied_prior_boundary": "def prior_batches(state):\n    for batch in actual(state):\n        if batch.get(\"narrative_ids\"):\n            break\n        yield batch\n\ndef prior_total(state):\n    return len(state[\"items\"])\n",
+    "prior_boundary_sha256": "913b70d4feb36c2d97479abf7275abb4308b5328d3bf9ad440f1dd0f6970b728",
+    "limitation": "Prior catalog-only review algorithm reapplied to the current fixture; not an exact whole-tree historical run."
+  }
+}

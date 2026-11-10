@@ -1,0 +1,71 @@
+{
+  "page_count": 201,
+  "page_rows": 10001,
+  "page_oracle": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "source_samples": [
+    {
+      "ordinal": 0,
+      "path": "unit-00000.cbl",
+      "expected_path": "unit-00000.cbl",
+      "status": "READY",
+      "integrity": "VALID",
+      "span_integrity": "VALID",
+      "source_sha256_matches": true,
+      "source_formula_visible": true
+    },
+    {
+      "ordinal": 5000,
+      "path": "unit-05000.cbl",
+      "expected_path": "unit-05000.cbl",
+      "status": "READY",
+      "integrity": "VALID",
+      "span_integrity": "VALID",
+      "source_sha256_matches": true,
+      "source_formula_visible": true
+    },
+    {
+      "ordinal": 10000,
+      "path": "unit-10000.cbl",
+      "expected_path": "unit-10000.cbl",
+      "status": "READY",
+      "integrity": "VALID",
+      "span_integrity": "VALID",
+      "source_sha256_matches": true,
+      "source_formula_visible": true
+    }
+  ],
+  "forced_large_report_projection": {
+    "retains_handle": true,
+    "retains_total": true,
+    "retains_counts": true
+  },
+  "files": {
+    "final-result.json": {
+      "bytes": 2442784,
+      "sha256": "680b3ec1b544f65db92a189952b4f0cc24f8132515397f77ca9c0dea9f5ae8ea"
+    },
+    "report.json": {
+      "bytes": 72047,
+      "sha256": "17475267a8c4f52775fa5b1b5f046d44e4dab6f6a7e4027d785364852acc205a"
+    },
+    "export.jsonl": {
+      "bytes": 26675184,
+      "sha256": "73c145fd0c0e67843268712f8ec7b6b5b2d38db7c2c580de5ee467d25c9ea1ba"
+    }
+  },
+  "runtime_source_unchanged": true,
+  "boundary": "All checks are offline injected-response orchestration and retention checks. No real model, corporate source, EXE or target-device result is claimed. The 12 recorded analysis runtime files stayed unchanged; the separately tested conversation history hook was added during execution."
+}

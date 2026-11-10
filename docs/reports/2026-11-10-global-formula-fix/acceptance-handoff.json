@@ -1,0 +1,59 @@
+{
+  "status": "targeted_source_acceptance_passed",
+  "tests": [
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_authored_fixture_has_independent_roots_alias_copy_view_and_negative_controls",
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_formula_pages_without_original_copy_lv_and_call_bindings_are_not_full_supply",
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_first_batch_claim_of_everything_cannot_pass_the_independent_oracle",
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_retained_metadata_cannot_hide_omission_from_the_visible_final_answer",
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_forged_clipped_wrong_source_and_irrelevant_calculations_do_not_inflate_coverage",
+    "test_global_formula_inventory_acceptance.GlobalFormulaOracleTests.test_location_recall_does_not_count_as_preserved_call_copy_or_view_lineage",
+    "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items",
+    "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_omitted_formula_reviews_cannot_finish_even_when_model_claims_batch_completion",
+    "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery",
+    "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_real_online_batches_deliver_every_gold_site_after_observation_eviction",
+    "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_premature_model_complete_cannot_clear_unreviewed_global_work"
+  ],
+  "passed": 11,
+  "evidence": "/private/tmp/cobol-global-formula-audit-20261110/evals/independent-acceptance-final.log",
+  "fixture": {
+    "source_files": 18,
+    "independent_entry_roots": 12,
+    "business_formula_occurrences": 14
+  },
+  "owned_sha256": {
+    "poc/tests/global_formula_oracle.py": "e0a833f44c20b3f71629aec4a75add38f4f1181e202270e84150fb835539333e",
+    "poc/tests/test_global_formula_inventory_acceptance.py": "68175c1c5918d82bbb24002e65dbb2e66fdc86ef114f617c3182d6c19da33b98",
+    "poc/tests/test_global_formula_online_acceptance.py": "f5cc2e824652bd107310764c5ad83de12fbbbd089318e73c66c72af23cd643a0",
+    "poc/tests/fixtures/global-premium-inventory-v1/README.md": "c93d677acce336edad2fe32c8f2a25666b274a706c071c9177decb34d94b2852",
+    "poc/tests/fixtures/global-premium-inventory-v1/gold.json": "8830ae41c25154d538620ced81d9c4341d9b30eb212c38c33db1c336b273a016",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/RATELV.dds": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/RATEPF.pf": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/RULE-BODY.cpy": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/cancellation.cbl": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/collection.cbl": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/copy-entry.cbl": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/endorsement.cbl": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/issue.cbl": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/monthly.cbl": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/proration.cbl": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/reinstatement.cbl": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/renewal.cbl": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/report-only.cbl": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/rider.cbl": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/unrelated-counter.cbl": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/value-adjust.cbl": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/view-entry.cbl": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+    "poc/tests/fixtures/global-premium-inventory-v1/source/z-local-language.cbl": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3"
+  },
+  "regression_failure_evidence": {
+    "resume_dropped_inventory_state": "/private/tmp/cobol-global-formula-audit-20261110/evals/local-resume-probe.json",
+    "multi_page_recall_eviction": "/private/tmp/cobol-global-formula-audit-20261110/evals/online-recall-probe.json"
+  },
+  "verification_boundaries": [
+    "Synthetic protocol responses are control inputs, not real-model semantic quality evidence.",
+    "Local: all formula locations and required dependency original ranges supplied, cumulative visible inventory, compaction, resume non-replay, saved requirements and Traditional Chinese retained.",
+    "Online: actual material export/query/investigation, all authored sites delivered, CALL/COPY/LV original-source associations retained with references, unfinished search persists after observation eviction, no repeated completed reviews or fixed-snapshot inventory calls.",
+    "Business causal interpretation and runtime binding remain unverified; no company source, live model, Windows executable or device acceptance.",
+    "Only these 11 new acceptance methods were run here; root owns complete existing regression verification."
+  ]
+}

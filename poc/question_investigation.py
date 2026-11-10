@@ -1909,7 +1909,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
                    "visible_pages": candidate_cache.get("visible_pages", {})
                        if scope_hit else {}}
     rule_frontier = None
-    if business_overview:
+    if business_overview or calculation:
         expected_scope = frontier_scope(business_map,
             identity.get("direct_paths") or business_map.get("direct_paths", []), business_overview)
         if source_frontier_state and source_frontier_state.get("scope_key") != expected_scope:
@@ -1924,7 +1924,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
         base["obligation_batch_key"] = rule_frontier["batch_key"]
     candidates, frontier, hashes = [], [], {}
     nondata_entities = [entity["file_name"] for entity in file_entities]
-    if rule_frontier is not None:
+    if rule_frontier is not None and (business_overview or not set(paths).intersection(root_paths)):
         # Advancing to a callee batch must not reinterpret the already bound
         # root program's name as a missing field in that callee.
         nondata_entities.extend(name for program in business_map.get("programs", [])
@@ -2004,6 +2004,9 @@ def build_question_investigation(question, business_map, *, database_path=None,
             if len(steps) > _MAX_FORMULAS:
                 frontier.append({"kind": "business_steps", "reason": "formula_candidate_budget"})
             candidates = [_rule(row, "business_steps") for row in steps[:_MAX_FORMULAS]]
+    if rule_frontier is not None and not business_overview and rule_frontier["remaining_paths"]:
+        frontier = [*frontier, {"kind": "business_steps" if business_steps else "formula",
+            "reason": "located_path_budget", "omitted_count": len(rule_frontier["remaining_paths"])}]
     pages = _visible_pages(source_pages, paths, hashes)
     checked_scopes, scope_gaps = _check_occurrence_scopes(source_scopes, pages)
     base["source_scope"]["ranges"] = checked_scopes
@@ -2372,7 +2375,7 @@ def build_question_investigation(question, business_map, *, database_path=None,
             investigation_complete=rule_frontier["batch_complete"] and not any(pending_work.values()) and not gaps,
             unprojected_open_gaps=gaps)
     return include_activation({**base, **file_observations, "required_items": items, "planned_actions": plans, "open_gaps": gaps[:16],
-            "state": "needs_evidence" if any(pending_work.values()) else state,
+            "state": "needs_evidence" if business_overview and any(pending_work.values()) else state,
             "can_answer": local_can_answer and not any(pending_work.values()),
             "candidate_paths": paths[:_MAX_PATHS],
             "candidate_cache": {"hit": cache_hit, "candidate_count": len(candidates)}})

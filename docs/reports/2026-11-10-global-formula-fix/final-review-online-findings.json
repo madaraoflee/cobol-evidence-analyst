@@ -1,0 +1,4867 @@
+{
+  "citation_revalidation": {
+    "changed_included_path": "renewal.cbl",
+    "changed_path_was_read": false,
+    "source_requests": [
+      "rider.cbl"
+    ],
+    "top_level_answer_paths": [
+      "rider.cbl"
+    ],
+    "status": "answered",
+    "error": null,
+    "model_calls": 0,
+    "returned_changed_path": true
+  },
+  "requirements_change": {
+    "requested_instructions": "請用繁體中文，保留「業務目的」和「適用條件」兩個章節，詳述業務影響。",
+    "status": "answered",
+    "language": "zh-HK",
+    "old_summary_unchanged": true,
+    "finding_count": 17,
+    "old_summary": "Renewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+    "model_calls": 1,
+    "system_received_requirements": true
+  },
+  "original_checkpoint": {
+    "schema_version": "online-investigation/v1",
+    "repository": {
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "identity": "example/calculation-source",
+      "subdirectory": ""
+    },
+    "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+    "question": "列出系统所有计算所有premium formula 的地方",
+    "pending_actions": [],
+    "observations": [
+      {
+        "action": {
+          "tool": "read",
+          "path": "RATELV.dds",
+          "start_line": 1,
+          "end_line": 1,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RATELV.dds",
+            "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+            "start": 1,
+            "end": 1
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 1
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "E5da5059516e7d5bb7728d62b"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "RATELV.dds",
+          "start_line": 2,
+          "end_line": 2,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RATELV.dds",
+            "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+            "start": 2,
+            "end": 2
+          },
+          "requested_range": {
+            "start": 2,
+            "end": 2
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "E67880f70f62c79e1e6f726da"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "RATELV.dds",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "RATELV.dds",
+          "start_line": 1,
+          "end_line": 2,
+          "summary": "Reviewed source relationships: A          R RATEROW                   PFILE(RATEPF)",
+          "citations": [
+            "E67880f70f62c79e1e6f726da",
+            "E5da5059516e7d5bb7728d62b"
+          ]
+        },
+        "result": {
+          "reviewed_path": "RATELV.dds",
+          "start_line": 1,
+          "end_line": 2
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "reinstatement.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "C289dbd6e5578fbc6c6b7bb41",
+              "path": "reinstatement.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_7d7bee9fe31d_080012b01db2ace3a05eb1ef",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "reinstatement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "reinstatement.cbl",
+            "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "E468fdb7c4c5af38ea4fe06b7"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "reinstatement.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "reinstatement.cbl",
+            "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "Eff6fdb71b2a5eda1429120cc"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "reinstatement.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "reinstatement.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. REINSTATE-RULE.",
+          "citations": [
+            "Eff6fdb71b2a5eda1429120cc",
+            "E468fdb7c4c5af38ea4fe06b7"
+          ]
+        },
+        "result": {
+          "reviewed_path": "reinstatement.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "report-only.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "C4a330d0c129d94773811ce0a",
+              "path": "report-only.cbl",
+              "start_line": 13,
+              "end_line": 13,
+              "rule_id": "rule_8968c12ea93a_c016fb866eb60431e488b75b",
+              "rule_kind": "MOVE",
+              "occurrence_count": 1,
+              "reads": [
+                "PREMIUM-AMT"
+              ],
+              "writes": [
+                "DISPLAY-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "report-only.cbl",
+          "start_line": 1,
+          "end_line": 8,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "report-only.cbl",
+            "hash": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+            "start": 1,
+            "end": 8
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 8
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 8,
+          "max_characters": 60000,
+          "id": "E2e071e39cac7a63aeda38044"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "report-only.cbl",
+          "start_line": 9,
+          "end_line": 15,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "report-only.cbl",
+            "hash": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+            "start": 9,
+            "end": 15
+          },
+          "requested_range": {
+            "start": 9,
+            "end": 15
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "E6f4a6cdc2442ab920531a98a"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "report-only.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "report-only.cbl",
+          "start_line": 1,
+          "end_line": 15,
+          "summary": "Reviewed source relationships: PROGRAM-ID. REPORT-ONLY.",
+          "citations": [
+            "E6f4a6cdc2442ab920531a98a",
+            "E2e071e39cac7a63aeda38044"
+          ]
+        },
+        "result": {
+          "reviewed_path": "report-only.cbl",
+          "start_line": 1,
+          "end_line": 15
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "RULE-BODY.cpy",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "Ce218b1b7e1777734f19c6659",
+              "path": "RULE-BODY.cpy",
+              "start_line": 2,
+              "end_line": 2,
+              "rule_id": "rule_8b66d8078623_f2fb673ed48866d19af20729",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "RULE-BODY.cpy",
+          "start_line": 1,
+          "end_line": 1,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RULE-BODY.cpy",
+            "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+            "start": 1,
+            "end": 1
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 1
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "E63d77d6f95fa4a875e31d066"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "RULE-BODY.cpy",
+          "start_line": 2,
+          "end_line": 2,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RULE-BODY.cpy",
+            "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+            "start": 2,
+            "end": 2
+          },
+          "requested_range": {
+            "start": 2,
+            "end": 2
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "E73c35c3eb2ca0f1c1cbaff81"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "RULE-BODY.cpy",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "RULE-BODY.cpy",
+          "start_line": 1,
+          "end_line": 2,
+          "summary": "Reviewed source relationships: ",
+          "citations": [
+            "E73c35c3eb2ca0f1c1cbaff81",
+            "E63d77d6f95fa4a875e31d066"
+          ]
+        },
+        "result": {
+          "reviewed_path": "RULE-BODY.cpy",
+          "start_line": 1,
+          "end_line": 2
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "cancellation.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "Cb3727b5112dfd7086aa93dd0",
+              "path": "cancellation.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_90a4673c8d90_236701fcda9926ae02f2abbe",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "cancellation.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "cancellation.cbl",
+            "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "E3afc8ca42cf05fff0a18fe98"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "cancellation.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "cancellation.cbl",
+            "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "E2da0c32058b572599fd3a581"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "cancellation.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "cancellation.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. CANCEL-RULE.",
+          "citations": [
+            "E2da0c32058b572599fd3a581",
+            "E3afc8ca42cf05fff0a18fe98"
+          ]
+        },
+        "result": {
+          "reviewed_path": "cancellation.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "proration.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "C3386706a173b7f8246980f9b",
+              "path": "proration.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_91c37d1c9eb3_d2c071a7a13a25aaf8c1c183",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "proration.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "proration.cbl",
+            "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "Ef692c4595ad56f5ed03a20e8"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "proration.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "proration.cbl",
+            "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "E8303f935ff0a9d1dba26a5ae"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "proration.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "proration.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. PRORATE-RULE.",
+          "citations": [
+            "E8303f935ff0a9d1dba26a5ae",
+            "Ef692c4595ad56f5ed03a20e8"
+          ]
+        },
+        "result": {
+          "reviewed_path": "proration.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "monthly.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "C06a7e15b7a951bb9f764eeb5",
+              "path": "monthly.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_b01bdfaccfb5_05bc5339082da9b91fc1dcfc",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "monthly.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "monthly.cbl",
+            "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "E55e09799824bbab959edbbec"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "monthly.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "monthly.cbl",
+            "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "Eadf62ab2ef909f6600b46398"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "monthly.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "monthly.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. MONTHLY-RULE.",
+          "citations": [
+            "Eadf62ab2ef909f6600b46398",
+            "E55e09799824bbab959edbbec"
+          ]
+        },
+        "result": {
+          "reviewed_path": "monthly.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "collection.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "C09a3c2c9df532525c32009f7",
+              "path": "collection.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_c2a95683d3d9_dff510e2d0c49584827cb2e6",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "collection.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "collection.cbl",
+            "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "Efc1b70e34613760e2ff4e07c"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "collection.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "collection.cbl",
+            "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "Ecb94eebbd3644c8bf7774cd2"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "collection.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "collection.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. COLLECT-RULE.",
+          "citations": [
+            "Ecb94eebbd3644c8bf7774cd2",
+            "Efc1b70e34613760e2ff4e07c"
+          ]
+        },
+        "result": {
+          "reviewed_path": "collection.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "view-entry.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "Cfd1570f0058845fd98090f46",
+              "path": "view-entry.cbl",
+              "start_line": 22,
+              "end_line": 22,
+              "rule_id": "rule_dcf26b91c28e_a68247fa418ab66da79c95f1",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "view-entry.cbl",
+          "start_line": 1,
+          "end_line": 12,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "view-entry.cbl",
+            "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+            "start": 1,
+            "end": 12
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 12
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 12,
+          "max_characters": 60000,
+          "id": "Ebb8233a437e5375480d6481b"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "view-entry.cbl",
+          "start_line": 13,
+          "end_line": 24,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "view-entry.cbl",
+            "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+            "start": 13,
+            "end": 24
+          },
+          "requested_range": {
+            "start": 13,
+            "end": 24
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 12,
+          "max_characters": 60000,
+          "id": "Ebd617c9a22af8dfad4c94a3e"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "view-entry.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "view-entry.cbl",
+          "start_line": 1,
+          "end_line": 24,
+          "summary": "Reviewed source relationships: PROGRAM-ID. VIEW-RULE. ; SELECT RATE-FILE ASSIGN TO 'RATELV'.",
+          "citations": [
+            "Ebd617c9a22af8dfad4c94a3e",
+            "Ebb8233a437e5375480d6481b"
+          ]
+        },
+        "result": {
+          "reviewed_path": "view-entry.cbl",
+          "start_line": 1,
+          "end_line": 24
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "copy-entry.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "copy-entry.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "copy-entry.cbl",
+            "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+            "start": 1,
+            "end": 6
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 6
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "Ee050d15471831fb27cb0671b"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "copy-entry.cbl",
+          "start_line": 7,
+          "end_line": 12,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "copy-entry.cbl",
+            "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+            "start": 7,
+            "end": 12
+          },
+          "requested_range": {
+            "start": 7,
+            "end": 12
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "E6732c32cad41d8cc8bdf555b"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "copy-entry.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [
+            {
+              "end_line": 11,
+              "evidence_id": "ev_13ede729a36a6bafdeb61dea",
+              "from_entity_id": "unit_7e7654bc24d815d55c66611d",
+              "metadata": {
+                "semantic_binding_performed": false,
+                "source_index_kind": "business_sparse"
+              },
+              "program_name": "COPY-ENTRY",
+              "relation_id": "rel_355739aac47799298e53a7e5",
+              "relation_type": "INCLUDES_COPY",
+              "start_line": 11,
+              "status": "confirmed",
+              "target_entity_id": "sym_ec46c4b94db1d933251500ac",
+              "target_name": "RULE-BODY",
+              "target_scope": null
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "copy-entry.cbl",
+          "start_line": 1,
+          "end_line": 12,
+          "summary": "Reviewed source relationships: PROGRAM-ID. COPY-ENTRY. ; COPY RULE-BODY.",
+          "citations": [
+            "E6732c32cad41d8cc8bdf555b",
+            "Ee050d15471831fb27cb0671b"
+          ]
+        },
+        "result": {
+          "reviewed_path": "copy-entry.cbl",
+          "start_line": 1,
+          "end_line": 12
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "RATEPF.pf",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "RATEPF.pf",
+          "start_line": 1,
+          "end_line": 1,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RATEPF.pf",
+            "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+            "start": 1,
+            "end": 1
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 1
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "Ea91f982736083431d5370d84"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "RATEPF.pf",
+          "start_line": 2,
+          "end_line": 2,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "RATEPF.pf",
+            "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+            "start": 2,
+            "end": 2
+          },
+          "requested_range": {
+            "start": 2,
+            "end": 2
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 1,
+          "max_characters": 60000,
+          "id": "Edf837151c123c380c1191515"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "RATEPF.pf",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "RATEPF.pf",
+          "start_line": 1,
+          "end_line": 2,
+          "summary": "Reviewed source relationships: ",
+          "citations": [
+            "Edf837151c123c380c1191515",
+            "Ea91f982736083431d5370d84"
+          ]
+        },
+        "result": {
+          "reviewed_path": "RATEPF.pf",
+          "start_line": 1,
+          "end_line": 2
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "endorsement.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "Ceaa896bcd89835ddca9374fd",
+              "path": "endorsement.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_fec1c25473ca_ee5211c54d799f4d53020846",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "endorsement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "endorsement.cbl",
+            "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "Ebd27794b9505a3f2701e69a3"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "endorsement.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "endorsement.cbl",
+            "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "E50b78533e0ad0c1bb9245062"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "endorsement.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "endorsement.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. ENDORSE-RULE.",
+          "citations": [
+            "E50b78533e0ad0c1bb9245062",
+            "Ebd27794b9505a3f2701e69a3"
+          ]
+        },
+        "result": {
+          "reviewed_path": "endorsement.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "arithmetic_candidates",
+          "path": "rider.cbl",
+          "limit": 20,
+          "offset": 0
+        },
+        "result": {
+          "candidates": [
+            {
+              "candidate_id": "Ccb890594edd4f47a80b8efdf",
+              "path": "rider.cbl",
+              "start_line": 12,
+              "end_line": 12,
+              "rule_id": "rule_fe371dcaf7a3_2d0cf8c32b1d90a7a51c43a4",
+              "rule_kind": "COMPUTE",
+              "occurrence_count": 1,
+              "reads": [
+                "BASE-AMT",
+                "RATE-VALUE"
+              ],
+              "writes": [
+                "PREMIUM-AMT"
+              ],
+              "condition": []
+            }
+          ],
+          "total_matches": 1,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "rider.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "rider.cbl",
+            "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+            "start": 1,
+            "end": 7
+          },
+          "requested_range": {
+            "start": 1,
+            "end": 7
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 7,
+          "max_characters": 60000,
+          "id": "E5d2166aea916e928f1a9f717"
+        }
+      },
+      {
+        "action": {
+          "tool": "read",
+          "path": "rider.cbl",
+          "start_line": 8,
+          "end_line": 13,
+          "max_characters": 60000
+        },
+        "result": {
+          "citation": {
+            "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+            "commit": "cccccccccccccccccccccccccccccccccccccccc",
+            "path": "rider.cbl",
+            "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+            "start": 8,
+            "end": 13
+          },
+          "requested_range": {
+            "start": 8,
+            "end": 13
+          },
+          "truncated": false,
+          "truncated_at": null,
+          "last_line_truncated": false,
+          "complete_line_count": 6,
+          "max_characters": 60000,
+          "id": "E5574f3e925a9aa58f50dfa96"
+        }
+      },
+      {
+        "action": {
+          "tool": "relations",
+          "path": "rider.cbl",
+          "limit": 50,
+          "offset": 0
+        },
+        "result": {
+          "relations": [],
+          "total_matches": 0,
+          "offset": 0,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "source_sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409"
+        }
+      },
+      {
+        "action": {
+          "tool": "review_file",
+          "path": "rider.cbl",
+          "start_line": 1,
+          "end_line": 13,
+          "summary": "Reviewed source relationships: PROGRAM-ID. RIDER-RULE.",
+          "citations": [
+            "E5574f3e925a9aa58f50dfa96",
+            "E5d2166aea916e928f1a9f717"
+          ]
+        },
+        "result": {
+          "reviewed_path": "rider.cbl",
+          "start_line": 1,
+          "end_line": 13
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E0aea759a9cbc25a801103bab",
+            "E22097cea05f38c94dab30e16"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E0aea759a9cbc25a801103bab",
+            "E22097cea05f38c94dab30e16"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 9,
+          "end_line": 9,
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "E0aea759a9cbc25a801103bab"
+          ],
+          "disposition": "excluded",
+          "candidate_id": "C0a8a8c05cb35f08aa1375291",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C0a8a8c05cb35f08aa1375291",
+            "occurrence": 1,
+            "path": "unrelated-counter.cbl",
+            "start_line": 9,
+            "end_line": 9,
+            "disposition": "excluded",
+            "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+            "citations": [
+              "E0aea759a9cbc25a801103bab"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E6b6f9efe8b0afc5a43a4ee82",
+            "Eb32f065e99b989ba3f0bb59e"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E6b6f9efe8b0afc5a43a4ee82",
+            "Eb32f065e99b989ba3f0bb59e"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Renewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+          "citations": [
+            "E6b6f9efe8b0afc5a43a4ee82"
+          ],
+          "disposition": "included",
+          "candidate_id": "Cce666cf1f35024735afaa304",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Cce666cf1f35024735afaa304",
+            "occurrence": 1,
+            "path": "renewal.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Renewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+            "citations": [
+              "E6b6f9efe8b0afc5a43a4ee82"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 14,
+          "end_line": 14,
+          "summary": "Renewal recalculation: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+          "citations": [
+            "E6b6f9efe8b0afc5a43a4ee82"
+          ],
+          "disposition": "included",
+          "candidate_id": "Cce666cf1f35024735afaa304",
+          "occurrence": 2
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Cce666cf1f35024735afaa304",
+            "occurrence": 2,
+            "path": "renewal.cbl",
+            "start_line": 14,
+            "end_line": 14,
+            "disposition": "included",
+            "summary": "Renewal recalculation: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+            "citations": [
+              "E6b6f9efe8b0afc5a43a4ee82"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ef7c122b90ea9ad868285b2dc",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ef7c122b90ea9ad868285b2dc",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 13,
+          "end_line": 13,
+          "summary": "Issue charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+          "citations": [
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ef7c122b90ea9ad868285b2dc",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ],
+          "disposition": "included",
+          "candidate_id": "C463d22f7a3aa083e9af6bc22",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C463d22f7a3aa083e9af6bc22",
+            "occurrence": 1,
+            "path": "issue.cbl",
+            "start_line": 13,
+            "end_line": 13,
+            "disposition": "included",
+            "summary": "Issue charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+            "citations": [
+              "Efae628a2bb3afa952cb4907f",
+              "E1b9366db4a4ff7b56544a6ef",
+              "Ef7c122b90ea9ad868285b2dc",
+              "Ebd67091cfba9581e8eb3ce3c"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 15,
+          "end_line": 15,
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "Efae628a2bb3afa952cb4907f"
+          ],
+          "disposition": "excluded",
+          "candidate_id": "Cb97a33a0e10bdf5b8e8aa291",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Cb97a33a0e10bdf5b8e8aa291",
+            "occurrence": 1,
+            "path": "issue.cbl",
+            "start_line": 15,
+            "end_line": 15,
+            "disposition": "excluded",
+            "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+            "citations": [
+              "Efae628a2bb3afa952cb4907f"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 9,
+          "end_line": 9,
+          "summary": "Issue adjustment: COMPUTE IO-VALUE = IO-VALUE * 1.05. Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+          "citations": [
+            "Ef7c122b90ea9ad868285b2dc",
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ],
+          "disposition": "included",
+          "candidate_id": "C081b569476d0bf4c1c06655d",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C081b569476d0bf4c1c06655d",
+            "occurrence": 1,
+            "path": "value-adjust.cbl",
+            "start_line": 9,
+            "end_line": 9,
+            "disposition": "included",
+            "summary": "Issue adjustment: COMPUTE IO-VALUE = IO-VALUE * 1.05. Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+            "citations": [
+              "Ef7c122b90ea9ad868285b2dc",
+              "Efae628a2bb3afa952cb4907f",
+              "E1b9366db4a4ff7b56544a6ef",
+              "Ebd67091cfba9581e8eb3ce3c"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E044202326e65378f3cb32990",
+            "E19f0984d10414673837f2091"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E044202326e65378f3cb32990",
+            "E19f0984d10414673837f2091"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "本地保费金额: COMPUTE DUE-CHARGE = BASE-AMT * RATE-VALUE + 7.",
+          "citations": [
+            "E044202326e65378f3cb32990"
+          ],
+          "disposition": "included",
+          "candidate_id": "Ce690788f7198381e723bfd95",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Ce690788f7198381e723bfd95",
+            "occurrence": 1,
+            "path": "z-local-language.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "本地保费金额: COMPUTE DUE-CHARGE = BASE-AMT * RATE-VALUE + 7.",
+            "citations": [
+              "E044202326e65378f3cb32990"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "Eff6fdb71b2a5eda1429120cc",
+            "E468fdb7c4c5af38ea4fe06b7"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "Eff6fdb71b2a5eda1429120cc",
+            "E468fdb7c4c5af38ea4fe06b7"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Reinstatement charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 6.",
+          "citations": [
+            "Eff6fdb71b2a5eda1429120cc"
+          ],
+          "disposition": "included",
+          "candidate_id": "C289dbd6e5578fbc6c6b7bb41",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C289dbd6e5578fbc6c6b7bb41",
+            "occurrence": 1,
+            "path": "reinstatement.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Reinstatement charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 6.",
+            "citations": [
+              "Eff6fdb71b2a5eda1429120cc"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E6f4a6cdc2442ab920531a98a",
+            "E2e071e39cac7a63aeda38044"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E6f4a6cdc2442ab920531a98a",
+            "E2e071e39cac7a63aeda38044"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 13,
+          "end_line": 13,
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "E6f4a6cdc2442ab920531a98a"
+          ],
+          "disposition": "excluded",
+          "candidate_id": "C4a330d0c129d94773811ce0a",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C4a330d0c129d94773811ce0a",
+            "occurrence": 1,
+            "path": "report-only.cbl",
+            "start_line": 13,
+            "end_line": 13,
+            "disposition": "excluded",
+            "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+            "citations": [
+              "E6f4a6cdc2442ab920531a98a"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E73c35c3eb2ca0f1c1cbaff81",
+            "E63d77d6f95fa4a875e31d066",
+            "E6732c32cad41d8cc8bdf555b",
+            "Ee050d15471831fb27cb0671b"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E73c35c3eb2ca0f1c1cbaff81",
+            "E63d77d6f95fa4a875e31d066",
+            "E6732c32cad41d8cc8bdf555b",
+            "Ee050d15471831fb27cb0671b"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 2,
+          "end_line": 2,
+          "summary": "Shared surcharge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 8. Source associations: RULE-BODY.cpy  ; copy-entry.cbl PROGRAM-ID. COPY-ENTRY. / COPY RULE-BODY.",
+          "citations": [
+            "E73c35c3eb2ca0f1c1cbaff81",
+            "E63d77d6f95fa4a875e31d066",
+            "E6732c32cad41d8cc8bdf555b",
+            "Ee050d15471831fb27cb0671b"
+          ],
+          "disposition": "included",
+          "candidate_id": "Ce218b1b7e1777734f19c6659",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Ce218b1b7e1777734f19c6659",
+            "occurrence": 1,
+            "path": "RULE-BODY.cpy",
+            "start_line": 2,
+            "end_line": 2,
+            "disposition": "included",
+            "summary": "Shared surcharge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 8. Source associations: RULE-BODY.cpy  ; copy-entry.cbl PROGRAM-ID. COPY-ENTRY. / COPY RULE-BODY.",
+            "citations": [
+              "E73c35c3eb2ca0f1c1cbaff81",
+              "E63d77d6f95fa4a875e31d066",
+              "E6732c32cad41d8cc8bdf555b",
+              "Ee050d15471831fb27cb0671b"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E2da0c32058b572599fd3a581",
+            "E3afc8ca42cf05fff0a18fe98"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E2da0c32058b572599fd3a581",
+            "E3afc8ca42cf05fff0a18fe98"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Cancellation refund: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 0.75.",
+          "citations": [
+            "E2da0c32058b572599fd3a581"
+          ],
+          "disposition": "included",
+          "candidate_id": "Cb3727b5112dfd7086aa93dd0",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Cb3727b5112dfd7086aa93dd0",
+            "occurrence": 1,
+            "path": "cancellation.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Cancellation refund: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 0.75.",
+            "citations": [
+              "E2da0c32058b572599fd3a581"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E8303f935ff0a9d1dba26a5ae",
+            "Ef692c4595ad56f5ed03a20e8"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E8303f935ff0a9d1dba26a5ae",
+            "Ef692c4595ad56f5ed03a20e8"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Partial period charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 15 / 30.",
+          "citations": [
+            "E8303f935ff0a9d1dba26a5ae"
+          ],
+          "disposition": "included",
+          "candidate_id": "C3386706a173b7f8246980f9b",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C3386706a173b7f8246980f9b",
+            "occurrence": 1,
+            "path": "proration.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Partial period charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 15 / 30.",
+            "citations": [
+              "E8303f935ff0a9d1dba26a5ae"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "Eadf62ab2ef909f6600b46398",
+            "E55e09799824bbab959edbbec"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "Eadf62ab2ef909f6600b46398",
+            "E55e09799824bbab959edbbec"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Monthly instalment: COMPUTE PREMIUM-AMT ROUNDED = BASE-AMT * RATE-VALUE / 12.",
+          "citations": [
+            "Eadf62ab2ef909f6600b46398"
+          ],
+          "disposition": "included",
+          "candidate_id": "C06a7e15b7a951bb9f764eeb5",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C06a7e15b7a951bb9f764eeb5",
+            "occurrence": 1,
+            "path": "monthly.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Monthly instalment: COMPUTE PREMIUM-AMT ROUNDED = BASE-AMT * RATE-VALUE / 12.",
+            "citations": [
+              "Eadf62ab2ef909f6600b46398"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "Ecb94eebbd3644c8bf7774cd2",
+            "Efc1b70e34613760e2ff4e07c"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "Ecb94eebbd3644c8bf7774cd2",
+            "Efc1b70e34613760e2ff4e07c"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Collection due: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 5.",
+          "citations": [
+            "Ecb94eebbd3644c8bf7774cd2"
+          ],
+          "disposition": "included",
+          "candidate_id": "C09a3c2c9df532525c32009f7",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "C09a3c2c9df532525c32009f7",
+            "occurrence": 1,
+            "path": "collection.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Collection due: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 5.",
+            "citations": [
+              "Ecb94eebbd3644c8bf7774cd2"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E67880f70f62c79e1e6f726da",
+            "E5da5059516e7d5bb7728d62b",
+            "Ebd617c9a22af8dfad4c94a3e",
+            "Ebb8233a437e5375480d6481b",
+            "Edf837151c123c380c1191515",
+            "Ea91f982736083431d5370d84"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E67880f70f62c79e1e6f726da",
+            "E5da5059516e7d5bb7728d62b",
+            "Ebd617c9a22af8dfad4c94a3e",
+            "Ebb8233a437e5375480d6481b",
+            "Edf837151c123c380c1191515",
+            "Ea91f982736083431d5370d84"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 22,
+          "end_line": 22,
+          "summary": "View selected rate: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE. Source associations: RATELV.dds A          R RATEROW                   PFILE(RATEPF) ; RATEPF.pf  ; view-entry.cbl PROGRAM-ID. VIEW-RULE. / SELECT RATE-FILE ASSIGN TO 'RATELV'.",
+          "citations": [
+            "Ebd617c9a22af8dfad4c94a3e",
+            "E67880f70f62c79e1e6f726da",
+            "E5da5059516e7d5bb7728d62b",
+            "Ebb8233a437e5375480d6481b",
+            "Edf837151c123c380c1191515",
+            "Ea91f982736083431d5370d84"
+          ],
+          "disposition": "included",
+          "candidate_id": "Cfd1570f0058845fd98090f46",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Cfd1570f0058845fd98090f46",
+            "occurrence": 1,
+            "path": "view-entry.cbl",
+            "start_line": 22,
+            "end_line": 22,
+            "disposition": "included",
+            "summary": "View selected rate: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE. Source associations: RATELV.dds A          R RATEROW                   PFILE(RATEPF) ; RATEPF.pf  ; view-entry.cbl PROGRAM-ID. VIEW-RULE. / SELECT RATE-FILE ASSIGN TO 'RATELV'.",
+            "citations": [
+              "Ebd617c9a22af8dfad4c94a3e",
+              "E67880f70f62c79e1e6f726da",
+              "E5da5059516e7d5bb7728d62b",
+              "Ebb8233a437e5375480d6481b",
+              "Edf837151c123c380c1191515",
+              "Ea91f982736083431d5370d84"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E50b78533e0ad0c1bb9245062",
+            "Ebd27794b9505a3f2701e69a3"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E50b78533e0ad0c1bb9245062",
+            "Ebd27794b9505a3f2701e69a3"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Endorsement difference: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 3.",
+          "citations": [
+            "E50b78533e0ad0c1bb9245062"
+          ],
+          "disposition": "included",
+          "candidate_id": "Ceaa896bcd89835ddca9374fd",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Ceaa896bcd89835ddca9374fd",
+            "occurrence": 1,
+            "path": "endorsement.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Endorsement difference: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 3.",
+            "citations": [
+              "E50b78533e0ad0c1bb9245062"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "recall",
+          "evidence_ids": [
+            "E5574f3e925a9aa58f50dfa96",
+            "E5d2166aea916e928f1a9f717"
+          ]
+        },
+        "result": {
+          "recalled_evidence": [
+            "E5574f3e925a9aa58f50dfa96",
+            "E5d2166aea916e928f1a9f717"
+          ]
+        }
+      },
+      {
+        "action": {
+          "tool": "review",
+          "start_line": 12,
+          "end_line": 12,
+          "summary": "Additional cover charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4.",
+          "citations": [
+            "E5574f3e925a9aa58f50dfa96"
+          ],
+          "disposition": "included",
+          "candidate_id": "Ccb890594edd4f47a80b8efdf",
+          "occurrence": 1
+        },
+        "result": {
+          "finding": {
+            "candidate_id": "Ccb890594edd4f47a80b8efdf",
+            "occurrence": 1,
+            "path": "rider.cbl",
+            "start_line": 12,
+            "end_line": 12,
+            "disposition": "included",
+            "summary": "Additional cover charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4.",
+            "citations": [
+              "E5574f3e925a9aa58f50dfa96"
+            ]
+          }
+        }
+      },
+      {
+        "action": {
+          "tool": "search",
+          "text": "premium",
+          "limit": 20,
+          "offset": 1
+        },
+        "result": {
+          "matches": [
+            {
+              "relative_path": "cancellation.cbl",
+              "sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "collection.cbl",
+              "sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "copy-entry.cbl",
+              "sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+              "line_count": 12,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "endorsement.cbl",
+              "sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "issue.cbl",
+              "sha256": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+              "line_count": 18,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "monthly.cbl",
+              "sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "proration.cbl",
+              "sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "reinstatement.cbl",
+              "sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "renewal.cbl",
+              "sha256": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+              "line_count": 15,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "report-only.cbl",
+              "sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+              "line_count": 15,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "rider.cbl",
+              "sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+              "line_count": 13,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "unrelated-counter.cbl",
+              "sha256": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+              "line_count": 10,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            },
+            {
+              "relative_path": "view-entry.cbl",
+              "sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+              "line_count": 24,
+              "matched_terms": [
+                "premium"
+              ],
+              "score": 1
+            }
+          ],
+          "total_matches": 14,
+          "offset": 1,
+          "truncated": false,
+          "next_offset": null,
+          "absence_established": false,
+          "query_kind": "lexical",
+          "match_mode": "any_term",
+          "terms": [
+            "premium"
+          ],
+          "status": "matches"
+        }
+      }
+    ],
+    "evidence": [
+      {
+        "text": "01 ELIGIBLE-FLAG PIC X VALUE 'Y'.\nPROCEDURE DIVISION.\nMAIN-PROCESS.\n*> Business calculation: Additional cover charge\nCOMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4.\nGOBACK.",
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "rider.cbl",
+          "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E5574f3e925a9aa58f50dfa96",
+        "max_characters": 60000
+      },
+      {
+        "text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. RIDER-RULE.\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 BASE-AMT PIC 9(7)V99 VALUE 1000.\n01 RATE-VALUE PIC 9V9999 VALUE 0.02.\n01 PREMIUM-AMT PIC 9(7)V99 VALUE ZERO.",
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "rider.cbl",
+          "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E5d2166aea916e928f1a9f717",
+        "max_characters": 60000
+      }
+    ],
+    "focus_evidence": [
+      "E5574f3e925a9aa58f50dfa96",
+      "E5d2166aea916e928f1a9f717"
+    ],
+    "completed_actions": [
+      "d0c6e495b65de79a90cd9a90da1a873832959d1fe05e85180f74a7acabf10dfb",
+      "f546942cd1a0b93aabbfe771c838e51d9ea6864b401f0edbe98ad97ba6d12d2d",
+      "a67882adb45a7d0967a63d4af8113907c74e28b37b539a8a6d64e80f7dfaa8ea",
+      "8bf182198e5e3fdbc1afc91764d8fe0ce9c8c6b4cfb52dda729571bd89fc5450",
+      "33aeb664df6db5971e1283a4b710dee2f34555d385285ddf90d2209f58ffa34e",
+      "8b10484bf68afb855966e4feafec595167b5f8a49e72dc5764192afb08cfb8fb",
+      "2e5cda9a75f9dc95d618fad2a6f2fbf175e14bfdb173010454d64565bd17e6b7",
+      "909b82c1e75b229fdb4ee7bc8d966eda28fcd5eb49854994c2a308ffd8278c8e",
+      "92da075ada74d75f251e35904bbb9daf4731f05ce85e685f20366a11b500c57a",
+      "71860c900ceef3bb0aa846f9ae2393cbf5849b3615644c3d778274124b27f96e",
+      "3c18303d0e4fccd74e7f9a70bdb7696ead85982722cd78992b40d07a5b2f2ddb",
+      "9f7ad009f5b220d7fabaf38b1f69e5431741138ff55722fe429034b3a6fd6fe7",
+      "b18ccad277f54a4f9935aa4947b34b7e4f63fb8c3db8d3094e2bd19347f22e4f",
+      "e3a6740b9db1d6ce5fa90bb2964f8254e4daf4a6b9416cc57f2f6d9ba0d672c8",
+      "417c40a8626a6c975293880a1b2b0b50971c031eb69b61c0c970ba25b8623e02",
+      "f1662c4a0ae5f913bc08ca02810b5c854387b59b0c11ea7e514658b613b4b352",
+      "f58ea7d1c48fede60ce85a4e150cc976a40dcee1e7171206d14f0f8ddb026560",
+      "299df8c01b9862dc56123ea69511d303c8f4b52a5be849b6a6caee386b397db9",
+      "9f21c578c9967ac6c5dd4499b608f385e2d62f52af136c16255f72a8b1be6493",
+      "3f9c172d1d63b34cd700f3b92f004d0febd9169a39709ef508cf97cb31bd1113",
+      "d62afddfe3a91e15d36e56563980f48b9b53c0915a3430e0dbfb9cf22c057dda",
+      "b5889bc87222f0c124346958258c364dd8c00845ea1e0d25b0d15d018b491457",
+      "25c3905dee6818e14650c49c475404435981a9c46ff776a86e23553b74dc733d",
+      "bcec52f672e8fb8ec682a49ed79e64e0da6566f5ae34c6ca78e88ef8a21c8a1e",
+      "7a0bbc0f51460a45cd31d9b9f272a9f889fc2ca2cb6d7e59e05c8ffa3d594b3f",
+      "6c44752abd90e7cc2dd6af77be5395fafcdb4c21159870021078ed9fdec72f98",
+      "c2bed162661ad7b1802212a72c06a7986662c866bb57ee5232ed03d94947106e",
+      "e1063a56c593d1d95400604677316eec6eab79af93f1ff6f802217109ceb0702",
+      "ecafd96326bc25fab237f6868d0db839d5f6ff752d3dd8e95b843325ae0c0c50",
+      "fabd334b441c40862af6ae5068d217f139b58428aafadf072ff3577c730d99a1",
+      "ed16330b095928c547d2948f63df5b3ee758881c300699a5da1833f1ed66e867",
+      "da11883aee28151dba65c3798d7c0a6563f3be9fe39b1d815fa3689c4893a42d",
+      "1e2a928a68376bb764da1c33e0ccc01680db2a14ca1ffe364fd5fd3898ceea7f",
+      "520822ccb66d96aa7459b443cd02a7cf7e3ee0783e1b7944feaf26e95ec6fe92",
+      "37a512ac6d340b857e7a2747801c1feca36332c50d5b613ccd26fb4a4f9f695e",
+      "583ec02cc9eeb3b73ac440bc68a0f9e77c6a018d146880f925fb446f74eea79a",
+      "12e34fd54e5b33cd266617e074aec827780a61d2b9151aef5d5ca053bde54e4d",
+      "b19607d3b8d486216245732e1b30249702f5bb7ca79cd77f8da993142aa4d90a",
+      "722af17edf9a645420925ea64b09330d5a7979addcbdc121046b4ca81c92fac3",
+      "87a00de412f0e220fa03b722b54557b244d933121a35a3f59c74fa984c28a12d",
+      "ae9bdf47bf6920e0e2cf2df80d0cc586d5948f8da8b601d5d879f00dede89932",
+      "d63c22ef7970b7cc7ab38e79a995ff8de94ddadf3bad2d18e4b82514d22eaf8b",
+      "8ce5ae768984b218f04c6d8f0cfb9f59c4070ffe160482bd829dce1e067d8149",
+      "205858df7eea82546b30c8bc4cff7b4069180936284f864a26a53a5fa2af0623",
+      "47f8ca92b99e5e2d85b115c599d0fe55c7289a3ca136de91e412d7268596bf2f",
+      "5249425bf3c3b244b09378ead3170653ee5ac0f11bb1e420939abc43b73944df",
+      "eca3f8512f278eeb675ed17a6cf8d932a25a7051d6e49e5fe0671eea3c4c1b1a",
+      "b041bdadb88c2951d291f88dddaa350a6840cc7ea5ec309f3b78eaa9184dd925",
+      "076affe70eb54c6f3ff3d164f6fe03534d8e3cc617c156681d4d9f6ef978defd",
+      "bbfffff998ad03d5711f7749cc4702ccb3af086e1820428e2b046a1467f4a448",
+      "d39fd62c62499e5e9363bb66713d4dda9827634c7fcee4311127de1f38d395a1",
+      "9d98af7dcbdeb7c2cecdf610ff0ca5d1a7ba97af429c9175fc238076b3f53471",
+      "2043d3b4f08c4a70f72884af559e86ff8a5ce7f4e11968dfbd017f574c47e6d6",
+      "d52aac5dd900495c6f8ee6a8103b833578fd1263dba33ef5704b55cf97d4abc7",
+      "4db1643616e6b56ec1a805e75838df9ab9a0feaacc917218d86df4c5a11e3fc2",
+      "8e8f06420bb9d4f6bc5698937d493ab55ff72b87af3f72f098f11c83d39ceca7",
+      "96b2e7430ffcf5cd2a2c3b695080dfa0a56c22138f665c593c1efde66ca52262",
+      "50ab3c015d93a305266d6b301d754c36ddec9ccb2266399b608ba091296d842d",
+      "cab22f8d4379797f3bb867a5240abba8a14a51d68c9e1d09e717d3b8fa09db84",
+      "8cfca536f239f78c1185cce66d666a6849fa83a371c985d8e115b3e342e9810e",
+      "93a450304bfe7b972846795b6a9e1f549d2e363ca1abcba0c319195f0f9a604e",
+      "18d47a86a5d462e7cfbb6c8691d7988ee92f6dc019127c16905eb99320f4a4e0",
+      "5f065c541ecdf1e0d02b6c7c3ef4ed3cdea30586ef28713abc720d3562bfa393",
+      "9b1a87a624f75e47e1a0307c046ccacbd406ae7087317478c8b28b79ce833381",
+      "59ad58c4094d039a30275541ad67166b93f928fdbe13263aec04fbd421fecc7c",
+      "e9eeb7567e8efead694651f6cacfe9c97a69f6c3566dcac641d076a3f1d04784",
+      "4df1033432e581a0b450747ccbb860146c11c9bc21a7239644b69426c0b48f49",
+      "d340aea50c5edb33b2d3ae3dbc643edfca124f14dc8d9c00b2aa75a8ee7e3d1b",
+      "9b2a8367cac7eef3ca4b508f8c96dc7e8ff844457cb33c5f2a388df2f4f8a137",
+      "aabdd998f4e5297dbdc1481258dae9a739e02beb8b71925ae2a8b2b2242c81a9",
+      "02c7175c1386fc4a0d7bdd54e0617b13d9023bcc986b5c04c073d72b66dd7051",
+      "2341453960a92a600ab6f04bfbe1f7b350aabac96cea1692afa04c1f42010963",
+      "6654ef65f09685d0474faebc4fc2980096069513cb95f6bd5058a38ed379741e",
+      "8e73b4c27f8ddf5a8b0c9ea2df4f62b561e4eb00f4daaf4e4c7ef9b5ff46b0c3",
+      "317bcb308eed031ceddfd4ff029276faa362da42e4b9e18222664372cddafecd",
+      "7547c351c946af10313a7f53b2089dc87983779ab9cd582fc3ad20d6bcc3ab4e",
+      "2fd8753312831538ddefc99a3c6d04399fac26c3e40756eedcd03bf55561654a",
+      "a213830411d852aeba450b27e43aa632e95f90c9886407f45797bc8842c6098a",
+      "d3c5983073cc6338cf95fa9d7af531fdb37a65778b90423a683d333d03e88c56",
+      "a7bbc0fa050fdc90c9ab36126a4a2e734f566bfe2bd55653c8156fb78079883c",
+      "c802f73ac18e4191f5c443cd0d7649e6516c07dd51bedfcc9362d003a64d2c11",
+      "49e0bf1dbc7b81f956004c8ae73a818d874c4ffd46df56eabe6e45c0cbc22b50",
+      "0dae737524416456a58f3585ecb9f17b50bd84cbe459fd27d780625b20099b58",
+      "990b92777cd9d12f2b28dd794440d6cf14e9e082979dd7cc8edcd215e67e1899",
+      "dcb71de4b45a4bbc09b05e20551f720dfcf1e10b87ce76394959cd5fa92d36cf",
+      "d8bb0df22b48806dcd952ec700cafccfd03312e27272b1ac52d9b91489e52d0d",
+      "6f0aa477a70df879d0d37df1386e11f391adbeeda68a01fa4cb33d917948164a",
+      "7a8bd6b5b2fa4c9e4613a67bf6c89b66bdd71a28c32f9af9217239af0ee93d09",
+      "8550d651edbb38a837799c1c06674287dcbd94cbda00ac6d2e3adf2104045cb9",
+      "6cadd571330d474820bb0ec6898e8b5efb217675ece97b6cdc4fe1b8722dff01",
+      "ac5bdfe8a8764af044d830db70ef1faa422613867e2ee602e422fcedd2c6e588",
+      "0226323d101bbebae9144ef6eb6c61c089aa10416f1ef291e4416266d16518c1",
+      "b0b9b6b0af0b7d46146e4263720a8886a8bb900e0212a594344afdb62dc27e69",
+      "7ebc7c4799c0bfc20a5d14fb0f9e62bcdde6ea5837c834422e1c84a4139692a7",
+      "a80b689e78cf1c484ee54726a238126b67d0e34604429200ad60a9292b6c1ca8",
+      "9b4ee9100a456f51f511a3e551381701c9753908df932399a3ee2500d5ab2c1f",
+      "21c35707c16c3834c70998662a139a5239873c42c0fa7e578ed26dd6238cc213",
+      "48d57ae76d1f639265fe879e9497e6545a32395e94c7911684b624192bec4dfe",
+      "f37348ff163e3d17db9d43eeb53d517d92a8a1d070cc5563043919e8f272d073",
+      "fd1eb5fd214fe02c22237e1135d4ac1a2c3ce08412e08b97992b0c85963c881c",
+      "be3cac950d0504ac835be25a48090a45c3c2bd42c4f2d188a4c6c8a1aefc4176",
+      "4480b176162b081baade2d5660ca0d32c2d166ee999492923e3c3745258f4a11",
+      "c8923f4ccc948b94ea01fbe01240395e2a462cf47921dcaa5d7850bb8f3158df",
+      "2c539fb9973fb97d7bbe4ed46cd46d7318a21f72098ff8c48588a1eda65a7706",
+      "7bd9ad4106e3ef12752adb128489e65436833023e8e1d6eb791b5a441ed50a12",
+      "969c981277345168f8cfd7e073dda156cd66fc635393c9a31cf1eabe8af6e9bb",
+      "1c2cc8a6e7b8ee9fed93aaadbe5e7a9102c0a4b126de0dcd11274bf98e8506af",
+      "da7081186c656bffc5ebc3dca81b735df6bbf9ee2817d460558d62e0e0199d4b",
+      "b827360359db78d62666f268d4090d1dd536ab3266e72de9ec64633a543e5146",
+      "3ff66e3e79294e081f81b8a3e026745aefee4f48708371af4a8d79652bde9b57",
+      "3295c5c060008b9ad3aa7f42881a9d787a85c3bdf3868a7e04bfe7d92db08040",
+      "e99218df42cfdcd444d04cf7607c9f682bc1c24804a5a670b853205586d28e2a",
+      "1cb6ebf7558abb4a8a7edad294f26fccf3243c8caf55115bf2ee0767f629df61",
+      "3800c0a548c47a8d20aa5b2ba1aecf12c53a33a62e6780af1caa26c4b8f68885",
+      "bcc6491bc8e36ba855c22261596bd1ce4752f5f313a350a6f95ac87fa459aba6",
+      "72923eedc7aaced32c302225b682c3dfc8bb5a7ef9a7a434423efdbb1be6b6c3",
+      "3bcce1f7ddbd0f02b5d89ee3310a08fd504d1528f73ccb99364307e8a4ce91dc",
+      "a8640d45a56256b9398b4b38e59cf72aacbdbd8c0b6562d808a3a921963fa7eb",
+      "d79ca34f48c777e9ed0ec2ef638104b8190d4724060b4ca03c5e7f90772f98ce",
+      "70e6e2e0e9ef83a98c40833ed5d6207700af951bb2e5654f47e9e7793acd3ac3",
+      "3ce5696c324f2b1af3641b2d9482d59c4ee84b4206931ca92fee51f8bcdbe50b",
+      "e88a06ad9a5f4279ca5e18953b73ec45d73d8332bcf0817b8e47dae50339673c",
+      "a013a0f31320dcaaeac9647a2230af2c2ea262c588abdc7ac3133294b89e49f1",
+      "92968453c3fd4033c389d6f71ce8705d39fab3aae68c5ffb27d4ac27408c8a22"
+    ],
+    "remaining": [],
+    "answer": "The selected snapshot inventory preserves each reviewed business calculation below; runtime binding remains unproved. [E5574f3e925a9aa58f50dfa96]",
+    "answer_citations": [
+      "E5574f3e925a9aa58f50dfa96"
+    ],
+    "status": "answered",
+    "request_status": "not_sent",
+    "pending_response": null,
+    "request_evidence": [
+      "E5574f3e925a9aa58f50dfa96",
+      "E5d2166aea916e928f1a9f717"
+    ],
+    "model_calls_total": 124,
+    "actions_total": 124,
+    "protocol_failures": 0,
+    "no_progress_rounds": 0,
+    "observations_total": 124,
+    "error": null,
+    "answer_requirements": {
+      "answer_instructions": "",
+      "answer_language": "zh-CN"
+    },
+    "revision_draft": null,
+    "diagnostic": null,
+    "work_ledger": {
+      "schema_version": "online-work/v1",
+      "global": true,
+      "inventory_started": true,
+      "inventory_complete": true,
+      "inventory_cursor": null,
+      "expected_files": 18,
+      "legacy_checkpoint_recheck": false,
+      "files": {
+        "unrelated-counter.cbl": {
+          "sha256": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+          "line_count": 10,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C0a8a8c05cb35f08aa1375291"
+          ],
+          "read_ranges": [
+            [
+              1,
+              10
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 10,
+              "summary": "Reviewed source relationships: PROGRAM-ID. COUNTER-ONLY.",
+              "citations": [
+                "E0aea759a9cbc25a801103bab",
+                "E22097cea05f38c94dab30e16"
+              ]
+            }
+          ]
+        },
+        "renewal.cbl": {
+          "sha256": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+          "line_count": 15,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Cce666cf1f35024735afaa304"
+          ],
+          "read_ranges": [
+            [
+              1,
+              15
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 15,
+              "summary": "Reviewed source relationships: PROGRAM-ID. RENEWAL-RULE.",
+              "citations": [
+                "E6b6f9efe8b0afc5a43a4ee82",
+                "Eb32f065e99b989ba3f0bb59e"
+              ]
+            }
+          ]
+        },
+        "issue.cbl": {
+          "sha256": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+          "line_count": 18,
+          "inventoried": true,
+          "candidate_total": 2,
+          "candidate_ranges": [
+            [
+              0,
+              1
+            ]
+          ],
+          "candidate_ids": [
+            "C463d22f7a3aa083e9af6bc22",
+            "Cb97a33a0e10bdf5b8e8aa291"
+          ],
+          "read_ranges": [
+            [
+              1,
+              18
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 18,
+              "summary": "Reviewed source relationships: PROGRAM-ID. ISSUE-RULE. ; CALL 'VALUE-ADJUST' USING PREMIUM-AMT.",
+              "citations": [
+                "Efae628a2bb3afa952cb4907f",
+                "E1b9366db4a4ff7b56544a6ef"
+              ]
+            }
+          ]
+        },
+        "value-adjust.cbl": {
+          "sha256": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+          "line_count": 10,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C081b569476d0bf4c1c06655d"
+          ],
+          "read_ranges": [
+            [
+              1,
+              10
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 10,
+              "summary": "Reviewed source relationships: PROGRAM-ID. VALUE-ADJUST. ; PROCEDURE DIVISION USING IO-VALUE.",
+              "citations": [
+                "Ef7c122b90ea9ad868285b2dc",
+                "Ebd67091cfba9581e8eb3ce3c"
+              ]
+            }
+          ]
+        },
+        "z-local-language.cbl": {
+          "sha256": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Ce690788f7198381e723bfd95"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. LOCAL-RULE.",
+              "citations": [
+                "E044202326e65378f3cb32990",
+                "E19f0984d10414673837f2091"
+              ]
+            }
+          ]
+        },
+        "RATELV.dds": {
+          "sha256": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+          "line_count": 2,
+          "inventoried": true,
+          "candidate_total": 0,
+          "candidate_ranges": [],
+          "candidate_ids": [],
+          "read_ranges": [
+            [
+              1,
+              2
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 2,
+              "summary": "Reviewed source relationships: A          R RATEROW                   PFILE(RATEPF)",
+              "citations": [
+                "E67880f70f62c79e1e6f726da",
+                "E5da5059516e7d5bb7728d62b"
+              ]
+            }
+          ]
+        },
+        "reinstatement.cbl": {
+          "sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C289dbd6e5578fbc6c6b7bb41"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. REINSTATE-RULE.",
+              "citations": [
+                "Eff6fdb71b2a5eda1429120cc",
+                "E468fdb7c4c5af38ea4fe06b7"
+              ]
+            }
+          ]
+        },
+        "report-only.cbl": {
+          "sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+          "line_count": 15,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C4a330d0c129d94773811ce0a"
+          ],
+          "read_ranges": [
+            [
+              1,
+              15
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 15,
+              "summary": "Reviewed source relationships: PROGRAM-ID. REPORT-ONLY.",
+              "citations": [
+                "E6f4a6cdc2442ab920531a98a",
+                "E2e071e39cac7a63aeda38044"
+              ]
+            }
+          ]
+        },
+        "RULE-BODY.cpy": {
+          "sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+          "line_count": 2,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Ce218b1b7e1777734f19c6659"
+          ],
+          "read_ranges": [
+            [
+              1,
+              2
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 2,
+              "summary": "Reviewed source relationships: ",
+              "citations": [
+                "E73c35c3eb2ca0f1c1cbaff81",
+                "E63d77d6f95fa4a875e31d066"
+              ]
+            }
+          ]
+        },
+        "cancellation.cbl": {
+          "sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Cb3727b5112dfd7086aa93dd0"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. CANCEL-RULE.",
+              "citations": [
+                "E2da0c32058b572599fd3a581",
+                "E3afc8ca42cf05fff0a18fe98"
+              ]
+            }
+          ]
+        },
+        "proration.cbl": {
+          "sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C3386706a173b7f8246980f9b"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. PRORATE-RULE.",
+              "citations": [
+                "E8303f935ff0a9d1dba26a5ae",
+                "Ef692c4595ad56f5ed03a20e8"
+              ]
+            }
+          ]
+        },
+        "monthly.cbl": {
+          "sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C06a7e15b7a951bb9f764eeb5"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. MONTHLY-RULE.",
+              "citations": [
+                "Eadf62ab2ef909f6600b46398",
+                "E55e09799824bbab959edbbec"
+              ]
+            }
+          ]
+        },
+        "collection.cbl": {
+          "sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "C09a3c2c9df532525c32009f7"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. COLLECT-RULE.",
+              "citations": [
+                "Ecb94eebbd3644c8bf7774cd2",
+                "Efc1b70e34613760e2ff4e07c"
+              ]
+            }
+          ]
+        },
+        "view-entry.cbl": {
+          "sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+          "line_count": 24,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Cfd1570f0058845fd98090f46"
+          ],
+          "read_ranges": [
+            [
+              1,
+              24
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 24,
+              "summary": "Reviewed source relationships: PROGRAM-ID. VIEW-RULE. ; SELECT RATE-FILE ASSIGN TO 'RATELV'.",
+              "citations": [
+                "Ebd617c9a22af8dfad4c94a3e",
+                "Ebb8233a437e5375480d6481b"
+              ]
+            }
+          ]
+        },
+        "copy-entry.cbl": {
+          "sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+          "line_count": 12,
+          "inventoried": true,
+          "candidate_total": 0,
+          "candidate_ranges": [],
+          "candidate_ids": [],
+          "read_ranges": [
+            [
+              1,
+              12
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 12,
+              "summary": "Reviewed source relationships: PROGRAM-ID. COPY-ENTRY. ; COPY RULE-BODY.",
+              "citations": [
+                "E6732c32cad41d8cc8bdf555b",
+                "Ee050d15471831fb27cb0671b"
+              ]
+            }
+          ]
+        },
+        "RATEPF.pf": {
+          "sha256": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+          "line_count": 2,
+          "inventoried": true,
+          "candidate_total": 0,
+          "candidate_ranges": [],
+          "candidate_ids": [],
+          "read_ranges": [
+            [
+              1,
+              2
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 2,
+              "summary": "Reviewed source relationships: ",
+              "citations": [
+                "Edf837151c123c380c1191515",
+                "Ea91f982736083431d5370d84"
+              ]
+            }
+          ]
+        },
+        "endorsement.cbl": {
+          "sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Ceaa896bcd89835ddca9374fd"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. ENDORSE-RULE.",
+              "citations": [
+                "E50b78533e0ad0c1bb9245062",
+                "Ebd27794b9505a3f2701e69a3"
+              ]
+            }
+          ]
+        },
+        "rider.cbl": {
+          "sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+          "line_count": 13,
+          "inventoried": true,
+          "candidate_total": 1,
+          "candidate_ranges": [
+            [
+              0,
+              0
+            ]
+          ],
+          "candidate_ids": [
+            "Ccb890594edd4f47a80b8efdf"
+          ],
+          "read_ranges": [
+            [
+              1,
+              13
+            ]
+          ],
+          "reviews": [
+            {
+              "start_line": 1,
+              "end_line": 13,
+              "summary": "Reviewed source relationships: PROGRAM-ID. RIDER-RULE.",
+              "citations": [
+                "E5574f3e925a9aa58f50dfa96",
+                "E5d2166aea916e928f1a9f717"
+              ]
+            }
+          ]
+        }
+      },
+      "candidates": {
+        "C0a8a8c05cb35f08aa1375291": {
+          "candidate_id": "C0a8a8c05cb35f08aa1375291",
+          "path": "unrelated-counter.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "rule_id": "rule_1c67db388e7b_1cac5fef7822d33a236de136",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "PRINT-COUNT"
+          ],
+          "writes": [
+            "PRINT-COUNT"
+          ],
+          "condition": []
+        },
+        "Cce666cf1f35024735afaa304": {
+          "candidate_id": "Cce666cf1f35024735afaa304",
+          "path": "renewal.cbl",
+          "start_line": 12,
+          "end_line": 14,
+          "rule_id": "rule_500e6a8ed917_b6014b2f8b7f3810031493e2",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 2,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C463d22f7a3aa083e9af6bc22": {
+          "candidate_id": "C463d22f7a3aa083e9af6bc22",
+          "path": "issue.cbl",
+          "start_line": 13,
+          "end_line": 13,
+          "rule_id": "rule_5eb44487788d_16f770aded01900f6d259440",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "Cb97a33a0e10bdf5b8e8aa291": {
+          "candidate_id": "Cb97a33a0e10bdf5b8e8aa291",
+          "path": "issue.cbl",
+          "start_line": 15,
+          "end_line": 15,
+          "rule_id": "rule_5eb44487788d_44e21ae9cc5f82c6f1e8c8db",
+          "rule_kind": "MOVE",
+          "occurrence_count": 1,
+          "reads": [],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C081b569476d0bf4c1c06655d": {
+          "candidate_id": "C081b569476d0bf4c1c06655d",
+          "path": "value-adjust.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "rule_id": "rule_61d502ffe0f3_ba74799f8849364047e86946",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "IO-VALUE"
+          ],
+          "writes": [
+            "IO-VALUE"
+          ],
+          "condition": []
+        },
+        "Ce690788f7198381e723bfd95": {
+          "candidate_id": "Ce690788f7198381e723bfd95",
+          "path": "z-local-language.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_64ab244fc007_9f8ca6e7c028791ff5b3af0a",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "DUE-CHARGE"
+          ],
+          "condition": []
+        },
+        "C289dbd6e5578fbc6c6b7bb41": {
+          "candidate_id": "C289dbd6e5578fbc6c6b7bb41",
+          "path": "reinstatement.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_7d7bee9fe31d_080012b01db2ace3a05eb1ef",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C4a330d0c129d94773811ce0a": {
+          "candidate_id": "C4a330d0c129d94773811ce0a",
+          "path": "report-only.cbl",
+          "start_line": 13,
+          "end_line": 13,
+          "rule_id": "rule_8968c12ea93a_c016fb866eb60431e488b75b",
+          "rule_kind": "MOVE",
+          "occurrence_count": 1,
+          "reads": [
+            "PREMIUM-AMT"
+          ],
+          "writes": [
+            "DISPLAY-AMT"
+          ],
+          "condition": []
+        },
+        "Ce218b1b7e1777734f19c6659": {
+          "candidate_id": "Ce218b1b7e1777734f19c6659",
+          "path": "RULE-BODY.cpy",
+          "start_line": 2,
+          "end_line": 2,
+          "rule_id": "rule_8b66d8078623_f2fb673ed48866d19af20729",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "Cb3727b5112dfd7086aa93dd0": {
+          "candidate_id": "Cb3727b5112dfd7086aa93dd0",
+          "path": "cancellation.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_90a4673c8d90_236701fcda9926ae02f2abbe",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C3386706a173b7f8246980f9b": {
+          "candidate_id": "C3386706a173b7f8246980f9b",
+          "path": "proration.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_91c37d1c9eb3_d2c071a7a13a25aaf8c1c183",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C06a7e15b7a951bb9f764eeb5": {
+          "candidate_id": "C06a7e15b7a951bb9f764eeb5",
+          "path": "monthly.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_b01bdfaccfb5_05bc5339082da9b91fc1dcfc",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "C09a3c2c9df532525c32009f7": {
+          "candidate_id": "C09a3c2c9df532525c32009f7",
+          "path": "collection.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_c2a95683d3d9_dff510e2d0c49584827cb2e6",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "Cfd1570f0058845fd98090f46": {
+          "candidate_id": "Cfd1570f0058845fd98090f46",
+          "path": "view-entry.cbl",
+          "start_line": 22,
+          "end_line": 22,
+          "rule_id": "rule_dcf26b91c28e_a68247fa418ab66da79c95f1",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "Ceaa896bcd89835ddca9374fd": {
+          "candidate_id": "Ceaa896bcd89835ddca9374fd",
+          "path": "endorsement.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_fec1c25473ca_ee5211c54d799f4d53020846",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        },
+        "Ccb890594edd4f47a80b8efdf": {
+          "candidate_id": "Ccb890594edd4f47a80b8efdf",
+          "path": "rider.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "rule_id": "rule_fe371dcaf7a3_2d0cf8c32b1d90a7a51c43a4",
+          "rule_kind": "COMPUTE",
+          "occurrence_count": 1,
+          "reads": [
+            "BASE-AMT",
+            "RATE-VALUE"
+          ],
+          "writes": [
+            "PREMIUM-AMT"
+          ],
+          "condition": []
+        }
+      },
+      "queries": {
+        "fc01ea147c17426942d43ec95c8de96ecf9d218c909aa1ddd1c53761260e691a": {
+          "action": {
+            "tool": "search",
+            "text": "premium"
+          },
+          "total": 14,
+          "ranges": [
+            [
+              0,
+              13
+            ]
+          ]
+        },
+        "0150b6b9062882bc9271c9a637be7fc09f3b0ae921900bb947d82a3dedf4a1a4": {
+          "action": {
+            "tool": "relations",
+            "path": "unrelated-counter.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "3c72890eb032d3f31b367b4a28019f7cf77864582f58bbced4bd28322201c05b": {
+          "action": {
+            "tool": "relations",
+            "path": "renewal.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "e98c15db22e403d3ec368001f408058584634669ebc8e81054a5fc2a45ca4ce4": {
+          "action": {
+            "tool": "relations",
+            "path": "issue.cbl"
+          },
+          "total": 1,
+          "ranges": [
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "54ad6c4a193233528074c4ea4c6f180e2b71639a153830e31354fdf3a8c75244": {
+          "action": {
+            "tool": "relations",
+            "path": "value-adjust.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "898847cc77d5be84f24fd4a11893fa370cfcf9fffbe30509da513e9a89e40b3e": {
+          "action": {
+            "tool": "relations",
+            "path": "z-local-language.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "4e97728f31e174ee127988bd0b56e0c083c4170397ce441dadba39e1356907d3": {
+          "action": {
+            "tool": "relations",
+            "path": "RATELV.dds"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "662ebd8256489ada28cb400769487d775ed168e229bb4ca9c61aaf793198186a": {
+          "action": {
+            "tool": "relations",
+            "path": "reinstatement.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "2d01f58d20ebc90801478cf9513f119f421a529174337d47ec0d3b884c1b1ed7": {
+          "action": {
+            "tool": "relations",
+            "path": "report-only.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "2efdc1862942faa076a359374ff894c641d42979ddfd6afaca118d8b118b07e7": {
+          "action": {
+            "tool": "relations",
+            "path": "RULE-BODY.cpy"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "545b38dc6bf69ea4dffdbedd341078ed4a641bc25ce951b93f1473aae95a175a": {
+          "action": {
+            "tool": "relations",
+            "path": "cancellation.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "4a4cfe5a47200977ef9fe9c8a8c8e10fb2d5f47e561d0a7a6d3a69814511764f": {
+          "action": {
+            "tool": "relations",
+            "path": "proration.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "3c54878976295da40c436c400905aba8895a212a1bc9fedad048d3d115ce44b0": {
+          "action": {
+            "tool": "relations",
+            "path": "monthly.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "fcc30e24fadbdd8a46e36d47c9ade104742ebed06b5c707148282fa44731dfa6": {
+          "action": {
+            "tool": "relations",
+            "path": "collection.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "6c19133838a3ffb25301bec9d562c723fc94e6430ff696821edeba4b092c3377": {
+          "action": {
+            "tool": "relations",
+            "path": "view-entry.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "49d2ae60539629a14af6d84284507cd681925c885ecd22d1bfac37c483d1e764": {
+          "action": {
+            "tool": "relations",
+            "path": "copy-entry.cbl"
+          },
+          "total": 1,
+          "ranges": [
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "9f27bde92806d4ee4972e193d70e06f33ad0f9ef2d6f2e1260e10a5ed30a043a": {
+          "action": {
+            "tool": "relations",
+            "path": "RATEPF.pf"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "feaead759d7be2db21279bb0055d818d3420e64346541eb916f3acad5af08d48": {
+          "action": {
+            "tool": "relations",
+            "path": "endorsement.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        },
+        "2291d90efb8595a6cba6adb17b03606e341cd99f0cc9284b037f2eabcf23a496": {
+          "action": {
+            "tool": "relations",
+            "path": "rider.cbl"
+          },
+          "total": 0,
+          "ranges": []
+        }
+      },
+      "findings": {
+        "C0a8a8c05cb35f08aa1375291:1": {
+          "candidate_id": "C0a8a8c05cb35f08aa1375291",
+          "occurrence": 1,
+          "path": "unrelated-counter.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "disposition": "excluded",
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "E0aea759a9cbc25a801103bab"
+          ]
+        },
+        "Cce666cf1f35024735afaa304:1": {
+          "candidate_id": "Cce666cf1f35024735afaa304",
+          "occurrence": 1,
+          "path": "renewal.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Renewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+          "citations": [
+            "E6b6f9efe8b0afc5a43a4ee82"
+          ]
+        },
+        "Cce666cf1f35024735afaa304:2": {
+          "candidate_id": "Cce666cf1f35024735afaa304",
+          "occurrence": 2,
+          "path": "renewal.cbl",
+          "start_line": 14,
+          "end_line": 14,
+          "disposition": "included",
+          "summary": "Renewal recalculation: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10.",
+          "citations": [
+            "E6b6f9efe8b0afc5a43a4ee82"
+          ]
+        },
+        "C463d22f7a3aa083e9af6bc22:1": {
+          "candidate_id": "C463d22f7a3aa083e9af6bc22",
+          "occurrence": 1,
+          "path": "issue.cbl",
+          "start_line": 13,
+          "end_line": 13,
+          "disposition": "included",
+          "summary": "Issue charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+          "citations": [
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ef7c122b90ea9ad868285b2dc",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ]
+        },
+        "Cb97a33a0e10bdf5b8e8aa291:1": {
+          "candidate_id": "Cb97a33a0e10bdf5b8e8aa291",
+          "occurrence": 1,
+          "path": "issue.cbl",
+          "start_line": 15,
+          "end_line": 15,
+          "disposition": "excluded",
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "Efae628a2bb3afa952cb4907f"
+          ]
+        },
+        "C081b569476d0bf4c1c06655d:1": {
+          "candidate_id": "C081b569476d0bf4c1c06655d",
+          "occurrence": 1,
+          "path": "value-adjust.cbl",
+          "start_line": 9,
+          "end_line": 9,
+          "disposition": "included",
+          "summary": "Issue adjustment: COMPUTE IO-VALUE = IO-VALUE * 1.05. Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE.",
+          "citations": [
+            "Ef7c122b90ea9ad868285b2dc",
+            "Efae628a2bb3afa952cb4907f",
+            "E1b9366db4a4ff7b56544a6ef",
+            "Ebd67091cfba9581e8eb3ce3c"
+          ]
+        },
+        "Ce690788f7198381e723bfd95:1": {
+          "candidate_id": "Ce690788f7198381e723bfd95",
+          "occurrence": 1,
+          "path": "z-local-language.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "本地保费金额: COMPUTE DUE-CHARGE = BASE-AMT * RATE-VALUE + 7.",
+          "citations": [
+            "E044202326e65378f3cb32990"
+          ]
+        },
+        "C289dbd6e5578fbc6c6b7bb41:1": {
+          "candidate_id": "C289dbd6e5578fbc6c6b7bb41",
+          "occurrence": 1,
+          "path": "reinstatement.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Reinstatement charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 6.",
+          "citations": [
+            "Eff6fdb71b2a5eda1429120cc"
+          ]
+        },
+        "C4a330d0c129d94773811ce0a:1": {
+          "candidate_id": "C4a330d0c129d94773811ce0a",
+          "occurrence": 1,
+          "path": "report-only.cbl",
+          "start_line": 13,
+          "end_line": 13,
+          "disposition": "excluded",
+          "summary": "This arithmetic updates a diagnostic counter, not a premium business amount.",
+          "citations": [
+            "E6f4a6cdc2442ab920531a98a"
+          ]
+        },
+        "Ce218b1b7e1777734f19c6659:1": {
+          "candidate_id": "Ce218b1b7e1777734f19c6659",
+          "occurrence": 1,
+          "path": "RULE-BODY.cpy",
+          "start_line": 2,
+          "end_line": 2,
+          "disposition": "included",
+          "summary": "Shared surcharge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 8. Source associations: RULE-BODY.cpy  ; copy-entry.cbl PROGRAM-ID. COPY-ENTRY. / COPY RULE-BODY.",
+          "citations": [
+            "E73c35c3eb2ca0f1c1cbaff81",
+            "E63d77d6f95fa4a875e31d066",
+            "E6732c32cad41d8cc8bdf555b",
+            "Ee050d15471831fb27cb0671b"
+          ]
+        },
+        "Cb3727b5112dfd7086aa93dd0:1": {
+          "candidate_id": "Cb3727b5112dfd7086aa93dd0",
+          "occurrence": 1,
+          "path": "cancellation.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Cancellation refund: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 0.75.",
+          "citations": [
+            "E2da0c32058b572599fd3a581"
+          ]
+        },
+        "C3386706a173b7f8246980f9b:1": {
+          "candidate_id": "C3386706a173b7f8246980f9b",
+          "occurrence": 1,
+          "path": "proration.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Partial period charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 15 / 30.",
+          "citations": [
+            "E8303f935ff0a9d1dba26a5ae"
+          ]
+        },
+        "C06a7e15b7a951bb9f764eeb5:1": {
+          "candidate_id": "C06a7e15b7a951bb9f764eeb5",
+          "occurrence": 1,
+          "path": "monthly.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Monthly instalment: COMPUTE PREMIUM-AMT ROUNDED = BASE-AMT * RATE-VALUE / 12.",
+          "citations": [
+            "Eadf62ab2ef909f6600b46398"
+          ]
+        },
+        "C09a3c2c9df532525c32009f7:1": {
+          "candidate_id": "C09a3c2c9df532525c32009f7",
+          "occurrence": 1,
+          "path": "collection.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Collection due: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 5.",
+          "citations": [
+            "Ecb94eebbd3644c8bf7774cd2"
+          ]
+        },
+        "Cfd1570f0058845fd98090f46:1": {
+          "candidate_id": "Cfd1570f0058845fd98090f46",
+          "occurrence": 1,
+          "path": "view-entry.cbl",
+          "start_line": 22,
+          "end_line": 22,
+          "disposition": "included",
+          "summary": "View selected rate: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE. Source associations: RATELV.dds A          R RATEROW                   PFILE(RATEPF) ; RATEPF.pf  ; view-entry.cbl PROGRAM-ID. VIEW-RULE. / SELECT RATE-FILE ASSIGN TO 'RATELV'.",
+          "citations": [
+            "Ebd617c9a22af8dfad4c94a3e",
+            "E67880f70f62c79e1e6f726da",
+            "E5da5059516e7d5bb7728d62b",
+            "Ebb8233a437e5375480d6481b",
+            "Edf837151c123c380c1191515",
+            "Ea91f982736083431d5370d84"
+          ]
+        },
+        "Ceaa896bcd89835ddca9374fd:1": {
+          "candidate_id": "Ceaa896bcd89835ddca9374fd",
+          "occurrence": 1,
+          "path": "endorsement.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Endorsement difference: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 3.",
+          "citations": [
+            "E50b78533e0ad0c1bb9245062"
+          ]
+        },
+        "Ccb890594edd4f47a80b8efdf:1": {
+          "candidate_id": "Ccb890594edd4f47a80b8efdf",
+          "occurrence": 1,
+          "path": "rider.cbl",
+          "start_line": 12,
+          "end_line": 12,
+          "disposition": "included",
+          "summary": "Additional cover charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4.",
+          "citations": [
+            "E5574f3e925a9aa58f50dfa96"
+          ]
+        }
+      }
+    },
+    "archived_evidence": [
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "unrelated-counter.cbl",
+          "hash": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+          "start": 6,
+          "end": 10
+        },
+        "requested_range": {
+          "start": 6,
+          "end": 10
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 5,
+        "id": "E0aea759a9cbc25a801103bab",
+        "max_characters": 60000,
+        "text_sha256": "5faf2685130d42f647dbdf8b57c4bcf9eb70b614ebf5231d1c1da78cc293de7a"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "unrelated-counter.cbl",
+          "hash": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+          "start": 1,
+          "end": 5
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 5
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 5,
+        "id": "E22097cea05f38c94dab30e16",
+        "max_characters": 60000,
+        "text_sha256": "9ff9839d6e6a8e2732472a567663c909241cd26273206f198ea4e2aa7b66724a"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "renewal.cbl",
+          "hash": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+          "start": 9,
+          "end": 15
+        },
+        "requested_range": {
+          "start": 9,
+          "end": 15
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E6b6f9efe8b0afc5a43a4ee82",
+        "max_characters": 60000,
+        "text_sha256": "2979301aeead6c36deed0e31a62d2b4aaa21091a232b23d2bbfdcc0a36a9be8e"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "renewal.cbl",
+          "hash": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+          "start": 1,
+          "end": 8
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 8
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 8,
+        "id": "Eb32f065e99b989ba3f0bb59e",
+        "max_characters": 60000,
+        "text_sha256": "514e73734cdf6baac7c72d426ef7e15ef71cbfe07917786e7b2b1c73348facfa"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "issue.cbl",
+          "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+          "start": 10,
+          "end": 18
+        },
+        "requested_range": {
+          "start": 10,
+          "end": 18
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 9,
+        "id": "Efae628a2bb3afa952cb4907f",
+        "max_characters": 60000,
+        "text_sha256": "f0bd6b0b67aa53a21f4b634c373c763711485c6b770037c38a6051c599f5974f"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "issue.cbl",
+          "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+          "start": 1,
+          "end": 9
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 9
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 9,
+        "id": "E1b9366db4a4ff7b56544a6ef",
+        "max_characters": 60000,
+        "text_sha256": "1ed07932bbdfd53e9761123abfad5a447728efaefb1076b4dd9d231dabfd1b8c"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "value-adjust.cbl",
+          "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+          "start": 6,
+          "end": 10
+        },
+        "requested_range": {
+          "start": 6,
+          "end": 10
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 5,
+        "id": "Ef7c122b90ea9ad868285b2dc",
+        "max_characters": 60000,
+        "text_sha256": "8cd38e08d306849afffa7533dc8d2e6eae08d4d29c2cc3e56b59426379ec384e"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "value-adjust.cbl",
+          "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+          "start": 1,
+          "end": 5
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 5
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 5,
+        "id": "Ebd67091cfba9581e8eb3ce3c",
+        "max_characters": 60000,
+        "text_sha256": "aa9030cd57de14e36bb3178f4890ef64fcb2685112649c73a6aa5850765ea5fb"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "z-local-language.cbl",
+          "hash": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E044202326e65378f3cb32990",
+        "max_characters": 60000,
+        "text_sha256": "1d4028ea6d90cc2ef1656dde19c073bb69db782f34953824110081d2101f0437"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "z-local-language.cbl",
+          "hash": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E19f0984d10414673837f2091",
+        "max_characters": 60000,
+        "text_sha256": "cda3eb53f24d5880b5343a2004d4def9ac0f5df07d1d0670d67ea66957a429d8"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "reinstatement.cbl",
+          "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "Eff6fdb71b2a5eda1429120cc",
+        "max_characters": 60000,
+        "text_sha256": "4cb52f0792243b9d34b6203126899e5ab107587e7ccc76fbc1380d14401864a9"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "reinstatement.cbl",
+          "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E468fdb7c4c5af38ea4fe06b7",
+        "max_characters": 60000,
+        "text_sha256": "d462c3d88750f4307e6c79dc907cd2d5a811b3e895d402d28a99bcb209245b5a"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "report-only.cbl",
+          "hash": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+          "start": 9,
+          "end": 15
+        },
+        "requested_range": {
+          "start": 9,
+          "end": 15
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E6f4a6cdc2442ab920531a98a",
+        "max_characters": 60000,
+        "text_sha256": "6c336ce5cb1569ad7a00b5b9cc82aec6a21ffd80771cb05a1d61b6507ecaa558"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "report-only.cbl",
+          "hash": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+          "start": 1,
+          "end": 8
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 8
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 8,
+        "id": "E2e071e39cac7a63aeda38044",
+        "max_characters": 60000,
+        "text_sha256": "41f95d38d837c18a9a7def02b93ef1f3b3e59fa90844a4eda5712b95b8fa11d3"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RULE-BODY.cpy",
+          "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+          "start": 2,
+          "end": 2
+        },
+        "requested_range": {
+          "start": 2,
+          "end": 2
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "E73c35c3eb2ca0f1c1cbaff81",
+        "max_characters": 60000,
+        "text_sha256": "5a0e0c1cd6cedc83a07437895120e6f30f6f9706fb8691626c0ea994f6b3455d"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RULE-BODY.cpy",
+          "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+          "start": 1,
+          "end": 1
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 1
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "E63d77d6f95fa4a875e31d066",
+        "max_characters": 60000,
+        "text_sha256": "14a833cccc048d775bdfa477614a421dbdfc73920f3b0c4b9333577832035f88"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "copy-entry.cbl",
+          "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+          "start": 7,
+          "end": 12
+        },
+        "requested_range": {
+          "start": 7,
+          "end": 12
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E6732c32cad41d8cc8bdf555b",
+        "max_characters": 60000,
+        "text_sha256": "ad327b188d54349a451995d3143cd6415a3ac84cfcdd1486f7dfca3790d830c9"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "copy-entry.cbl",
+          "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+          "start": 1,
+          "end": 6
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 6
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "Ee050d15471831fb27cb0671b",
+        "max_characters": 60000,
+        "text_sha256": "cc63f8611ee7752358fbd303515ec686a6d6daafa145a4c1f2d52e220c43b824"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "cancellation.cbl",
+          "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E2da0c32058b572599fd3a581",
+        "max_characters": 60000,
+        "text_sha256": "e5dce170c4a1306e73e32f27c1e6fa5ebe66565c67ce6b51cfa07b3c5c51a0f6"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "cancellation.cbl",
+          "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E3afc8ca42cf05fff0a18fe98",
+        "max_characters": 60000,
+        "text_sha256": "e2376e2a74df2749dad19234d6d2280ad059afc07c70ceee1f2358d9118d5125"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "proration.cbl",
+          "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E8303f935ff0a9d1dba26a5ae",
+        "max_characters": 60000,
+        "text_sha256": "a4b7db298a2f96ac16f833d7922f4547d81154a7f41bc695b7d662f66f7f4f52"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "proration.cbl",
+          "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "Ef692c4595ad56f5ed03a20e8",
+        "max_characters": 60000,
+        "text_sha256": "2df7e94d59302fb9ca1c224115db9a34007102decc91fbc1becfb66a8cc1c4e3"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "monthly.cbl",
+          "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "Eadf62ab2ef909f6600b46398",
+        "max_characters": 60000,
+        "text_sha256": "89be78aec5732a3018148663804768847df72a36595236630dd1e9fe3aedd3ec"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "monthly.cbl",
+          "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "E55e09799824bbab959edbbec",
+        "max_characters": 60000,
+        "text_sha256": "ed6c83862469ede1558883302c87558dd64a7c90fa64597f9949828493fbec57"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "collection.cbl",
+          "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "Ecb94eebbd3644c8bf7774cd2",
+        "max_characters": 60000,
+        "text_sha256": "157c1736ad6b231d27a9966734bbbe80e7910f6b0cd344f54325212fa138550d"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "collection.cbl",
+          "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "Efc1b70e34613760e2ff4e07c",
+        "max_characters": 60000,
+        "text_sha256": "831e8886a61ce193cfac64e03f5efb33a0a20560cccac77fe39efab1671fe11b"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RATELV.dds",
+          "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+          "start": 2,
+          "end": 2
+        },
+        "requested_range": {
+          "start": 2,
+          "end": 2
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "E67880f70f62c79e1e6f726da",
+        "max_characters": 60000,
+        "text_sha256": "2f22ebbdfb5d117d4306bcbed0bd3975b13ebcf2d01b91390eb3f8b692f580aa"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RATELV.dds",
+          "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+          "start": 1,
+          "end": 1
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 1
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "E5da5059516e7d5bb7728d62b",
+        "max_characters": 60000,
+        "text_sha256": "e8765981876f2b0686377ce42b36329398564954b41a9c81786ae7fc2578eb6d"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "view-entry.cbl",
+          "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+          "start": 13,
+          "end": 24
+        },
+        "requested_range": {
+          "start": 13,
+          "end": 24
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 12,
+        "id": "Ebd617c9a22af8dfad4c94a3e",
+        "max_characters": 60000,
+        "text_sha256": "46e276a00aba116a7b88c689df687d2a9ef173f7f9bcb347ebcb4a61bc53b62c"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "view-entry.cbl",
+          "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+          "start": 1,
+          "end": 12
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 12
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 12,
+        "id": "Ebb8233a437e5375480d6481b",
+        "max_characters": 60000,
+        "text_sha256": "d6a063243953e097fd2a0e724deb9f4a2475f7c49cbb3bd755d2bdcf2ed0c596"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RATEPF.pf",
+          "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+          "start": 2,
+          "end": 2
+        },
+        "requested_range": {
+          "start": 2,
+          "end": 2
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "Edf837151c123c380c1191515",
+        "max_characters": 60000,
+        "text_sha256": "168171d18cf51ee1ba7ea4df847160f7881756adae839685132e5474a7b8edef"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "RATEPF.pf",
+          "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+          "start": 1,
+          "end": 1
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 1
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 1,
+        "id": "Ea91f982736083431d5370d84",
+        "max_characters": 60000,
+        "text_sha256": "af7eb763e5a2d44f3a64177718d1e4f8c35ee5b5fb21b471e1389366bdb7d193"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "endorsement.cbl",
+          "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+          "start": 8,
+          "end": 13
+        },
+        "requested_range": {
+          "start": 8,
+          "end": 13
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 6,
+        "id": "E50b78533e0ad0c1bb9245062",
+        "max_characters": 60000,
+        "text_sha256": "2eb21247e4cddfc00d8421b019c11067f7cbf9ffc98d94dfaf938a646e8bb574"
+      },
+      {
+        "citation": {
+          "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+          "commit": "cccccccccccccccccccccccccccccccccccccccc",
+          "path": "endorsement.cbl",
+          "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+          "start": 1,
+          "end": 7
+        },
+        "requested_range": {
+          "start": 1,
+          "end": 7
+        },
+        "truncated": false,
+        "truncated_at": null,
+        "last_line_truncated": false,
+        "complete_line_count": 7,
+        "id": "Ebd27794b9505a3f2701e69a3",
+        "max_characters": 60000,
+        "text_sha256": "670e7b3bef88e40f1bdcf0152215876cf61b9329f1f1693f0d4b799d45e64c42"
+      }
+    ]
+  },
+  "resumed_citations": [
+    {
+      "id": "E5574f3e925a9aa58f50dfa96",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "rider.cbl",
+      "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E6b6f9efe8b0afc5a43a4ee82",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "renewal.cbl",
+      "hash": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+      "start": 9,
+      "end": 15
+    },
+    {
+      "id": "Efae628a2bb3afa952cb4907f",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "issue.cbl",
+      "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "start": 10,
+      "end": 18
+    },
+    {
+      "id": "E1b9366db4a4ff7b56544a6ef",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "issue.cbl",
+      "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "start": 1,
+      "end": 9
+    },
+    {
+      "id": "Ef7c122b90ea9ad868285b2dc",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "value-adjust.cbl",
+      "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "start": 6,
+      "end": 10
+    },
+    {
+      "id": "Ebd67091cfba9581e8eb3ce3c",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "value-adjust.cbl",
+      "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "start": 1,
+      "end": 5
+    },
+    {
+      "id": "E044202326e65378f3cb32990",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "z-local-language.cbl",
+      "hash": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Eff6fdb71b2a5eda1429120cc",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "reinstatement.cbl",
+      "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E73c35c3eb2ca0f1c1cbaff81",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RULE-BODY.cpy",
+      "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "E63d77d6f95fa4a875e31d066",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RULE-BODY.cpy",
+      "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "E6732c32cad41d8cc8bdf555b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "copy-entry.cbl",
+      "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "id": "Ee050d15471831fb27cb0671b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "copy-entry.cbl",
+      "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "start": 1,
+      "end": 6
+    },
+    {
+      "id": "E2da0c32058b572599fd3a581",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "cancellation.cbl",
+      "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E8303f935ff0a9d1dba26a5ae",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "proration.cbl",
+      "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Eadf62ab2ef909f6600b46398",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "monthly.cbl",
+      "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Ecb94eebbd3644c8bf7774cd2",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "collection.cbl",
+      "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Ebd617c9a22af8dfad4c94a3e",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "view-entry.cbl",
+      "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "start": 13,
+      "end": 24
+    },
+    {
+      "id": "E67880f70f62c79e1e6f726da",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATELV.dds",
+      "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "E5da5059516e7d5bb7728d62b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATELV.dds",
+      "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "Ebb8233a437e5375480d6481b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "view-entry.cbl",
+      "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "start": 1,
+      "end": 12
+    },
+    {
+      "id": "Edf837151c123c380c1191515",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATEPF.pf",
+      "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "Ea91f982736083431d5370d84",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATEPF.pf",
+      "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "E50b78533e0ad0c1bb9245062",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "endorsement.cbl",
+      "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+      "start": 8,
+      "end": 13
+    }
+  ],
+  "requirements_answer": "已依新要求以繁體中文重新整理全部業務公式。 [E5574f3e925a9aa58f50dfa96]\n\nRenewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10. (renewal.cbl:12) [E6b6f9efe8b0afc5a43a4ee82]\n\nRenewal recalculation: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10. (renewal.cbl:14) [E6b6f9efe8b0afc5a43a4ee82]\n\nIssue charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE. (issue.cbl:13) [Efae628a2bb3afa952cb4907f] [E1b9366db4a4ff7b56544a6ef] [Ef7c122b90ea9ad868285b2dc] [Ebd67091cfba9581e8eb3ce3c]\n\nIssue adjustment: COMPUTE IO-VALUE = IO-VALUE * 1.05. Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE. (value-adjust.cbl:9) [Ef7c122b90ea9ad868285b2dc] [Efae628a2bb3afa952cb4907f] [E1b9366db4a4ff7b56544a6ef] [Ebd67091cfba9581e8eb3ce3c]\n\n本地保费金额: COMPUTE DUE-CHARGE = BASE-AMT * RATE-VALUE + 7. (z-local-language.cbl:12) [E044202326e65378f3cb32990]\n\nReinstatement charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 6. (reinstatement.cbl:12) [Eff6fdb71b2a5eda1429120cc]\n\nShared surcharge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 8. Source associations: RULE-BODY.cpy  ; copy-entry.cbl PROGRAM-ID. COPY-ENTRY. / COPY RULE-BODY. (RULE-BODY.cpy:2) [E73c35c3eb2ca0f1c1cbaff81] [E63d77d6f95fa4a875e31d066] [E6732c32cad41d8cc8bdf555b] [Ee050d15471831fb27cb0671b]\n\nCancellation refund: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 0.75. (cancellation.cbl:12) [E2da0c32058b572599fd3a581]\n\nPartial period charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 15 / 30. (proration.cbl:12) [E8303f935ff0a9d1dba26a5ae]\n\nMonthly instalment: COMPUTE PREMIUM-AMT ROUNDED = BASE-AMT * RATE-VALUE / 12. (monthly.cbl:12) [Eadf62ab2ef909f6600b46398]\n\nCollection due: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 5. (collection.cbl:12) [Ecb94eebbd3644c8bf7774cd2]\n\nView selected rate: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE. Source associations: RATELV.dds A          R RATEROW                   PFILE(RATEPF) ; RATEPF.pf  ; view-entry.cbl PROGRAM-ID. VIEW-RULE. / SELECT RATE-FILE ASSIGN TO 'RATELV'. (view-entry.cbl:22) [Ebd617c9a22af8dfad4c94a3e] [E67880f70f62c79e1e6f726da] [E5da5059516e7d5bb7728d62b] [Ebb8233a437e5375480d6481b] [Edf837151c123c380c1191515] [Ea91f982736083431d5370d84]\n\nEndorsement difference: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 3. (endorsement.cbl:12) [E50b78533e0ad0c1bb9245062]\n\nAdditional cover charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4. (rider.cbl:12) [E5574f3e925a9aa58f50dfa96]"
+}

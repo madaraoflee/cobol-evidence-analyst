@@ -1,0 +1,66 @@
+{
+  "status": "answered",
+  "catalog_files": 10001,
+  "reviewed_files": 10001,
+  "tool_phase_restores": 46,
+  "final_runs": [
+    {
+      "status": "needs_continuation",
+      "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+      "calls": 1,
+      "checkpoint_bytes": 2199
+    },
+    {
+      "status": "answered",
+      "error": null,
+      "calls": 1,
+      "checkpoint_bytes": 2334
+    }
+  ],
+  "final_requests": 2,
+  "first_final_request": "recall",
+  "recalled_ids": [
+    "E34674cbd03e3cd13defc7ca2"
+  ],
+  "final_citations": [
+    "E34674cbd03e3cd13defc7ca2"
+  ],
+  "delivery": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "export_delivery": {
+    "expected_positions": 10001,
+    "unique_delivered_positions": 10001,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "unexpected_count": 0,
+    "invalid_business_rows": 0,
+    "first_middle_last_preserved": true,
+    "missing_sample": [],
+    "duplicate_sample": [],
+    "invalid_sample": [],
+    "complete": true,
+    "real_model_semantics_verified": false
+  },
+  "pagination_pages": 137,
+  "source_reviews": 10001,
+  "source_verification_unique_files": 10001,
+  "durable_actions": 40106,
+  "initial_action_retained": true,
+  "older_publication_unchanged": true,
+  "final_phase_seconds": 26.080917290993966,
+  "publication_id": "7fa48748dd0b1b5a5c96934ad2f82340",
+  "real_model_semantics_verified": false,
+  "pipeline_scope": "Actual material tools, per-file review, durable recovery, actual final run and source validation, paginated/exhaustive export; synthetic interpretation only."
+}

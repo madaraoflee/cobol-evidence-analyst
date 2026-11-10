@@ -79,6 +79,8 @@ def build_complete_working_set(database_path, source_session, business_map, poli
     and original text do not prove execution, parameter binding or value flow.
     """
     policy = resolve_agent_policy(policy)
+    inventory = bool(business_map.get("repository_inventory_requested"))
+    business_overview = business_overview or inventory
     depth_limit = None if business_overview else _DEPTH_LIMIT
     identity = business_map.get("source_identity", {})
     roots = list(dict.fromkeys(identity.get("direct_paths", [])
@@ -199,9 +201,10 @@ def build_complete_working_set(database_path, source_session, business_map, poli
                                                                                        "supplied_candidate_order"))
                 accepted = []
                 for relative in roots:
-                    current = db.execute("SELECT 1 FROM source_files f JOIN symbols s "
+                    current = (db.execute("SELECT 1 FROM source_files WHERE relative_path=?",
+                        (relative,)).fetchone() if inventory else db.execute("SELECT 1 FROM source_files f JOIN symbols s "
                         "ON s.relative_path=f.relative_path WHERE f.relative_path=? "
-                        "AND s.symbol_type='Program' LIMIT 1", (relative,)).fetchone()
+                        "AND s.symbol_type='Program' LIMIT 1", (relative,)).fetchone())
                     if not current:
                         frontier("concept_root_not_program", relative)
                     elif len(accepted) < root_slots:

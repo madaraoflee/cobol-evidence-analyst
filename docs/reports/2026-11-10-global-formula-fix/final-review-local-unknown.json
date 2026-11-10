@@ -1,0 +1,29 @@
+{
+  "calls": 1,
+  "first_status": "ABSTAINED",
+  "second_reason": "REMOTE_REQUEST_OUTCOME_UNKNOWN",
+  "second_resume": {
+    "completed_steps": 5,
+    "answer_requirements_changed": false,
+    "frontier": [
+      {
+        "tool": "read",
+        "arguments": {
+          "relative_path": "cancellation.cbl",
+          "start_line": 1,
+          "end_line": 13
+        },
+        "reason": "fixed_repository_inventory"
+      }
+    ],
+    "uncertain_requests": [
+      {
+        "request_id": "round-1",
+        "request_hash": "f6a9a9f37fcc0b875eec5500c04b05a28c44bfa1bf9ffbbeca46ee5e7ee5c234",
+        "started_at": "2026-11-10T14:58:29.811773+00:00"
+      }
+    ],
+    "automatic_resend": false,
+    "exactly_once": false
+  }
+}

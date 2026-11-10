@@ -444,6 +444,15 @@ class ConversationStore:
                     old_details.get(key) != new_details.get(key) for key in ("snapshot_id", "source_version")) or any(
                     old_details.get(key, []) != new_details.get(key, []) for key in
                     ("evidence_refs", "cited_evidence_ids", "framework_references", "related_sources"))
+                old_inventory = old_details.get("repository_inventory") or {}
+                new_inventory = new_details.get("repository_inventory") or {}
+                if (isinstance(old_inventory, dict) and isinstance(new_inventory, dict)
+                        and old_inventory.get("paged") and new_inventory.get("paged")
+                        and old_inventory.get("handle") and new_inventory.get("handle")
+                        and old_inventory["handle"] != new_inventory["handle"]):
+                    # The visible overview can stay unchanged while a paged
+                    # business formula is corrected. Retain that result version.
+                    answer_changed = True
                 snapshot = {key: previous[key] for key in ("id", "role", "content", "status", "created_at", "run_id")}
                 snapshot.update(old_details)
                 # Legacy answers may have their investigation linkage recovered

@@ -1,0 +1,11 @@
+{
+  "scope": "neutral_fixture_direct_production_store",
+  "status": "READY",
+  "top_level_integrity": "VALID",
+  "span_integrity": null,
+  "frontend_accepts": false,
+  "source_sha256": {
+    "poc/repository_inventory_store.py": "f46e3ba8fabab0e1e51a01843ecc19b66da3fe369e0596702bff0b1295df07a7",
+    "poc/web/app.js": "265273f90deeedb84d03e6447190f656ede620d6dbc615e13b0f96b05cc5c7e3"
+  }
+}

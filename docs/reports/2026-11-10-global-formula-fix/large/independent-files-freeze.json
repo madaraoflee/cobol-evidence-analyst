@@ -1,0 +1,21 @@
+{
+  "owned_files_sha256": {
+    "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+    "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+    "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+  },
+  "frozen": true,
+  "formal_test_ids": [
+    "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_authored_10001_roots_and_positions_match_original_bytes",
+    "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_equal_counts_cannot_hide_a_missing_middle_and_duplicate_neighbor",
+    "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_directory_only_or_wrong_source_export_is_not_complete_business_delivery",
+    "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once",
+    "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_explicit_single_file_question_does_not_expand_to_10001_roots",
+    "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+    "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory"
+  ],
+  "runtime_old_tests_ledger_unchanged_by_this_agent": true,
+  "large_fixture_files": 10001,
+  "real_model_or_company_source_used": false,
+  "driver_protocol": "Recall one retained original source, then final answer: exact two requests, identical final citation; gold unchanged."
+}

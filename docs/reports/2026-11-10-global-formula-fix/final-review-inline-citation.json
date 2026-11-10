@@ -1,0 +1,219 @@
+{
+  "status": "answered",
+  "error": null,
+  "unbound_inline_reference_in_answer": true,
+  "unbound_reference_in_citations": false,
+  "modified_candidate": [
+    "Cce666cf1f35024735afaa304"
+  ],
+  "answer": "The selected snapshot inventory preserves each reviewed business calculation below; runtime binding remains unproved. [E5574f3e925a9aa58f50dfa96]\n\nRenewal charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10. [Eaaaaaaaaaaaaaaaaaaaaaaaa] (renewal.cbl:12) [E6b6f9efe8b0afc5a43a4ee82]\n\nRenewal recalculation: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 1.10. (renewal.cbl:14) [E6b6f9efe8b0afc5a43a4ee82]\n\nIssue charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE. (issue.cbl:13) [Efae628a2bb3afa952cb4907f] [E1b9366db4a4ff7b56544a6ef] [Ef7c122b90ea9ad868285b2dc] [Ebd67091cfba9581e8eb3ce3c]\n\nIssue adjustment: COMPUTE IO-VALUE = IO-VALUE * 1.05. Source associations: issue.cbl PROGRAM-ID. ISSUE-RULE. / CALL 'VALUE-ADJUST' USING PREMIUM-AMT. ; value-adjust.cbl PROGRAM-ID. VALUE-ADJUST. / PROCEDURE DIVISION USING IO-VALUE. (value-adjust.cbl:9) [Ef7c122b90ea9ad868285b2dc] [Efae628a2bb3afa952cb4907f] [E1b9366db4a4ff7b56544a6ef] [Ebd67091cfba9581e8eb3ce3c]\n\n本地保费金额: COMPUTE DUE-CHARGE = BASE-AMT * RATE-VALUE + 7. (z-local-language.cbl:12) [E044202326e65378f3cb32990]\n\nReinstatement charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 6. (reinstatement.cbl:12) [Eff6fdb71b2a5eda1429120cc]\n\nShared surcharge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 8. Source associations: RULE-BODY.cpy  ; copy-entry.cbl PROGRAM-ID. COPY-ENTRY. / COPY RULE-BODY. (RULE-BODY.cpy:2) [E73c35c3eb2ca0f1c1cbaff81] [E63d77d6f95fa4a875e31d066] [E6732c32cad41d8cc8bdf555b] [Ee050d15471831fb27cb0671b]\n\nCancellation refund: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 0.75. (cancellation.cbl:12) [E2da0c32058b572599fd3a581]\n\nPartial period charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE * 15 / 30. (proration.cbl:12) [E8303f935ff0a9d1dba26a5ae]\n\nMonthly instalment: COMPUTE PREMIUM-AMT ROUNDED = BASE-AMT * RATE-VALUE / 12. (monthly.cbl:12) [Eadf62ab2ef909f6600b46398]\n\nCollection due: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 5. (collection.cbl:12) [Ecb94eebbd3644c8bf7774cd2]\n\nView selected rate: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE. Source associations: RATELV.dds A          R RATEROW                   PFILE(RATEPF) ; RATEPF.pf  ; view-entry.cbl PROGRAM-ID. VIEW-RULE. / SELECT RATE-FILE ASSIGN TO 'RATELV'. (view-entry.cbl:22) [Ebd617c9a22af8dfad4c94a3e] [E67880f70f62c79e1e6f726da] [E5da5059516e7d5bb7728d62b] [Ebb8233a437e5375480d6481b] [Edf837151c123c380c1191515] [Ea91f982736083431d5370d84]\n\nEndorsement difference: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE - 3. (endorsement.cbl:12) [E50b78533e0ad0c1bb9245062]\n\nAdditional cover charge: COMPUTE PREMIUM-AMT = BASE-AMT * RATE-VALUE + 4. (rider.cbl:12) [E5574f3e925a9aa58f50dfa96]",
+  "citations": [
+    {
+      "id": "E5574f3e925a9aa58f50dfa96",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "rider.cbl",
+      "hash": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E6b6f9efe8b0afc5a43a4ee82",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "renewal.cbl",
+      "hash": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+      "start": 9,
+      "end": 15
+    },
+    {
+      "id": "Efae628a2bb3afa952cb4907f",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "issue.cbl",
+      "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "start": 10,
+      "end": 18
+    },
+    {
+      "id": "E1b9366db4a4ff7b56544a6ef",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "issue.cbl",
+      "hash": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "start": 1,
+      "end": 9
+    },
+    {
+      "id": "Ef7c122b90ea9ad868285b2dc",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "value-adjust.cbl",
+      "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "start": 6,
+      "end": 10
+    },
+    {
+      "id": "Ebd67091cfba9581e8eb3ce3c",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "value-adjust.cbl",
+      "hash": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "start": 1,
+      "end": 5
+    },
+    {
+      "id": "E044202326e65378f3cb32990",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "z-local-language.cbl",
+      "hash": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Eff6fdb71b2a5eda1429120cc",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "reinstatement.cbl",
+      "hash": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E73c35c3eb2ca0f1c1cbaff81",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RULE-BODY.cpy",
+      "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "E63d77d6f95fa4a875e31d066",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RULE-BODY.cpy",
+      "hash": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "E6732c32cad41d8cc8bdf555b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "copy-entry.cbl",
+      "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "id": "Ee050d15471831fb27cb0671b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "copy-entry.cbl",
+      "hash": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "start": 1,
+      "end": 6
+    },
+    {
+      "id": "E2da0c32058b572599fd3a581",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "cancellation.cbl",
+      "hash": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "E8303f935ff0a9d1dba26a5ae",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "proration.cbl",
+      "hash": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Eadf62ab2ef909f6600b46398",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "monthly.cbl",
+      "hash": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Ecb94eebbd3644c8bf7774cd2",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "collection.cbl",
+      "hash": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+      "start": 8,
+      "end": 13
+    },
+    {
+      "id": "Ebd617c9a22af8dfad4c94a3e",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "view-entry.cbl",
+      "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "start": 13,
+      "end": 24
+    },
+    {
+      "id": "E67880f70f62c79e1e6f726da",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATELV.dds",
+      "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "E5da5059516e7d5bb7728d62b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATELV.dds",
+      "hash": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "Ebb8233a437e5375480d6481b",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "view-entry.cbl",
+      "hash": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "start": 1,
+      "end": 12
+    },
+    {
+      "id": "Edf837151c123c380c1191515",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATEPF.pf",
+      "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "start": 2,
+      "end": 2
+    },
+    {
+      "id": "Ea91f982736083431d5370d84",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "RATEPF.pf",
+      "hash": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "start": 1,
+      "end": 1
+    },
+    {
+      "id": "E50b78533e0ad0c1bb9245062",
+      "revision": "01095df380f8d6765dd309bd5a1cef6a07c38dd391284799e54356e253a5ba2d",
+      "commit": "cccccccccccccccccccccccccccccccccccccccc",
+      "path": "endorsement.cbl",
+      "hash": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+      "start": 8,
+      "end": 13
+    }
+  ]
+}

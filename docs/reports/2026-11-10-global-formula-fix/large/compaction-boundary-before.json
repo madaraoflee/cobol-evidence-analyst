@@ -1,0 +1,63 @@
+{
+  "max_output_bytes": 65536,
+  "history_preservation": "Every previous source ID retained; shortest repeated generic summary used to isolate provenance overhead.",
+  "attempts": [
+    {
+      "new_sources": 256,
+      "cumulative_sources": 256,
+      "response_bytes": 9255,
+      "accepted": true,
+      "last_attempt": {
+        "task_id": "compression_e1a53c89d3a97c13a3f468fb7d5e2cb647bb83bfcb2b90c9c22bc6fe4f022775",
+        "material_fingerprint": "b02581b82542f075081c68c61f644b567e35bd32b3a139093060cf851e871f42",
+        "investigation_id": "67e4443ee166a39c18059c3a6e254eaf9364e7257265827c985b4812bfead291",
+        "status": "accepted",
+        "retry_token": null,
+        "before_bytes": 0
+      }
+    },
+    {
+      "new_sources": 256,
+      "cumulative_sources": 512,
+      "response_bytes": 18421,
+      "accepted": true,
+      "last_attempt": {
+        "task_id": "compression_500b9135411fe263bd788e6736c9278366939300059f3227ea4230180381e33d",
+        "material_fingerprint": "3acbaaa190cb693aaec717fce39fb126debb08e7d911431b8b55f3db7d450843",
+        "investigation_id": "67e4443ee166a39c18059c3a6e254eaf9364e7257265827c985b4812bfead291",
+        "status": "accepted",
+        "retry_token": null,
+        "before_bytes": 19344
+      }
+    },
+    {
+      "new_sources": 256,
+      "cumulative_sources": 768,
+      "response_bytes": 27587,
+      "accepted": true,
+      "last_attempt": {
+        "task_id": "compression_dfa4bb83cda4056dbdb29e3304fb845c736d9694f6ef2c7103d50104f01ff85f",
+        "material_fingerprint": "e40d8c35f55bba31dfab1e30e68b5d68096e74b176dd11e6c08750cac3153940",
+        "investigation_id": "67e4443ee166a39c18059c3a6e254eaf9364e7257265827c985b4812bfead291",
+        "status": "accepted",
+        "retry_token": null,
+        "before_bytes": 37709
+      }
+    },
+    {
+      "new_sources": 256,
+      "cumulative_sources": 1024,
+      "response_bytes": 36753,
+      "accepted": false,
+      "last_attempt": {
+        "task_id": "compression_432775f7027041d4bdf937291836cf89a7d99bf9b88dbb39d25875fdf6127cbe",
+        "material_fingerprint": "0825ff8eef2f6eec083715d5da504d2cc712252b3f80c323f1f915aa20136f02",
+        "investigation_id": "67e4443ee166a39c18059c3a6e254eaf9364e7257265827c985b4812bfead291",
+        "status": "failed",
+        "retry_token": null,
+        "before_bytes": 56074,
+        "reason": "compressed_analysis_exceeds_budget"
+      }
+    }
+  ]
+}

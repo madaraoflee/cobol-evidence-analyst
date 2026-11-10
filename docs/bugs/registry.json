@@ -5232,7 +5232,7 @@
       "title": "批次文件规则限制永久丢弃未处理分支",
       "symptom": "当前批可以回答后，全局未读文件、关系或规则不再推进。",
       "root_cause": "批次上限被当成全局结束，未保存可恢复的来源和规则游标。 2026-11-10复核发现旧修复覆盖不完整：只有business_overview分支创建持久路径游标，formula-only分支的已发现路径仍受8项批次限制，余项只有located_path_budget而没有可推进待办。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "https://github.com/madaraoflee/cobol-evidence-analyst/commit/6a67df0b16528d99733d248b689a5df5d298315b",
         "docs/reports/2026-11-06-cumulative-analysis/README.md",
@@ -5240,7 +5240,9 @@
         "docs/reports/2026-11-10-global-formula-audit/twelve-matched-paths-report.json",
         "docs/reports/2026-11-10-global-formula-audit/twelve-matched-paths-continuation.json",
         "docs/reports/2026-11-10-global-formula-audit/defect-id-mapping.json",
-        "docs/reports/2026-11-10-global-formula-audit/README.md"
+        "docs/reports/2026-11-10-global-formula-audit/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/LOCAL-FIX-HANDOFF.json"
       ],
       "regressions": [
         {
@@ -5254,10 +5256,42 @@
         {
           "kind": "python",
           "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_sixteen_logical_view_objects_remain_in_the_saved_cursor"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_continue_seed_retains_inventory_and_old_checkpoint_stays_compatible"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_same_snapshot_resumes_directory_without_database_scan"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_seventy_formulas_complete_review_in_persisted_batches_without_rechecking_finished_parts"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items"
         }
       ],
       "verification_scope": "source_offline",
-      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。 2026-11-10重新打开：12个已发现且都明确PREMIUM-AMT的独立程序，原句与空保存要求下首次及显式继续均读相同8个，新增路径为0，余4个持续PARTIAL。保留全部旧回归和既有通过记录；旧测试仍通过不证明此遗漏分支已修复，本次未改变运行代码。"
+      "limitations": "源码离线修复及定向复测已完成；本轮全套结果以global-formula-fix报告中的固定快照BUG-REGRESSION-REPORT.json为准。仅确认已纳入固定索引的源码清点/持久推进/累计交付合同，不代替真实模型业务语义、企业源码完整性或Windows现场验收。此前诊断与开发失败保留于evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-global-formula-fix",
+          "status": "open",
+          "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。 2026-11-10重新打开：12个已发现且都明确PREMIUM-AMT的独立程序，原句与空保存要求下首次及显式继续均读相同8个，新增路径为0，余4个持续PARTIAL。保留全部旧回归和既有通过记录；旧测试仍通过不证明此遗漏分支已修复，本次未改变运行代码。"
+        }
+      ]
     },
     {
       "id": "BUG-20261106-027",
@@ -6045,11 +6079,13 @@
       "id": "BUG-20261109-003",
       "title": "已落盘答案恢复绕过引用原文复核",
       "symptom": "answer_ready 检查点已保存后进程中断，恢复时源码权限撤回或内容改变仍直接交付旧答案。",
-      "root_cause": "answered 检查点在取消检查和原文校验之前提前返回。",
+      "root_cause": "answered 检查点在取消检查和原文校验之前提前返回。 2026-11-10开发中独立复核：新全库累计结果分支只复核顶层answer_citations，后拼入的finding引用未重验；更改原文字节后恢复仍answered。",
       "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-09-integrated-release/README.md",
-        "poc/tests/test_online_investigation_recovery_paging.py"
+        "poc/tests/test_online_investigation_recovery_paging.py",
+        "docs/reports/2026-11-10-global-formula-fix/final-review-online-findings.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
       ],
       "regressions": [
         {
@@ -6066,10 +6102,30 @@
           "kind": "python",
           "path": "poc/tests/test_online_investigation_recovery_paging.py",
           "test_id": "test_online_investigation_recovery_paging.OnlineInvestigationRecoveryPagingTests.test_answer_ready_checkpoint_obeys_cancellation_before_source_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_answered_recovery_revalidates_all_cumulative_active_and_archived_sources"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_answered_checkpoint_revalidates_all_partitioned_source_hashes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_final_source_verification_budget_resumes_after_last_checked_file"
         }
       ],
       "verification_scope": "source_offline",
-      "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。"
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "本轮离线复现与全量回归绑定整合源码；候选 EXE 检查单独报告。真实模型、公司 Bitbucket 环境、目标设备和未覆盖输入仍需独立验收。 2026-11-10按原编号重新打开：新全库分支仍需修复；这是未发布实现的回退，保留此前实际通过记录及所有旧测试。"
+        }
+      ]
     },
     {
       "id": "BUG-20261109-004",
@@ -6574,30 +6630,50 @@
       "id": "BUG-20261110-004",
       "title": "在线入口及独立在线页面未遵循界面语言",
       "symptom": "选择简体后Bitbucket入口仍含繁体；独立在线页面及动态状态没有继承全局语言选择。",
-      "root_cause": "入口缺少精确翻译词条；独立在线页面硬编码文本且未读取既有locale设置。",
+      "root_cause": "入口缺少精确翻译词条；独立在线页面硬编码文本且未读取既有locale设置。 2026-11-10新全库分支增加inventory_continuing阶段但未映射界面翻译，在线进度会回显内部英文枚举。",
       "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-language-instructions-recovery/README.md",
-        "docs/reports/2026-11-10-language-instructions-recovery/online-before-all.log"
+        "docs/reports/2026-11-10-language-instructions-recovery/online-before-all.log",
+        "docs/reports/2026-11-10-global-formula-fix/progress-locale-review.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
       ],
       "regressions": [
         {
           "kind": "browser",
           "path": "poc/tests/web_online_locale.test.cjs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_premature_answer_remains_visible_draft_with_pending_work"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_inventory_paging.test.cjs"
         }
       ],
       "verification_scope": "source_offline",
-      "limitations": "仅修改Bitbucket专属界面及入口词条；不翻译用户问题、历史内容、模型答案、源码或路径。界面语言不构成真实模型语言遵从验收。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "仅修改Bitbucket专属界面及入口词条；不翻译用户问题、历史内容、模型答案、源码或路径。界面语言不构成真实模型语言遵从验收。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。 新分支静态集成复核中重新打开；不修改既有界面语言断言，须修后端阶段接线并全量复测。"
+        }
+      ]
     },
     {
       "id": "BUG-20261110-005",
       "title": "在线问答未传入已保存的回答要求",
       "symptom": "用户在设置中保存的回答语言、业务重点及章节要求没有进入在线模型请求。",
-      "root_cause": "在线桥接、工作区及调查请求只传固定系统指令，未接入answer_instructions与locale。",
+      "root_cause": "在线桥接、工作区及调查请求只传固定系统指令，未接入answer_instructions与locale。 2026-11-10开发中独立复核：新全库累计结果分支在保存要求切换后仍拼接旧finding正文，繁体新正文后出现旧英文业务结论。",
       "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-language-instructions-recovery/README.md",
-        "docs/reports/2026-11-10-language-instructions-recovery/online-requirements-and-errors-before.json"
+        "docs/reports/2026-11-10-language-instructions-recovery/online-requirements-and-errors-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/final-review-online-findings.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
       ],
       "regressions": [
         {
@@ -6654,10 +6730,26 @@
           "kind": "python",
           "path": "poc/tests/test_online_answer_requirements.py",
           "test_id": "test_online_answer_requirements.OnlineRequirementsWorkspaceTests.test_oversized_saved_requirements_leave_durable_progress_recoverable"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_changed_requirements_restate_every_saved_finding_without_losing_provenance"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_bounded_checkpoint_rehydrates_without_source_catalog_scan_and_language_restarts_review"
         }
       ],
       "verification_scope": "source_offline",
-      "limitations": "在线独立修复；完整要求须传到每轮，恢复保留证据和待办，需求变更时旧答案只能作为待修订草稿，未知请求不自动重发。本地要求传递另行核对，不以合成测试证明真实模型遵从。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "在线独立修复；完整要求须传到每轮，恢复保留证据和待办，需求变更时旧答案只能作为待修订草稿，未知请求不自动重发。本地要求传递另行核对，不以合成测试证明真实模型遵从。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。 2026-11-10按原编号重新打开：新全库分支仍需修复；这是未发布实现的回退，保留此前实际通过记录及所有旧测试。"
+        }
+      ]
     },
     {
       "id": "BUG-20261110-006",
@@ -6743,47 +6835,703 @@
       "title": "全系统公式问题未建立全库范围与完成义务",
       "symptom": "用户要求列出全系统premium公式时，英文命中及其调用闭包被当作完整候选；含中文保费注释的独立计算根未被发现，仍接受系统全部的终答。另在明确单文件历史后，全系统追问可能继续沿用旧exclusive范围。",
       "root_cause": "规划器只识别calculation及已有源码焦点，没有独立全库枚举/覆盖义务；全局问法也未可靠解除历史排他范围。候选集完整被误用为问题完成依据。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-report.json",
         "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-truth-and-coverage.json",
         "docs/reports/2026-11-10-global-formula-audit/disconnected-chinese-premium-saved-default-truth-and-coverage.json",
         "docs/reports/2026-11-10-global-formula-audit/global-after-exclusive-file-report.json",
-        "docs/reports/2026-11-10-global-formula-audit/README.md"
+        "docs/reports/2026-11-10-global-formula-audit/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/LOCAL-FIX-HANDOFF.json"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_global_catalog_includes_disconnected_chinese_business_alias"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_global_question_releases_previous_exclusive_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_catalog_contains_every_physical_occurrence_and_every_source_window"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_partial_or_wrong_version_citation_cannot_complete_review"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_unstructured_claim_of_global_completion_cannot_finish"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_omitted_formula_reviews_cannot_finish_even_when_model_claims_batch_completion"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_original_mixed_language_request_is_whole_repository"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_explicit_multilingual_inventory_requests"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_normal_formula_and_overview_do_not_expand_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_negated_or_current_file_restriction_is_not_global"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_repository_determiners_and_all_variants"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_current_named_program_restriction_takes_precedence"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "合成源码的中文注释明确标注保费，不凭PRM缩写猜含义。默认已保存回答要求不能补上全库发现。历史排他范围复现仅证明范围未解除，不声称该例虚假完成。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+      "limitations": "源码离线修复及定向复测已完成；本轮全套结果以global-formula-fix报告中的固定快照BUG-REGRESSION-REPORT.json为准。仅确认已纳入固定索引的源码清点/持久推进/累计交付合同，不代替真实模型业务语义、企业源码完整性或Windows现场验收。此前诊断与开发失败保留于evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-global-formula-fix",
+          "status": "open",
+          "limitations": "合成源码的中文注释明确标注保费，不凭PRM缩写猜含义。默认已保存回答要求不能补上全库发现。历史排他范围复现仅证明范围未解除，不声称该例虚假完成。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+        }
+      ]
     },
     {
       "id": "BUG-20261110-010",
       "title": "在线全库问题未检查已知未完搜索便标记完成",
       "symptom": "25个明确premium搜索命中只读1个，前轮明确剩24个，终答complete=true且remaining为空后仍answered，工作区删除pending。",
       "root_cause": "在线终答只核对引用属于当前原文，再信任模型complete/remaining；没有将分页未完、已发现未复核位置与完成状态对账。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-global-formula-audit/online-report.json",
         "docs/reports/2026-11-10-global-formula-audit/online-result.json",
-        "docs/reports/2026-11-10-global-formula-audit/README.md"
+        "docs/reports/2026-11-10-global-formula-audit/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_premature_answer_remains_visible_draft_with_pending_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_review_requires_current_verified_complete_source_ranges"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_reviewed_file_without_arithmetic_still_requires_its_whole_source"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_duplicate_physical_position_cannot_satisfy_multiple_occurrences"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_ordinary_question_is_not_forced_to_review_all_lexical_hits"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_premature_model_complete_cannot_clear_unreviewed_global_work"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "分页本身可按20+5查全，不是固定只能查前20条。脚本响应证明控制流程接受不完整输出，不能证明真实模型必然如此，也不认定公司漏掉哪些公式。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "分页本身可按20+5查全，不是固定只能查前20条。脚本响应证明控制流程接受不完整输出，不能证明真实模型必然如此，也不认定公司漏掉哪些公式。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+        }
+      ]
     },
     {
       "id": "BUG-20261110-011",
       "title": "在线未完成搜索游标被观察记录窗口丢弃",
       "symptom": "未翻完的搜索在13次读页后不再进入模型上下文；显式多轮继续共98动作后，搜索记录从持久检查点消失，而已读97页仍在。",
       "root_cause": "仅保存最近96条观察、发送最近12条观察，未完成搜索义务没有独立持久记录；模型remaining可被空列表替换，证据召回工具不能找回遗漏的搜索任务。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-global-formula-audit/online-report.json",
         "docs/reports/2026-11-10-global-formula-audit/online-result.json",
-        "docs/reports/2026-11-10-global-formula-audit/README.md"
+        "docs/reports/2026-11-10-global-formula-audit/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_unfinished_search_survives_prompt_and_checkpoint_observation_windows"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_later_search_page_cannot_hide_an_earlier_unvisited_page"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_unknown_outcome_retains_ledger_and_never_reissues_without_approval"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_more_than_4096_actions_remain_deduplicated_outside_checkpoint"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "与BUG-20261109-002不同：该旧缺陷是分页偏移不可执行；本次合法游标可执行但被遗忘。现有每次6个模型请求、24动作的预算会正常needs_continuation，本次不把预算停止本身当bug。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "与BUG-20261109-002不同：该旧缺陷是分页偏移不可执行；本次合法游标可执行但被遗忘。现有每次6个模型请求、24动作的预算会正常needs_continuation，本次不把预算停止本身当bug。 本轮仅离线诊断、未修复，未新增正式回归断言；复现使用合成资料和注入模型响应，无公司源码、真实模型或网络调用。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-012",
+      "title": "公式批次修复过度扩大未绑定字段的问题范围",
+      "symptom": "全库公式修复开发期间，将持久游标开放给所有calculation问题后，明确未绑定字段的问题错误得到旁支公式候选。",
+      "root_cause": "公式批次入口只判断calculation意图，未保留字段绑定和既有问题范围过滤。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/first-targeted-regression.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/LOCAL-FIX-HANDOFF.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_question_scope_regressions.QuestionScopeRegressions.test_unbound_or_declared_unused_target_does_not_select_peer_formulas"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_normal_formula_and_overview_do_not_expand_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_scope.RepositoryInventoryScopeTests.test_current_named_program_restriction_takes_precedence"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "源码离线修复及定向复测已完成；本轮全套结果以global-formula-fix报告中的固定快照BUG-REGRESSION-REPORT.json为准。仅确认已纳入固定索引的源码清点/持久推进/累计交付合同，不代替真实模型业务语义、企业源码完整性或Windows现场验收。此前诊断与开发失败保留于evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-global-formula-fix",
+          "status": "open",
+          "limitations": "2026-11-10开发中由未改动的旧回归拦截，尚未提交或发布。必须修实现并重新完整验证；不得修改旧断言。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-013",
+      "title": "在线归档原文同时召回多页时相互挤出",
+      "symptom": "全库压缩修复开发期间，同时召回两页已归档原文时，恢复第二页又将第一页归档，随后组装模型上下文因引用缺页返回ONLINE_OPERATION_FAILED。",
+      "root_cause": "原文归档未保护同一召回动作内已恢复但仍待供应的页集合。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/online-recall-probe.json",
+        "docs/reports/2026-11-10-global-formula-fix/online-acceptance-second.log",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_real_online_batches_deliver_every_gold_site_after_observation_eviction"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_reviewed_original_pages_archive_and_batch_recall_without_losing_early_page"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "2026-11-10尚未提交或发布的新归档实现，由独立合成业务金标管线复测拦截。使用固定中性源码及注入响应，不能替代真实模型与公司现场验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-014",
+      "title": "在线累计业务摘要可带入未绑定的行内引用",
+      "symptom": "全库修复开发中，review摘要携带未供应的E引用但citations数组合法，最终拼接后answered正文仍含假引用，返回引用清单没有该项。",
+      "root_cause": "新业务摘要拼接在普通终答引用集合校验之后，未检查summary内联引用是否属于该动作已验证的citations。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/final-review-inline-citation.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_work.OnlineInventoryWorkTests.test_finding_summary_cannot_add_an_unverified_inline_citation"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "未发布新分支，由注入摘要的离线控制响应实际复现。待运行代码修复并追加完整引用回归，不能改旧断言或将来源数组合法当作正文所有引用合法。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-015",
+      "title": "全库防遗漏投影可能重新插回已被审稿纠正的旧公式",
+      "symptom": "新全库清单开发中，以原已接受业务字符串判定最终缺项后，审稿纠正错误公式的正常改写可能被当成丢失，重新附上旧错式并阻碍完成。",
+      "root_cause": "累计finding曾只允许首次分类或展示改写，最终防遗漏校验缺少带候选ID及来源的业务纠错更新通道。",
+      "status": "fixed",
+      "evidence": [
+        "poc/tests/test_repository_formula_inventory.py",
+        "docs/reports/2026-11-10-global-formula-fix/README.md",
+        "docs/reports/2026-11-10-global-formula-fix/LOCAL-FIX-HANDOFF.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_source_review_can_correct_wrong_formula_without_restoring_the_wrong_canonical_text"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "源码离线修复及定向复测已完成；本轮全套结果以global-formula-fix报告中的固定快照BUG-REGRESSION-REPORT.json为准。仅确认已纳入固定索引的源码清点/持久推进/累计交付合同，不代替真实模型业务语义、企业源码完整性或Windows现场验收。此前诊断与开发失败保留于evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-global-formula-fix",
+          "status": "open",
+          "limitations": "未发布新清单机制的审查边界；回归使用原文乘以二、首次摘要乘以五，经严格来源审稿纠正后须完整交付乘以二，并保留旧记录历史。真实模型是否主动找到错误仍未验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-016",
+      "title": "万文件全库结果被界面和历史投影截断且缺少完整交付入口",
+      "symptom": "真实10,001文件目录完成后，3,660,546字符正文及20,002条记录进入旧大报告投影，正文仅保留1,000,000字符、findings仅1,000条、引用仅3,000/10,001；用户无法从该历史消息逐项访问全部结果。",
+      "root_cause": "累计完整清单和全部引用放在单个巨型报告及消息，受既有安全显示投影限制，缺少独立持久结果与分页/完整导出入口。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/measurement-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/large/local-history-owner-audit.json",
+        "docs/reports/2026-11-10-global-formula-fix/large/online-publication-owner-audit.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_filtered_dense_cursor_reaches_first_middle_last_with_review_and_excluded_rows"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_immutable_handles_keep_corrected_history_and_all_narrative_versions"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_real_http_pages_exports_and_verified_spans_are_bound_to_message_and_revision"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_workspace_pages_complete_exports_and_source_evidence_use_owned_immutable_handle"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_inventory_paging.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "用户已确认公司源码超过10,000文件，本轮按真实中性10,001文件材料及现有组件边界量化。不是公司源码、真实模型或完整端到端耗时验收；不得靠提高旧安全限额、删历史或减少全局义务宣称修复。待分片持久化与完整访问/导出回归验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-017",
+      "title": "在线万文件目录和候选台账耗尽单检查点容量",
+      "symptom": "真实10,001文件在线材料完整翻页后，仅文件目录占2,241,329字节；登记到6,200个文件的真实算术候选时检查点达4,206,728字节，超过4,194,304上限并停止，尚未核对原文。",
+      "root_cause": "全局目录、候选、已完成动作、归档来源和累计业务结论都进入同一有限检查点，缺少逐记录独立持久化及有界恢复句柄。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/before-online-capacity.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_partitioned_checkpoint_roundtrip_retains_all_pending_and_prior_findings"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_actual_model_protocol_resumes_and_delivers_all_partitioned_findings"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_unknown_resume_does_not_read_sources_or_send_model_and_retains_store"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_credential_guard_runs_before_private_records_and_publication_are_written"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "用户已确认公司源码超过10,000文件，本轮按真实中性10,001文件材料及现有组件边界量化。不是公司源码、真实模型或完整端到端耗时验收；不得靠提高旧安全限额、删历史或减少全局义务宣称修复。待分片持久化与完整访问/导出回归验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-018",
+      "title": "本地全库压缩因累计来源编号增长而永久卡住",
+      "symptom": "即使每256个来源仅保留一句极短业务摘要，现有分析记忆在1,024来源时仍报compressed_analysis_exceeds_budget；响应36,753字节，应用内部重复保存历史来源目录后超过65,536字节。",
+      "root_cause": "把全部历史来源身份强制塞进有限活跃摘要；来源ID本身无法用减少业务文字消除，显式全库没有独立耐久事实/来源台账。 大库严格审稿开发中也发现同类累计：PriorSourceMemory将每批审稿来源继续塞入活跃记忆，检查点从约5.28MB持续增长到约14MB；修复为当前审稿窗口与完整版本归档分别保存。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/compaction-boundary-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_bounded_checkpoint_rehydrates_without_source_catalog_scan_and_language_restarts_review"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_small_windows_and_explicit_resumes_deliver_every_formula_and_all_review_parts"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_server_failure_preserves_published_batch_and_resume_does_not_repeat_it"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "用户已确认公司源码超过10,000文件，本轮按真实中性10,001文件材料及现有组件边界量化。不是公司源码、真实模型或完整端到端耗时验收；不得靠提高旧安全限额、删历史或减少全局义务宣称修复。待分片持久化与完整访问/导出回归验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-019",
+      "title": "全库公式分页将审计目录序号误当结果偏移",
+      "symptom": "新独立清单开发中，total只统计included公式，而cursor用含source_review和排除项的catalog序号；末页和上一页按公式总数跳转会读到错误位置。3公式/6目录项时cursor=2返回第2公式而不是第3公式。",
+      "root_cause": "后端keyset目录游标与前端按已确认业务公式计算的分页offset合同不一致。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/cursor-offset-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_filtered_dense_cursor_reaches_first_middle_last_with_review_and_excluded_rows"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "未发布新分页实现，使用生产InventoryStore的小型交错审计/公式记录实际复现并保存实现hash。必须以包含排除项和原文窗口的分页回归修复，不能只测纯公式列表。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-020",
+      "title": "相同原文回读因显示选择元数据变化被误判冲突",
+      "symptom": "新清单归档开发中，同一固定来源重新进入上下文时，选择原因等可变元数据不同，被误报为INVENTORY_SOURCE_CONFLICT而中止。",
+      "root_cause": "归档冲突校验将完整页对象的显示/选择元数据一起散列，未区分不可变原文身份与当前展示属性。",
+      "status": "fixed",
+      "evidence": [
+        "poc/repository_inventory_store.py",
+        "poc/tests/test_repository_inventory_store.py",
+        "docs/reports/2026-11-10-global-formula-fix/large/development-boundaries-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_recalled_span_selection_metadata_does_not_conflict_but_changed_original_does"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "尚未发布的新分片归档路径；回归必须允许元数据变化而仍拒绝实际原文/来源身份变化。源码检查不能代替真实设备和公司环境恢复验收。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-021",
+      "title": "在线清单存储初始化给普通问答新增目录副作用",
+      "symptom": "新分片清单开发的首次旧在线全套回归中，普通问答的状态目录比原合同多出 inventories 子目录。",
+      "root_cause": "OnlineWorkbench 初始化时无条件创建清单存储，未将新全库能力限制在显式全库分支。",
+      "status": "fixed",
+      "evidence": [
+        "poc/online_workspace.py",
+        "poc/tests/test_online_workspace.py",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_end_to_end_persists_online_history_without_local_source_or_index"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "已改为惰性初始化且旧断言未改；须由本轮固定源码完整回归确认。仅涉及源码离线目录副作用，不代表公司环境验收。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-022",
+      "title": "分片清单保留的早期业务叙述未纳入全部最终审稿",
+      "symptom": "新大库分片模式可把早期逐批业务叙述保存在完整导出中，但最终严格审稿只遍历发现和来源核对项及最近正文，可能遗漏早期叙述。",
+      "root_cause": "新增独立叙述归档没有同步建立带实际来源的持久审稿游标。",
+      "status": "fixed",
+      "evidence": [
+        "poc/repository_inventory_store.py",
+        "poc/repository_inventory.py",
+        "poc/business_chat.py",
+        "docs/reports/2026-11-10-global-formula-fix/large/development-boundaries-before.json",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_earlier_business_narrative_is_reviewed_and_corrected_without_losing_other_batches"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "本轮大库开发自查，修复前不得将存储或目录完成当成全部最终业务叙述审稿通过。尚待准确回归及完整固定源码验证。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-023",
+      "title": "全库归档证据接口缺少逐片完整性标记导致界面拒绝显示",
+      "symptom": "直接调用真实归档接口得到 READY 和顶层 VALID，但每个 spans 对象没有 integrity；浏览器按既有逐片合同拒绝打开清单来源。",
+      "root_cause": "新归档接口与既有证据界面的字段位置不一致；只用模拟成功响应的界面测试未验证实际生产返回结构。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/evidence-contract-before.json",
+        "poc/repository_inventory_store.py",
+        "poc/web/app.js",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_inventory_paging.test.cjs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_real_http_pages_exports_and_verified_spans_are_bound_to_message_and_revision"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_source_tampering_and_store_sidecars_are_rejected"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "已用中性夹具直接复现真实存储返回；必须补生产接口合同回归，保留来源被篡改时拒绝显示的旧要求。源码检查不代替目标设备验收。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-024",
+      "title": "在线全库连续调查把已归档原文和长正文重复写入历史",
+      "symptom": "全库每次继续会把当前原文窗口和长正文复制进历史消息，即使独立调查检查点已分片，聊天历史仍可能超过16MiB容量而无法继续保存。",
+      "root_cause": "新增分片结果与旧消息持久化路径同时保存完整当前证据，未让显式全库历史引用固定结果版本。",
+      "status": "fixed",
+      "evidence": [
+        "poc/online_workspace.py",
+        "poc/online_inventory_store.py",
+        "poc/web/online.js",
+        "docs/reports/2026-11-10-global-formula-fix/large/before-online-history-capacity.json",
+        "docs/reports/2026-11-10-global-formula-fix/large/online-history-full-answer-rerun.log",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_inventory_paging.test.cjs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_many_partial_deliveries_do_not_duplicate_source_windows_or_truncate_saved_prose"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_preview_citation_budget_keeps_only_visible_ids_and_full_answer_keeps_all"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_store.OnlineInventoryStoreTests.test_workspace_pages_complete_exports_and_source_evidence_use_owned_immutable_handle"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "完整叙述及来源须保留在不可变结果归档，可分页读取和完整导出。普通问答历史行为不变；待生产保存边界复现、精确回归与全量门禁，不以界面预览代替完整保存。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-025",
+      "title": "大库原文窗口归并误及小库导致已有完整清单停在部分完成",
+      "symptom": "同一18文件中性业务金标此前能完成，新增大库归并后两个原断言得到PARTIAL而非ANALYZED；普通批次和繁体加保存要求均受影响。",
+      "root_cause": "新原文窗口归并没有限定在显式分片大库路径，改变了既有小库审稿的原文供应。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/small-inventory-regression-before.log",
+        "docs/reports/2026-11-10-global-formula-fix/large/small-inventory-regression-after.log",
+        "poc/business_chat.py",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "原测试及fixture未改；限定新归并范围后独立11项定向通过，仍须本轮固定源码完整回归。不能代表真实模型业务判断通过。"
+        }
+      ]
+    },
+    {
+      "id": "BUG-20261110-026",
+      "title": "正文相同的全库公式纠正未保存旧结果历史入口",
+      "symptom": "全库业务公式内容已纠正、固定结果handle改变，但简短正文未变；真实ConversationStore替换回答后answer_revisions为0，用户无法从旧版本入口查看先前清单。",
+      "root_cause": "历史版本变化判断只比较旧正文和来源字段，没有纳入新增的显式分页清单版本标识。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-global-formula-fix/large/same-summary-revision-before.json",
+        "poc/conversation_store.py",
+        "docs/reports/2026-11-10-global-formula-fix/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_same_overview_with_corrected_inventory_handle_preserves_previous_revision"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_unchanged_inventory_handle_does_not_add_duplicate_revision"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_inventory_store.RepositoryInventoryStoreTests.test_plain_answer_without_inventory_keeps_existing_revision_rule"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本轮源码修复及定向回归完成；固定源码完整回归结果以global-formula-fix报告为准，失败或缺失不能算全部通过。仅确认中性源码、注入响应下的协议/保存/范围/交付合同，不代替真实模型语义、公司API、Windows设备或安装包验收。此前失败证据与验证边界保留在evidence和verification_history。",
+      "verification_history": [
+        {
+          "date": "2026-11-10",
+          "phase": "before-final-global-inventory-regression",
+          "status": "open",
+          "limitations": "本轮已授权全库完整结果及历史交付的最小专属接线；只比较paged inventory版本变化，保留普通回答原判断。原清单仍在归档，须新增历史入口回归及完整旧缺陷验证。"
+        }
+      ]
     }
   ],
   "updated_at": "2026-11-10"

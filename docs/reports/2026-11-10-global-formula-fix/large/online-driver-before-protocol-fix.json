@@ -1,0 +1,14 @@
+{
+  "kind": "synthetic_driver_protocol_failure",
+  "reviewed_files": 10001,
+  "completed_restores": 46,
+  "last_checkpoint_bytes": 1733,
+  "runtime_error_wrapping": "TRANSPORT_ERROR",
+  "driver_exception": "IndexError: source_context[0] when all reviewed pages were archived",
+  "actual_context_source_pages": 0,
+  "retained_findings": 40,
+  "retained_source_to_recall": "E34674cbd03e3cd13defc7ca2",
+  "fix": "Issue documented recall tool for exactly one retained original evidence ID, then return final answer after verified source is supplied. All coverage and gold assertions retained.",
+  "product_bug": false,
+  "real_model_called": false
+}

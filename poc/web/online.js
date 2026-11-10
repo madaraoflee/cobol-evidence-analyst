@@ -9,6 +9,22 @@
   let locale = 'zh-CN';
   try { const saved = localStorage.getItem(LOCALE_KEY); if (LOCALES.includes(saved)) locale = saved; } catch {}
   const translations = new Map([
+    ["业务公式清单", "業務公式清單", "Business formula inventory"],
+    ["加载公式清单", "載入公式清單", "Load formula inventory"],
+    ["展开完整业务说明", "展開完整業務說明", "Show the complete business explanation"],
+    ["收起完整业务说明", "收起完整業務說明", "Collapse the complete business explanation"],
+    ["当前显示说明预览，完整内容已保存。", "目前顯示說明預覽，完整內容已保存。", "This is an explanation preview. The complete text is saved."],
+    ["已记录内容完整保存；分页只控制本页显示。", "已記錄內容完整保存；分頁只控制本頁顯示。", "All recorded results are saved. Pagination only controls this view."],
+    ["仍有范围待核对", "仍有範圍待核對", "Some scope still needs review"],
+    ["查看源码依据", "查看源碼依據", "View source evidence"],
+    ["当前显示", "目前顯示", "Showing"],
+    ["公式清单分页", "公式清單分頁", "Formula inventory pages"],
+    ["首页", "首頁", "First page"],
+    ["上一页", "上一頁", "Previous page"],
+    ["下一页", "下一頁", "Next page"],
+    ["末页", "末頁", "Last page"],
+    ["导出完整分析清单", "匯出完整分析清單", "Export the complete analysis inventory"],
+    ["清单版本不一致，请重新读取对话。", "清單版本不一致，請重新讀取對話。", "The inventory version differs. Reload the conversation."],
     ["在线源码业务分析", "在線源碼業務分析", "Online source business analysis"],
     ["源码业务分析", "源碼業務分析", "Source business analysis"],
     ["跳至提问", "跳至提問", "Skip to question"],
@@ -417,6 +433,80 @@
   }
 
   const phaseNames = {preparing:'正在准备调查',investigating:'正在调查业务问题',ready:'已就绪',model_request_started:'正在请求模型',model_response_received:'已收到模型响应',model_request_failed:'模型请求未完成',response_applied:'已应用模型响应',source_action_completed:'已完成源码补查',answer_ready:'回答已准备好'};
+  const inventoryPages = new Map(), inventoryRequests = new Map(), inventoryAnswers = new Map();
+  function inventoryKey(message) {
+    return JSON.stringify([conversation()?.id,message.id,message.inventory_result?.id]);
+  }
+  function inventoryMarkup(message) {
+    const descriptor=message.inventory_result;
+    if(!descriptor || typeof descriptor.id!=='string')return '';
+    const page=inventoryPages.get(inventoryKey(message)) || descriptor;
+    const rows=Array.isArray(page.findings)?page.findings:[],total=Number(descriptor.total)||0;
+    const offset=Number(page.offset)||0,size=40,attrs=`data-inventory-message="${escape(message.id)}"`;
+    const button=(label,cursor,disabled)=>`<button ${attrs} data-inventory-page="${cursor}" ${disabled?'disabled':''}>${escape(t(label))}</button>`;
+    const navigation=`<nav class="inventory-pagination" aria-label="${escape(t('公式清单分页'))}">${button(rows.length?'首页':'加载公式清单',0,rows.length>0&&offset===0 || total===0)}${button('上一页',Math.max(0,offset-size),offset===0)}${button('下一页',Number(page.next_offset)||0,page.next_offset==null || rows.length===0)}${button('末页',Math.max(0,Math.floor((total-1)/size)*size),offset+rows.length>=total)}<button ${attrs} data-inventory-export>${escape(t('导出完整分析清单'))}</button></nav>`;
+    return `<details class="inventory" open><summary>${escape(t('业务公式清单'))} · ${total.toLocaleString(locale)}</summary><p>${escape(t('已记录内容完整保存；分页只控制本页显示。'))}</p>${!descriptor.complete?`<p role="status">${escape(t('仍有范围待核对'))}${Number(descriptor.counts?.pending)>0?' · '+Number(descriptor.counts.pending).toLocaleString(locale):''}</p>`:''}${navigation}<div>${rows.map(row=>{
+      const prose=[row.summary,row.formula,row.conditions].filter(Boolean).join('\n\n');
+      const body=typeof answerMarkdown!=='undefined'?answerMarkdown.render(prose):`<p>${escape(prose)}</p>`;
+      return `<section class="inventory-row answer"><h4>${escape(row.path || row.relative_path)} · ${Number(row.start_line)}–${Number(row.end_line)}</h4>${body}<div class="citations">${(row.citations || []).map((citation,index)=>`<button ${attrs} data-inventory-source="${escape(typeof citation==='string'?citation:citation.id)}">${escape(t('查看源码依据'))} ${index+1}</button>`).join('')}</div></section>`;
+    }).join('')}</div><p>${escape(t('当前显示'))} ${rows.length?(offset+1).toLocaleString(locale):'0'}–${(offset+rows.length).toLocaleString(locale)} / ${total.toLocaleString(locale)}</p>${navigation}</details>`;
+  }
+  function inventoryMessage(id) { return conversation()?.messages?.find(message=>message.id===id); }
+  function inventoryAnswerControl(message) {
+    if(!message.inventory_answer_preview || !message.inventory_result?.id)return '';
+    const expanded=inventoryAnswers.has(inventoryKey(message));
+    return `<div class="inventory-answer-control">${expanded?'':`<p>${escape(t('当前显示说明预览，完整内容已保存。'))}</p>`}<button data-inventory-message="${escape(message.id)}" data-inventory-answer>${escape(t(expanded?'收起完整业务说明':'展开完整业务说明'))}</button></div>`;
+  }
+  function inventoryPath(descriptor,suffix='') {
+    return `/inventories/${encodeURIComponent(descriptor.id)}${suffix}?conversation_id=${encodeURIComponent(conversation().id)}`;
+  }
+  async function loadInventoryPage(messageId,offset) {
+    const message=inventoryMessage(messageId),descriptor=message?.inventory_result;
+    if(!descriptor || !Number.isSafeInteger(offset) || offset<0)return;
+    const conversationId=conversation().id,key=inventoryKey(message),ticket=(inventoryRequests.get(key)||0)+1;
+    inventoryRequests.set(key,ticket);
+    try {
+      const data=await api(inventoryPath(descriptor)+`&offset=${offset}&limit=40`);
+      if(conversation()?.id!==conversationId || inventoryMessage(messageId)?.inventory_result?.id!==descriptor.id || inventoryRequests.get(key)!==ticket)return;
+      if(data.id!==descriptor.id || data.revision!==descriptor.revision || !Array.isArray(data.findings))throw Error(t('清单版本不一致，请重新读取对话。'));
+      inventoryPages.set(key,{...data,offset});
+      while(inventoryPages.size>16)inventoryPages.delete(inventoryPages.keys().next().value);
+      render();
+    } catch(error) { if(conversation()?.id===conversationId && inventoryRequests.get(key)===ticket)showError(error); }
+  }
+  async function exportInventory(messageId) {
+    const descriptor=inventoryMessage(messageId)?.inventory_result;if(!descriptor)return;
+    try {
+      const result=await api(inventoryPath(descriptor,'/export'));
+      if(typeof result.content!=='string')throw Error(t('清单版本不一致，请重新读取对话。'));
+      const blob=new Blob([result.content],{type:result.mime_type || 'application/x-ndjson;charset=utf-8'});
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download=result.filename || 'business-formula-inventory.jsonl';link.click();URL.revokeObjectURL(url);
+    } catch(error) { showError(error); }
+  }
+  async function toggleInventoryAnswer(messageId) {
+    const message=inventoryMessage(messageId),descriptor=message?.inventory_result;
+    if(!message?.inventory_answer_preview || !descriptor)return;
+    const key=inventoryKey(message),conversationId=conversation().id;
+    if(inventoryAnswers.has(key)){inventoryAnswers.delete(key);render();return;}
+    try {
+      const data=await api(inventoryPath(descriptor)+'&offset=0&limit=1');
+      if(conversation()?.id!==conversationId || inventoryMessage(messageId)?.inventory_result?.id!==descriptor.id)return;
+      if(data.id!==descriptor.id || data.revision!==descriptor.revision || typeof data.answer!=='string')throw Error(t('清单版本不一致，请重新读取对话。'));
+      inventoryAnswers.set(key,{answer:data.answer,answer_citations:Array.isArray(data.answer_citations)?data.answer_citations:[]});
+      while(inventoryAnswers.size>16)inventoryAnswers.delete(inventoryAnswers.keys().next().value);
+      render();
+    } catch(error) { if(conversation()?.id===conversationId)showError(error); }
+  }
+  async function openInventoryEvidence(messageId,citationId) {
+    const descriptor=inventoryMessage(messageId)?.inventory_result;if(!descriptor || !citationId)return;
+    const conversationId=conversation().id;
+    await perform(async()=>{
+      const result=await api(inventoryPath(descriptor,'/evidence')+`&citation_id=${encodeURIComponent(citationId)}`);
+      if(conversation()?.id!==conversationId || inventoryMessage(messageId)?.inventory_result?.id!==descriptor.id)return;
+      state.evidence=result;renderEvidence();$('evidence-dialog').showModal();
+    });
+  }
   function render() {
     const workspace = currentWorkspace(), selected = conversation(), isBusy = busy();
     $('source-title').textContent = workspace?.label || workspace?.repository?.identity || t('从业务问题开始');
@@ -451,10 +541,11 @@
     const list = selected?.messages || [];
     if (list.length) {
       $('messages').innerHTML = list.map(message => {
-        const isUser = message.role === 'user', citations = Array.isArray(message.citations) ? message.citations : [];
-        const text = message.content ?? message.answer ?? '';
+        const full=inventoryAnswers.get(inventoryKey(message));
+        const isUser = message.role === 'user', citations = full ? full.answer_citations : (Array.isArray(message.citations) ? message.citations : []);
+        const text = full?.answer ?? message.content ?? message.answer ?? '';
         const html = isUser ? escape(text) : (typeof answerMarkdown !== 'undefined' ? answerMarkdown.render(text) : `<p>${escape(text)}</p>`);
-        return `<article class="message ${isUser ? 'user' : 'assistant'}"><div class="message-label"><span>${isUser ? t('业务问题') : t('业务分析')}</span><span>${escape(statusText(message.status))}</span></div><div class="answer">${html || `<p class="muted">${t('本次调查还没有形成回答。')}</p>`}</div>${citations.length ? `<div class="citations">${citations.map(item => { const value=item.citation || item; return `<button data-citation="${escape(item.key || item.id || item.citation_id || value.id || '')}">${escape(value.path || value.relative_path || t('源码依据'))} · ${escape(value.start ?? value.start_line ?? '')}–${escape(value.end ?? value.end_line ?? '')}</button>`; }).join('')}</div>` : ''}${message.coverage ? `<p class="coverage">${t('结论以本次已核对资料为依据；未解析关系与未读取范围仍需确认。')}</p>` : ''}</article>`;
+        return `<article class="message ${isUser ? 'user' : 'assistant'}"><div class="message-label"><span>${isUser ? t('业务问题') : t('业务分析')}</span><span>${escape(statusText(message.status))}</span></div><div class="answer">${html || `<p class="muted">${t('本次调查还没有形成回答。')}</p>`}</div>${isUser?'':inventoryAnswerControl(message)+inventoryMarkup(message)}${citations.length ? `<div class="citations">${citations.map(item => { const value=item.citation || item; const id=escape(item.key || item.id || item.citation_id || value.id || ''); return `<button ${full?`data-inventory-message="${escape(message.id)}" data-inventory-source="${id}"`:`data-citation="${id}"`}>${escape(value.path || value.relative_path || t('源码依据'))} · ${escape(value.start ?? value.start_line ?? '')}–${escape(value.end ?? value.end_line ?? '')}</button>`; }).join('')}</div>` : ''}${message.coverage ? `<p class="coverage">${t('结论以本次已核对资料为依据；未解析关系与未读取范围仍需确认。')}</p>` : ''}</article>`;
       }).join('');
     } else {
       $('messages').innerHTML = `<div class="empty"><div class="empty-mark">⌕</div><h2>${t('开始一次业务调查')}</h2><p>${t('当前对话固定在所选源码版本。可以描述业务目标，也可以从已知程序或字段开始。')}</p></div>`;
@@ -641,7 +732,14 @@
   $('new-conversation').addEventListener('click',()=>perform(()=>api('/conversations',{workspace_id:state.data.current_workspace_id})));
   $('workspace-list').addEventListener('click',event=>{const button=event.target.closest('[data-workspace]');if(button&&!busy())perform(()=>api('/open',{workspace_id:button.dataset.workspace}));});
   $('conversation-list').addEventListener('click',event=>{const button=event.target.closest('[data-conversation]');if(button&&!busy())perform(()=>api('/open',{workspace_id:button.dataset.workspace,conversation_id:button.dataset.conversation}));});
-  $('messages').addEventListener('click',event=>{const button=event.target.closest('[data-citation]');if(button)openEvidence(button.dataset.citation);});
+  $('messages').addEventListener('click',event=>{
+    const button=event.target.closest('[data-citation],[data-inventory-page],[data-inventory-export],[data-inventory-source],[data-inventory-answer]');if(!button)return;
+    if(button.dataset.citation)openEvidence(button.dataset.citation);
+    else if(button.dataset.inventoryPage!==undefined)loadInventoryPage(button.dataset.inventoryMessage,Number(button.dataset.inventoryPage));
+    else if(button.dataset.inventorySource)openInventoryEvidence(button.dataset.inventoryMessage,button.dataset.inventorySource);
+    else if(button.dataset.inventoryExport!==undefined)exportInventory(button.dataset.inventoryMessage);
+    else if(button.dataset.inventoryAnswer!==undefined)toggleInventoryAnswer(button.dataset.inventoryMessage);
+  });
   $('cancel').addEventListener('click',()=>perform(()=>api('/cancel',{job_id:activeJob().job_id})));
   for (const id of ['resume','retry']) $(id).addEventListener('click',()=>{if($('allow-source-transfer').checked)perform(()=>api('/resume',{conversation_id:state.data.current_conversation_id,allow_source_transfer:true,locale,approve_retry:id==='retry'}));});
   $('disconnect').addEventListener('click',()=>perform(()=>api('/disconnect',{workspace_id:state.data.current_workspace_id})));

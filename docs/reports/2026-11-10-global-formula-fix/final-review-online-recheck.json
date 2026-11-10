@@ -1,0 +1,22 @@
+{
+  "citation_revalidation": {
+    "changed_path": "renewal.cbl",
+    "changed_path_read": true,
+    "status": "failed",
+    "error": "MATERIAL_SOURCE_HASH_MISMATCH"
+  },
+  "requirements_change": {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "language": "zh-HK",
+    "pending": 16
+  },
+  "inline_citation": {
+    "status": "answered",
+    "error": null,
+    "fake_in_answer": false,
+    "protocol_failures": 1
+  },
+  "runtime_unchanged": true,
+  "runtime_sha256": "02c8878c247ee8e4cee550fea06eed3745e88b48ff50924ab8df63b054972045"
+}

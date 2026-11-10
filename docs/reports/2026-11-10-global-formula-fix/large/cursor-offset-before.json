@@ -1,0 +1,44 @@
+{
+  "kind": "production-store paging integration probe",
+  "expected_last_result_offset": 2,
+  "expected_candidate_id": "formula-2",
+  "actual_candidate_ids": [
+    "formula-1"
+  ],
+  "page": {
+    "handle": "ff0fdf0e15e96ba40d42b271ce0255a5",
+    "snapshot_id": "snapshot",
+    "run_id": null,
+    "paged": true,
+    "total": 3,
+    "counts": {
+      "candidates": 6,
+      "excluded": 0,
+      "files": 3,
+      "included": 3,
+      "pending": 0,
+      "review_pending": 6,
+      "reviewed": 6
+    },
+    "complete": false,
+    "rows": [
+      {
+        "candidate_id": "formula-1",
+        "conditions": "When eligible",
+        "disposition": "included",
+        "end_line": 2,
+        "evidence_ids": [],
+        "formula": "amount = base * factor",
+        "kind": "formula",
+        "relative_path": "entry-1.cbl",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "start_line": 1,
+        "summary": "Business",
+        "record_type": "formula"
+      }
+    ],
+    "page_size": 1,
+    "next_cursor": 4
+  },
+  "source_sha256": "6f9c81532bc73298bef249e1ababea86b6ea7d0877af8cbbb5101b737180d4d0"
+}
