@@ -1,0 +1,168 @@
+{
+  "scope": "read_only_pre_draft_PR_documentation_audit",
+  "status": "passed",
+  "issues": [],
+  "checks": {
+    "current_source_matches_final_snapshot": {
+      "passed": true,
+      "detail": {
+        "snapshot_sha": "8025e0afaf7794690ebe12afb5325e1ef1edc27c84baa9487273c9979ccc332d",
+        "current_sha": "8025e0afaf7794690ebe12afb5325e1ef1edc27c84baa9487273c9979ccc332d",
+        "files": 891
+      }
+    },
+    "report_source_binds_snapshot": {
+      "passed": true,
+      "detail": null
+    },
+    "source_pass_does_not_claim_native_or_all_bug_completion": {
+      "passed": true,
+      "detail": null
+    },
+    "registry_300_291_fixed_9_open": {
+      "passed": true,
+      "detail": null
+    },
+    "all_open_ids_preserved_in_report": {
+      "passed": true,
+      "detail": null
+    },
+    "historical_registry_ids_retained": {
+      "passed": true,
+      "detail": null
+    },
+    "old_test_IDs_retained_and_35_added": {
+      "passed": true,
+      "detail": {
+        "old_python": 5294,
+        "current_python": 5329,
+        "new_ids": 35
+      }
+    },
+    "browser_baseline_unchanged_334": {
+      "passed": true,
+      "detail": null
+    },
+    "archived_final_report_exact": {
+      "passed": true,
+      "detail": null
+    },
+    "archived_source_snapshot_exact": {
+      "passed": true,
+      "detail": null
+    },
+    "all_report_recorded_raw_hashes_match": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-0.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-1.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-2.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-3.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-tools.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "actual_5329_python_exact_baseline": {
+      "passed": true,
+      "detail": null
+    },
+    "actual_10001_online_pass_110_896": {
+      "passed": true,
+      "detail": [
+        {
+          "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+          "seconds": 110.896362,
+          "outcome": "passed"
+        }
+      ]
+    },
+    "actual_browser_334_no_fail_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "existing_assertions_poc/tests/test_online_inventory_store.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 12
+      }
+    },
+    "existing_assertions_poc/tests/test_online_inventory_query_cost.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 5
+      }
+    },
+    "existing_assertions_poc/tests/test_online_inventory_cost_diagnostic.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 5
+      }
+    },
+    "README_relative_links_resolve": {
+      "passed": true,
+      "detail": []
+    },
+    "archive_present_wal-no-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_wal-unactivated-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_wal-active-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-rollback-runner-temp": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-rollback-default-temp": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-active-keeper": {
+      "passed": true,
+      "detail": null
+    }
+  },
+  "open_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007",
+    "BUG-20261111-012",
+    "BUG-20261111-014"
+  ],
+  "repo_files_modified": false,
+  "tests_rerun": false,
+  "runtime_replaced": false,
+  "application_built": false,
+  "audited_report_generation": "r1",
+  "completed_at": "2026-11-10T21:56:55.588606+00:00",
+  "r1_report_sha256": "5b7245c9888239eeb64e27e6c843d2915bca7eeac11449bd830d2433b0ad1562",
+  "r1_archive_sha256": "981dbad6093f1b2ec324c3d21fe71eccfe0a0140cc1bd13ca54ed942a507c890",
+  "r1_source_snapshot": "8025e0afaf7794690ebe12afb5325e1ef1edc27c84baa9487273c9979ccc332d",
+  "r1_snapshot_matched_worktree_when_read_before_bug017": true,
+  "current_worktree_changed_after_audit_by_expected_bug017_registration": true,
+  "r2_full_gate_required_before_final_PR": true,
+  "historical_bug_regression_mappings_missing_from_r1_report": [],
+  "report_count_scope": "29 initial machine-readable checks; later current worktree drift is expected and is not attributed to r1 evidence fabrication"
+}

@@ -64,6 +64,7 @@ class OnlineInventoryQueryCostTests(unittest.TestCase):
             db = original(*args, **options)
             db.set_progress_handler(tick, 1)
             return db
+        self.store.close()
         with mock.patch("online_inventory_store.sqlite3.connect", side_effect=connect):
             result = self.session.rows("findings", path="selected.cbl", limit=100)
         self.assertEqual(result, [("selected", {"summary": "retained exact row"})])
@@ -81,6 +82,7 @@ class OnlineInventoryQueryCostTests(unittest.TestCase):
             db = original(*args, **options)
             db.create_function("json_extract", 2, extract, deterministic=True)
             return db
+        self.store.close()
         with mock.patch("online_inventory_store.sqlite3.connect", side_effect=connect):
             observed = self.session.summary()
         self.assertEqual(observed, baseline)
@@ -105,6 +107,7 @@ class OnlineInventoryQueryCostTests(unittest.TestCase):
             db.execute("DROP INDEX summary_inventoried_files")
             db.execute("CREATE INDEX record_path ON records(session,kind,path)")
         reopened = OnlineInventoryStore(self.store.root)
+        self.addCleanup(reopened.close)
         with reopened.connection() as db:
             after = {table: db.execute("SELECT * FROM " + table + " ORDER BY rowid").fetchall() for table in tables}
             indexes = {row[1] for row in db.execute("PRAGMA index_list(records)")}
@@ -112,7 +115,8 @@ class OnlineInventoryQueryCostTests(unittest.TestCase):
         self.assertNotIn("record_path", indexes)
         self.assertTrue({"record_path_key", "summary_candidate_occurrences", "summary_inventoried_files"} <= indexes)
         self.assertEqual(publication.export_data(), exported)
-        OnlineInventoryStore(self.store.root)
+        additional = OnlineInventoryStore(self.store.root)
+        self.addCleanup(additional.close)
         self.assertEqual(publication.export_data(), exported)
 
     def test_rollback_keeps_summary_and_published_history_consistent(self):

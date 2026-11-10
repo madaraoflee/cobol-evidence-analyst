@@ -1,0 +1,34 @@
+{
+  "observed_at_utc": "2026-11-10T20:24:48Z",
+  "method": "HEAD against official sqlite.org URLs; no installation or runtime loading",
+  "probes": [
+    {
+      "version": "3.50.7",
+      "url": "https://sqlite.org/2026/sqlite-dll-win-x64-3500700.zip",
+      "http_status": 404,
+      "official_backport_checkin": "https://sqlite.org/src/info/c7facf7ac58d2cda",
+      "checkin_sha3_256": "c7facf7ac58d2cdac619a2da838c5fd5c5270f52b3458c7881b5a4fca1ca4791",
+      "scope": "The conventional Windows binary URL is absent; this does not prove no private/custom official backport binary exists."
+    },
+    {
+      "version": "3.53.2",
+      "url": "https://sqlite.org/2026/sqlite-dll-win-x64-3530200.zip",
+      "http_status": 200,
+      "content_length": 1369592,
+      "official_source_id": "2026-06-03 19:12:13 d6e03d8c777cfa2d35e3b60d8ec3e0187f3e9f99d8e2ee9cac695fd6fcdf1a24",
+      "official_source_id_url": "https://sqlite.org/releaselog/3_53_2.html",
+      "archive_downloaded": false,
+      "published_archive_sha3_verified": false,
+      "current_latest": false
+    },
+    {
+      "version": "3.54.1",
+      "url": "https://sqlite.org/2026/sqlite-dll-win-x64-3540100.zip",
+      "http_status": 200,
+      "content_length": 1450919,
+      "archive_downloaded_to_tmp_only": true,
+      "published_archive_sha3_verified": true,
+      "current_latest_on_official_download_page": true
+    }
+  ]
+}

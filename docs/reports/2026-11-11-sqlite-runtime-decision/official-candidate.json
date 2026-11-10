@@ -1,0 +1,12 @@
+{
+  "investigation_only": true,
+  "official_download_page": "https://sqlite.org/download.html",
+  "version": "3.54.1",
+  "release_date": "2026-10-16",
+  "windows_x64_url": "https://sqlite.org/2026/sqlite-dll-win-x64-3540100.zip",
+  "official_archive_sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4",
+  "official_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+  "source_id_page": "https://sqlite.org/releaselog/3_54_1.html",
+  "runtime_replaced": false,
+  "binary_executed_or_loaded": false
+}

@@ -1,0 +1,25 @@
+{
+  "artifact": {
+    "id": 13799959797,
+    "node_id": "MDg6QXJ0aWZhY3QxMzc5OTk1OTc5Nw==",
+    "name": "online-snapshot-cost-cb40aa3395cd3fea30121df7c0da4ffea0a0a561-42897310962-1",
+    "size_in_bytes": 2676821,
+    "url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13799959797",
+    "archive_download_url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13799959797/zip",
+    "expired": false,
+    "digest": "sha256:309652338f67a95e2653d97afaddb26ef444c1459db89163ffdcda2d2afe5af6",
+    "created_at": "2026-11-10T20:41:56Z",
+    "updated_at": "2026-11-10T20:41:56Z",
+    "expires_at": "2026-11-24T20:41:54Z",
+    "workflow_run": {
+      "id": 42897310962,
+      "repository_id": 1352481697,
+      "head_repository_id": 1352481697,
+      "head_branch": "codex/measure-online-active-wal-20261111",
+      "head_sha": "cb40aa3395cd3fea30121df7c0da4ffea0a0a561"
+    }
+  },
+  "download_sha256": "309652338f67a95e2653d97afaddb26ef444c1459db89163ffdcda2d2afe5af6",
+  "digest_verified": true,
+  "archive_bytes": 2676821
+}

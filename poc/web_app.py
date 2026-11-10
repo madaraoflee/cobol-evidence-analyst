@@ -2715,8 +2715,12 @@ class LocalServer(ThreadingHTTPServer):
     def server_close(self) -> None:
         self.job_stream_stop.set()
         if self.online_app is not None:
-            self.online_app.close()
-        super().server_close()
+            try:
+                self.online_app.close()
+            finally:
+                super().server_close()
+        else:
+            super().server_close()
 
 
 class RequestHandler(BaseHTTPRequestHandler):

@@ -1,0 +1,20 @@
+{
+  "scope": "existing assertion ASTs only; resource cleanup and instrumentation connection release are explicitly changed",
+  "files": [
+    {
+      "path": "poc/tests/test_online_inventory_cost_diagnostic.py",
+      "existing_test_methods": 5,
+      "all_existing_assertions_preserved": true
+    },
+    {
+      "path": "poc/tests/test_online_inventory_query_cost.py",
+      "existing_test_methods": 5,
+      "all_existing_assertions_preserved": true
+    },
+    {
+      "path": "poc/tests/test_online_inventory_store.py",
+      "existing_test_methods": 12,
+      "all_existing_assertions_preserved": true
+    }
+  ]
+}

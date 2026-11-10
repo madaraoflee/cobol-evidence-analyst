@@ -1,0 +1,6 @@
+{
+  "nested_outer_and_inner_rollback_preserved": true,
+  "lock_timeout_seconds": 0.05842391698388383,
+  "close_lazy_reopen_kept_committed_rows": true,
+  "invalid_timeout_rejected": true
+}

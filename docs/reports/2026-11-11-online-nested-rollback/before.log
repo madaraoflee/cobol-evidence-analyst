@@ -1,0 +1,2 @@
+nested_observed OperationalError no such savepoint: online_nested_1 context IntegrityError neutral rollback trigger
+committed_rows [(3,)]

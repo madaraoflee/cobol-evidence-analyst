@@ -1,0 +1,24 @@
+{
+  "label": "before-exact-freeze-source-replay",
+  "kind": "new_reproduction",
+  "fresh_directory": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/online-lease-exit-replay-h2kqhzt7",
+  "supported_runtime": true,
+  "sqlite": "3.53.2",
+  "fault_lock_call": 2,
+  "exit_error": "MaterialError:ONLINE_STATE_UNAVAILABLE",
+  "depth_before_recovery": 1,
+  "files_before_recovery": [
+    "online-state.sqlite",
+    "online-state.sqlite-shm",
+    "online-state.sqlite-wal"
+  ],
+  "later_close_error": "ProgrammingError:Cannot close active online state",
+  "remaining_depth": 1,
+  "files_after_recovery": [
+    "online-state.sqlite",
+    "online-state.sqlite-shm",
+    "online-state.sqlite-wal"
+  ],
+  "source_path": "/private/tmp/cobol-online-managed-state-evidence-20261111/online_state_pre016.py",
+  "source_sha256": "9b1354875a89ee7829379452e47d721b04b089ac72b5a4e562f94a679520e644"
+}

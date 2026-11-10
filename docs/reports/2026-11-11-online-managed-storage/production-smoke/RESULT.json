@@ -1,0 +1,101 @@
+{
+  "status": "passed-neutral-source-smoke",
+  "real_model": false,
+  "real_company_source": false,
+  "sqlite": "3.53.2",
+  "version_gate_results": {
+    "(3, 44, 5)": false,
+    "(3, 44, 6)": true,
+    "(3, 45, 0)": false,
+    "(3, 50, 4)": false,
+    "(3, 50, 7)": true,
+    "(3, 51, 2)": false,
+    "(3, 51, 3)": true,
+    "(3, 53, 2)": true,
+    "(3, 54, 1)": true
+  },
+  "unsafe_version_policy_simulation": true,
+  "files": 200,
+  "seconds": 1.2960921250050887,
+  "inventory_store_instances": 5,
+  "sqlite_connections": {
+    "/private/tmp/cobol-online-managed-production-smoke-20261111/inventory/online-inventories.sqlite": 5
+  },
+  "configurations": [
+    {
+      "mode": "wal",
+      "full": 2,
+      "nockpt": true,
+      "auto": 1000
+    },
+    {
+      "mode": "wal",
+      "full": 2,
+      "nockpt": true,
+      "auto": 1000
+    },
+    {
+      "mode": "wal",
+      "full": 2,
+      "nockpt": true,
+      "auto": 1000
+    },
+    {
+      "mode": "wal",
+      "full": 2,
+      "nockpt": true,
+      "auto": 1000
+    },
+    {
+      "mode": "wal",
+      "full": 2,
+      "nockpt": true,
+      "auto": 1000
+    }
+  ],
+  "verification": {
+    "page_delivery": {
+      "expected_positions": 200,
+      "unique_delivered_positions": 200,
+      "missing_count": 0,
+      "duplicate_count": 0,
+      "unexpected_count": 0,
+      "invalid_business_rows": 0,
+      "first_middle_last_preserved": true,
+      "missing_sample": [],
+      "duplicate_sample": [],
+      "invalid_sample": [],
+      "complete": true,
+      "real_model_semantics_verified": false
+    },
+    "export_delivery": {
+      "expected_positions": 200,
+      "unique_delivered_positions": 200,
+      "missing_count": 0,
+      "duplicate_count": 0,
+      "unexpected_count": 0,
+      "invalid_business_rows": 0,
+      "first_middle_last_preserved": true,
+      "missing_sample": [],
+      "duplicate_sample": [],
+      "invalid_sample": [],
+      "complete": true,
+      "real_model_semantics_verified": false
+    },
+    "pages": 3,
+    "source_reviews": 200,
+    "rollback_kept_publication": true,
+    "rollback_kept_session_metadata_bytes": true,
+    "rollback_kept_summary": true,
+    "statistics": {
+      "inventory_files": 200,
+      "reviewed_files": 200,
+      "source_reads_before_delivery": 200,
+      "durable_completed_actions": 803,
+      "initial_completed_action_retained": true,
+      "older_handle_unchanged": true,
+      "final_model_requests": 2,
+      "restores": 2
+    }
+  }
+}

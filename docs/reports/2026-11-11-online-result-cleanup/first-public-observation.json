@@ -1,0 +1,290 @@
+{
+  "kind": "new_reproduction",
+  "sqlite": "3.53.2",
+  "source_hashes_unchanged": {
+    "poc/online_state.py": "549c765ac0e1d1cfa7b469ea115701a0c47c2add542cb89ceeb48af52de7b378",
+    "poc/online_workspace.py": "f6994d0958be4ffe6f46a7ce0fbefe1e768a3685000d957454fda96cf18d3d0b",
+    "poc/online_sqlite_store.py": "31b8d8867aa6286ef035cc8ac001ad4905852bfdec317858c1c726c8aee84d52"
+  },
+  "cases": [
+    {
+      "injected": false,
+      "faults": [],
+      "runner_return_count": 1,
+      "complete_call_count": 1,
+      "job": {
+        "cancel_requested": false,
+        "conversation_id": "1469405d0b7aac7ef05e180e95ea480a",
+        "created_at": "2026-11-10T21:54:02.801057+00:00",
+        "diagnostic": {
+          "category": "http_5xx_unknown",
+          "evidence_source": "http_status",
+          "http_status": 500,
+          "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+          "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+          "request_id": "local-295cb4b9c67e4148915c7db888cdac7d",
+          "request_id_source": "local",
+          "schema_version": "safe-api-error/v1"
+        },
+        "error": "HTTP_ERROR",
+        "job_id": "17eaa298470dfb0a8af2a980a6e7644e",
+        "kind": "question",
+        "progress": {
+          "actions": 2,
+          "model_calls": 1,
+          "phase": "failed"
+        },
+        "status": "failed",
+        "transfer": {
+          "material_bytes": 5390,
+          "material_objects": 2,
+          "network_material_bytes": 5390,
+          "source_bytes": 112,
+          "source_requests": 1
+        },
+        "updated_at": "2026-11-10T21:54:02.806673+00:00",
+        "workspace_id": "6f3a29d84922a56cc06e8a2e85e11b6ecdcb7cca8211f51600e8734ad1ccd018"
+      },
+      "pending": {
+        "diagnostic": {
+          "category": "http_5xx_unknown",
+          "evidence_source": "http_status",
+          "http_status": 500,
+          "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+          "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+          "request_id": "local-295cb4b9c67e4148915c7db888cdac7d",
+          "request_id_source": "local",
+          "schema_version": "safe-api-error/v1"
+        },
+        "error": "HTTP_ERROR",
+        "locale": null,
+        "question": "What does this status mean?",
+        "status": "failed",
+        "user_message_id": "4d33e2e3086fccdad504a9ad813d27e3",
+        "can_resume": true,
+        "retry_confirmation_required": false
+      },
+      "messages": [
+        {
+          "content": "What does this status mean?",
+          "created_at": "2026-11-10T21:54:02.801022+00:00",
+          "id": "4d33e2e3086fccdad504a9ad813d27e3",
+          "role": "user",
+          "status": "failed"
+        },
+        {
+          "citations": [
+            {
+              "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "end": 5,
+              "hash": "c85d9f4a8484f859ea12b639f7101efc387ea3838702a771451f1945c4631706",
+              "id": "E111111111111111111111111",
+              "key": "b78727598ae7fc1727f949fff9b89d04:0",
+              "path": "main.cbl",
+              "revision": "26b93511771c8273193c6f7baf9d4eb771e1b15afa4eb9b9eaeccce2909cec02",
+              "start": 4
+            }
+          ],
+          "content": "Verified partial business answer retained after the upstream HTTP 500.",
+          "coverage": {
+            "boundaries": [
+              {
+                "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+              },
+              {
+                "code": "SPARSE_SEMANTICS_ONLY"
+              },
+              {
+                "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+              }
+            ],
+            "build_scope": {
+              "catalog_file_count": 1,
+              "complete_dependency_closure": true,
+              "file_count": 1,
+              "full_statement_analysis_performed": false,
+              "index_kind": "business_sparse",
+              "input_coverage_complete": true,
+              "kind": "full_directory",
+              "mode": "business_sparse_directory",
+              "runtime_paths_verified": false,
+              "selected_file_count": 1,
+              "truncated": false
+            },
+            "indexed_files": 1,
+            "input_skips": [],
+            "scope": "indexed_snapshot_only",
+            "source_bytes": 112
+          },
+          "created_at": "2026-11-10T21:54:02.806708+00:00",
+          "evidence": [
+            {
+              "citation": {
+                "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "end": 5,
+                "hash": "c85d9f4a8484f859ea12b639f7101efc387ea3838702a771451f1945c4631706",
+                "path": "main.cbl",
+                "revision": "26b93511771c8273193c6f7baf9d4eb771e1b15afa4eb9b9eaeccce2909cec02",
+                "start": 4
+              },
+              "complete_line_count": 2,
+              "coverage": {
+                "boundaries": [
+                  {
+                    "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+                  },
+                  {
+                    "code": "SPARSE_SEMANTICS_ONLY"
+                  },
+                  {
+                    "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+                  }
+                ],
+                "build_scope": {
+                  "catalog_file_count": 1,
+                  "complete_dependency_closure": true,
+                  "file_count": 1,
+                  "full_statement_analysis_performed": false,
+                  "index_kind": "business_sparse",
+                  "input_coverage_complete": true,
+                  "kind": "full_directory",
+                  "mode": "business_sparse_directory",
+                  "runtime_paths_verified": false,
+                  "selected_file_count": 1,
+                  "truncated": false
+                },
+                "indexed_files": 1,
+                "input_skips": [],
+                "scope": "indexed_snapshot_only",
+                "source_bytes": 112
+              },
+              "id": "E111111111111111111111111",
+              "last_line_truncated": false,
+              "repository": {
+                "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "identity": "example/source",
+                "subdirectory": ""
+              },
+              "requested_range": {
+                "end": 5,
+                "start": 4
+              },
+              "revision": "26b93511771c8273193c6f7baf9d4eb771e1b15afa4eb9b9eaeccce2909cec02",
+              "text": "MAIN-PARA.\nDISPLAY \"STATUS-READY\".",
+              "truncated": false,
+              "truncated_at": null
+            }
+          ],
+          "id": "b78727598ae7fc1727f949fff9b89d04",
+          "job_id": "17eaa298470dfb0a8af2a980a6e7644e",
+          "role": "assistant",
+          "status": "failed"
+        }
+      ],
+      "expected_returned_checkpoint": {
+        "request_status": "idle",
+        "step": 2,
+        "marker": "new_completed_runner_result",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "http_5xx_unknown",
+          "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+          "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+          "evidence_source": "http_status",
+          "request_id": "local-295cb4b9c67e4148915c7db888cdac7d",
+          "request_id_source": "local",
+          "http_status": 500
+        }
+      },
+      "expected_returned_diagnostic": {
+        "schema_version": "safe-api-error/v1",
+        "category": "http_5xx_unknown",
+        "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+        "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+        "evidence_source": "http_status",
+        "request_id": "local-295cb4b9c67e4148915c7db888cdac7d",
+        "request_id_source": "local",
+        "http_status": 500
+      },
+      "returned_partial_answer": "Verified partial business answer retained after the upstream HTTP 500.",
+      "idle_files": [
+        "online-state.sqlite"
+      ],
+      "real_model_calls": 0,
+      "real_company_source_access": false
+    },
+    {
+      "injected": true,
+      "faults": [
+        "actual_managed_close_completed_then_operational_error"
+      ],
+      "runner_return_count": 1,
+      "complete_call_count": 0,
+      "job": {
+        "cancel_requested": false,
+        "conversation_id": "5274716161567649e67e6f8733af2e1e",
+        "created_at": "2026-11-10T21:54:02.847650+00:00",
+        "diagnostic": null,
+        "error": "ONLINE_STATE_UNAVAILABLE",
+        "job_id": "b0ba718cee525229eecce0a925f4cc0d",
+        "kind": "question",
+        "progress": {
+          "phase": "reading"
+        },
+        "status": "failed",
+        "updated_at": "2026-11-10T21:54:02.851787+00:00",
+        "workspace_id": "6f3a29d84922a56cc06e8a2e85e11b6ecdcb7cca8211f51600e8734ad1ccd018"
+      },
+      "pending": {
+        "diagnostic": null,
+        "error": "ONLINE_STATE_UNAVAILABLE",
+        "locale": null,
+        "question": "What does this status mean?",
+        "status": "failed",
+        "user_message_id": "7b1a313e3363197b831bcc8dfc1ef05b",
+        "can_resume": true,
+        "retry_confirmation_required": false
+      },
+      "messages": [
+        {
+          "content": "What does this status mean?",
+          "created_at": "2026-11-10T21:54:02.847617+00:00",
+          "id": "7b1a313e3363197b831bcc8dfc1ef05b",
+          "role": "user",
+          "status": "pending"
+        }
+      ],
+      "expected_returned_checkpoint": {
+        "request_status": "idle",
+        "step": 2,
+        "marker": "new_completed_runner_result",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "http_5xx_unknown",
+          "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+          "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+          "evidence_source": "http_status",
+          "request_id": "local-cc1b56b58e214cffa69af71453bbb2c2",
+          "request_id_source": "local",
+          "http_status": 500
+        }
+      },
+      "expected_returned_diagnostic": {
+        "schema_version": "safe-api-error/v1",
+        "category": "http_5xx_unknown",
+        "reason": "\u63a5\u53e3\u8fd4\u56de\u670d\u52a1\u7aef\u9519\u8bef\uff0c\u5177\u4f53\u539f\u56e0\u5c1a\u672a\u786e\u8ba4\u3002",
+        "next_step": "\u51ed\u5173\u8054\u7f16\u53f7\u68c0\u67e5\u670d\u52a1\u7aef\u65e5\u5fd7\u548c\u670d\u52a1\u72b6\u6001\u3002",
+        "evidence_source": "http_status",
+        "request_id": "local-cc1b56b58e214cffa69af71453bbb2c2",
+        "request_id_source": "local",
+        "http_status": 500
+      },
+      "returned_partial_answer": "Verified partial business answer retained after the upstream HTTP 500.",
+      "idle_files": [
+        "online-state.sqlite"
+      ],
+      "real_model_calls": 0,
+      "real_company_source_access": false
+    }
+  ]
+}

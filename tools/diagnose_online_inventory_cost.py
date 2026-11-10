@@ -10,6 +10,7 @@ from collections import Counter
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -113,8 +114,16 @@ class Observer:
 @contextmanager
 def instrument(observer, driver, inventory, investigation):
     original_connect, original_driver = sqlite3.connect, driver.exercise_online_store
+    original_store_init = inventory.OnlineInventoryStore.__init__
+    supports_journal_mode = 'journal_mode' in inspect.signature(original_store_init).parameters
+    opened_stores = []
     original_page, original_export = inventory.InventoryPublication.page, inventory.InventoryPublication.export_data
     original_execute = investigation._execute
+    def store_init(store, *args, **options):
+        if supports_journal_mode and observer.journal_mode is not None:
+            options['journal_mode'] = observer.journal_mode
+        original_store_init(store, *args, **options)
+        opened_stores.append(store)
     class Connection(sqlite3.Connection):
         def __init__(self, *args, **options):
             super().__init__(*args, **options)
@@ -212,12 +221,29 @@ def instrument(observer, driver, inventory, investigation):
         if observer.driver_returned:
             observer.phase = 'complete_export'
         return original_export(*args, **options)
-    with mock.patch('sqlite3.connect', side_effect=connect), mock.patch.object(driver, 'exercise_online_store', exercise), \
+    with mock.patch('sqlite3.connect', side_effect=connect), \
+         mock.patch.object(inventory.OnlineInventoryStore, '__init__', store_init), \
+         mock.patch.object(driver, 'exercise_online_store', exercise), \
          mock.patch.object(inventory.InventoryPublication, 'page', page), mock.patch.object(inventory.InventoryPublication, 'export_data', export), \
          mock.patch.object(investigation, '_execute', execute), \
          mock.patch('socket.create_connection', side_effect=AssertionError('No network allowed in diagnostic')), \
          mock.patch('socket.socket.connect', side_effect=AssertionError('No network allowed in diagnostic')):
-        yield
+        try:
+            yield
+        finally:
+            primary_failure = sys.exc_info()[0] is not None
+            cleanup_errors = []
+            for store in reversed(opened_stores):
+                close = getattr(store, 'close', None)
+                if close is not None:
+                    try:
+                        close()
+                    except Exception as error:
+                        cleanup_errors.append(type(error).__name__)
+            if cleanup_errors:
+                observer.tests['resource_cleanup'] = 'failed: ' + ', '.join(cleanup_errors)
+                if not primary_failure:
+                    raise RuntimeError('Diagnostic stores did not close cleanly')
 
 def atomic_json(path, value):
     temporary = path.with_suffix(path.suffix + '.tmp')
@@ -228,7 +254,7 @@ def atomic_json(path, value):
     os.replace(temporary, path)
 
 def binding(repo):
-    paths = ['poc/online_inventory_store.py', 'poc/online_investigation.py',
+    paths = ['poc/online_inventory_store.py', 'poc/online_sqlite_store.py', 'poc/online_investigation.py',
         'poc/online_material_reader.py', 'poc/online_material_query.py', 'poc/online_material_format.py',
         'poc/online_material_export.py', 'poc/business_index.py', 'poc/tests/large_repository_fixture.py',
         'poc/tests/large_repository_online_driver.py', 'poc/tests/test_large_repository_inventory_acceptance.py']
@@ -308,7 +334,7 @@ def main():
         'source_binding_scope': list(initial), 'source_binding_before': initial,
         'observer_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'cases': [],
         'limits': ['This diagnostic does not replace the original 10001-file test, complete regressions, final EXE or office acceptance.',
-                   'Only the ten listed repository files are checked unchanged; this is not an assertion that the entire checkout is clean.',
+                   'Only the listed repository files are checked unchanged; this is not an assertion that the entire checkout is clean.',
                    'Row-changing commits are not direct VFS fsync counts.',
                    'No fastest journal mode is selected automatically.']}
     atomic_json(output / 'DIAGNOSTIC-REPORT.json', report)

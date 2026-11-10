@@ -1,0 +1,37 @@
+[
+  {
+    "name": "DEPENDENCY-BOUNDARY.md",
+    "bytes": 10091,
+    "sha256": "d446bfc9420835aed9c9c4a6d1042d53e36675cbe667f21a543cf54b79c4e08a"
+  },
+  {
+    "name": "archive-static-verification.json",
+    "bytes": 1264,
+    "sha256": "f7683bcd7380b50c9122e8b633e3f16036a28121b6b691312ddfb78a2015d355"
+  },
+  {
+    "name": "download-availability.json",
+    "bytes": 1398,
+    "sha256": "adf2e2766b1f8ad04e4a35c673b19192f860040091dd61d33417b236f2e97c2f"
+  },
+  {
+    "name": "official-candidate.json",
+    "bytes": 574,
+    "sha256": "cb9476d4b13ed6b4b4ca34f611c7a2831111ec5fa3af1dc50e8ba784db1c0f97"
+  },
+  {
+    "name": "sqlite-dll-win-x64-3540100.zip",
+    "bytes": 1450919,
+    "sha256": "f436f53ad8f965af43f3817b42c99c0689e6787f6b7ace208fe38dab7ffc4971"
+  },
+  {
+    "name": "sqlite3.exports.def.txt",
+    "bytes": 8741,
+    "sha256": "4fd9c79ce52498bc69a2c588680888ece2dff33d47a949416da34148c660b6b5"
+  },
+  {
+    "name": "summary.json",
+    "bytes": 2080,
+    "sha256": "f908ae22bcdd80a3d2109e779e55d999c6fd070cd823eaacc4e54acc7643dbd5"
+  }
+]

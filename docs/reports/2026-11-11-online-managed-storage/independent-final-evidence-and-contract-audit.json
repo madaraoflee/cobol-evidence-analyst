@@ -1,0 +1,198 @@
+{
+  "scope": "read_only_r2_pre_draft_PR_evidence_audit",
+  "audited_report_generation": "r2",
+  "completed_at": "2026-11-10T22:07:49.876830+00:00",
+  "status": "passed",
+  "issues": [],
+  "checks": {
+    "current_source_matches_final_snapshot": {
+      "passed": true,
+      "detail": {
+        "snapshot_sha": "7217d1e635399430cc6aba2b591f1515d5cff33cf6f2493cfa3619176a073ce2",
+        "current_sha": "7217d1e635399430cc6aba2b591f1515d5cff33cf6f2493cfa3619176a073ce2",
+        "files": 893
+      }
+    },
+    "report_source_binds_snapshot": {
+      "passed": true,
+      "detail": null
+    },
+    "source_pass_does_not_claim_native_or_all_bug_completion": {
+      "passed": true,
+      "detail": null
+    },
+    "registry_301_292_fixed_9_open": {
+      "passed": true,
+      "detail": null
+    },
+    "all_open_ids_preserved_in_report": {
+      "passed": true,
+      "detail": null
+    },
+    "historical_registry_ids_retained": {
+      "passed": true,
+      "detail": null
+    },
+    "old_python_IDs_retained_and_43_added": {
+      "passed": true,
+      "detail": {
+        "old_python": 5294,
+        "current_python": 5337
+      }
+    },
+    "old_browser_IDs_retained_and_4_added": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_CRC_complete": {
+      "passed": true,
+      "detail": null
+    },
+    "archived_final_report_exact": {
+      "passed": true,
+      "detail": null
+    },
+    "archived_source_snapshot_exact": {
+      "passed": true,
+      "detail": null
+    },
+    "all_recorded_raw_hashes_match": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-0.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-1.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-2.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-3.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "raw_python-tools.json_complete_no_skip": {
+      "passed": true,
+      "detail": null
+    },
+    "actual_5337_python_exact_baseline": {
+      "passed": true,
+      "detail": null
+    },
+    "actual_10001_online_pass_110_510": {
+      "passed": true,
+      "detail": [
+        {
+          "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+          "seconds": 110.509932,
+          "outcome": "passed"
+        }
+      ]
+    },
+    "actual_browser_338_exact_baseline_no_skip": {
+      "passed": true,
+      "detail": []
+    },
+    "all_historical_defect_regression_mappings_preserved": {
+      "passed": true,
+      "detail": []
+    },
+    "existing_assertions_poc/tests/test_online_inventory_store.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 12
+      }
+    },
+    "existing_assertions_poc/tests/test_online_inventory_query_cost.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 5
+      }
+    },
+    "existing_assertions_poc/tests/test_online_inventory_cost_diagnostic.py": {
+      "passed": true,
+      "detail": {
+        "old_methods": 5
+      }
+    },
+    "old_gates_and_local_indexes_unchanged": {
+      "passed": true,
+      "detail": [
+        ".github/workflows/windows-desktop.yml",
+        "tools/check_python_regression_reports.py",
+        "docs/eval/desktop-joint-v1/manifest.json",
+        "tools/check_global_inventory_continuity.py",
+        "poc/agent_policy.py",
+        "poc/structural_index.py",
+        "poc/source_catalog.py"
+      ]
+    },
+    "report_and_017_relative_links_resolve": {
+      "passed": true,
+      "detail": []
+    },
+    "archive_present_wal-no-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_wal-unactivated-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_wal-active-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-rollback-runner-temp": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-rollback-default-temp": {
+      "passed": true,
+      "detail": null
+    },
+    "archive_present_windows-active-keeper": {
+      "passed": true,
+      "detail": null
+    },
+    "r1_report_and_snapshot_preserved": {
+      "passed": true,
+      "detail": null
+    },
+    "r1_independent_29_check_audit_preserved": {
+      "passed": true,
+      "detail": null
+    },
+    "017_v2_alias_exact_and_initial_observation_separate": {
+      "passed": true,
+      "detail": null
+    },
+    "README_current_counts_and_source_boundary": {
+      "passed": true,
+      "detail": null
+    }
+  },
+  "source_snapshot": "7217d1e635399430cc6aba2b591f1515d5cff33cf6f2493cfa3619176a073ce2",
+  "report_sha256": "3d041af929f0b0b80b0d30610c96e12ca82fe20f1a9ff51ef27b0cd87de4af1b",
+  "raw_archive_sha256": "373218a6263373364790918dc68644debbdb0aca2af2670033d67ece381de17c",
+  "open_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007",
+    "BUG-20261111-012",
+    "BUG-20261111-014"
+  ],
+  "repo_files_modified": false,
+  "tests_rerun": false,
+  "runtime_replaced": false,
+  "application_built": false
+}

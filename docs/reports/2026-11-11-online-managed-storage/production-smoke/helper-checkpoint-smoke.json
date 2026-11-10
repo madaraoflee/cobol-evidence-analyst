@@ -1,0 +1,4 @@
+{
+  "normal_sqlite_last_close_checkpoint_cleans_sidecars_and_reopens": true,
+  "unsafe_path_refuses_checkpoint_and_keeps_target_bytes": true
+}

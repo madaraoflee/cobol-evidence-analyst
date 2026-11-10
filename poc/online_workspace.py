@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import re
 import secrets
+import sqlite3
 import threading
 
 from api_error_details import sanitize_diagnostic
@@ -221,7 +222,14 @@ class OnlineWorkbench:
         self._threads = {}
         self._closed = False
         self._active_job_id = None
-        self._recover()
+        try:
+            self._recover()
+        except BaseException:
+            try:
+                self.store.close()
+            except sqlite3.Error:
+                pass
+            raise
 
     @property
     def inventory_store(self):
@@ -252,6 +260,19 @@ class OnlineWorkbench:
             for event in self._events.values():
                 event.set()
             self._credentials.clear()
+            self._close_idle_stores()
+
+    def _close_idle_stores(self):
+        # A cancelled worker still persists its final interrupted/unknown
+        # state. Close its stores after that cleanup, without joining a remote
+        # request or allowing a late callback to leave a reopened pool behind.
+        if self._threads:
+            return
+        try:
+            if self._inventory_store is not None:
+                self._inventory_store.close()
+        finally:
+            self.store.close()
 
     def _require_open(self):
         if self._closed:
@@ -421,6 +442,8 @@ class OnlineWorkbench:
                 with self.lock:
                     self._events.pop(job["job_id"], None)
                     self._threads.pop(job["job_id"], None)
+                    if self._closed:
+                        self._close_idle_stores()
         thread = threading.Thread(target=run, name="online-analysis-" + job["job_id"][:8], daemon=True)
         self._threads[job["job_id"]] = thread
         thread.start()
@@ -431,6 +454,7 @@ class OnlineWorkbench:
             status = "cancelled" if code == "ONLINE_CANCELLED" else "failed"
             diagnostic = sanitize_diagnostic(diagnostic)
             job.update(status=status, error=code, diagnostic=diagnostic, updated_at=_now())
+            job.pop("storage_error", None)
             self.store.put(db, "jobs", identifier, job)
             if job.get("conversation_id"):
                 conversation = self._conversation(db, job["conversation_id"])
@@ -439,6 +463,7 @@ class OnlineWorkbench:
                     conversation["pending"]["status"] = status
                     conversation["pending"]["error"] = code
                     conversation["pending"]["diagnostic"] = diagnostic
+                    conversation["pending"].pop("storage_error", None)
                 self._save_conversation(db, conversation)
 
     def connect(self, payload, *, updating=False):
@@ -636,13 +661,32 @@ class OnlineWorkbench:
                         workspace_id=workspace["id"], conversation_id=conversation["id"],
                         user_message_id=conversation["pending"]["user_message_id"], manifest=query.reader.manifest,
                         question=question, identifier=session_id, guard=lambda value: _guard_secrets(value, credentials))
-                result = runner(query, read_source, question, config=config, history=history, checkpoint=checkpoint,
-                                allow_source_transfer=True, check_cancel=check_cancel, progress=progress, approve_retry=approve_retry,
-                                answer_instructions=instructions, locale=locale, **inventory_options)
-                result = _guard_secrets(result, credentials)
-                self._complete(job["job_id"], result, {"material_bytes": query.reader.fetched_bytes,
-                               "network_material_bytes": getattr(query.reader, "network_fetched_bytes", query.reader.fetched_bytes),
-                               "material_objects": query.reader.fetched_objects, **source_stats})
+                result_received, cleanup_error = False, None
+                try:
+                    with self.store.analysis_writes():
+                        result = runner(query, read_source, question, config=config, history=history, checkpoint=checkpoint,
+                                        allow_source_transfer=True, check_cancel=check_cancel, progress=progress, approve_retry=approve_retry,
+                                        answer_instructions=instructions, locale=locale, **inventory_options)
+                        result_received = True
+                except Exception as error:
+                    if not result_received:
+                        raise
+                    # A returned model result must survive a later scoped-store
+                    # cleanup failure. This never repeats the model request.
+                    cleanup_error = error
+                try:
+                    result = _guard_secrets(result, credentials)
+                    if cleanup_error is not None and isinstance(result, dict) and result.get("status") == "answered":
+                        result = deepcopy(result)
+                        result["status"] = "failed"
+                    self._complete(job["job_id"], result, {"material_bytes": query.reader.fetched_bytes,
+                                   "network_material_bytes": getattr(query.reader, "network_fetched_bytes", query.reader.fetched_bytes),
+                                   "material_objects": query.reader.fetched_objects, **source_stats},
+                                   storage_error="ONLINE_STATE_UNAVAILABLE" if cleanup_error is not None else None)
+                except Exception as error:
+                    if cleanup_error is not None:
+                        raise error from cleanup_error
+                    raise
             self._launch(job, work)
         return {"job_id": job["job_id"], "job": job}
 
@@ -705,8 +749,9 @@ class OnlineWorkbench:
         return (previous.get("content") == answer and without_keys(old_citations) == without_keys(citations)
                 and previous.get("evidence", []) == evidence and previous.get("coverage", {}) == coverage)
 
-    def _complete(self, identifier, result, transfer):
+    def _complete(self, identifier, result, transfer, *, storage_error=None):
         statuses = {"answered", "needs_continuation", "cancelled", "failed", "retry_confirmation_required"}
+        storage_error = storage_error if storage_error == "ONLINE_STATE_UNAVAILABLE" else None
         if not isinstance(result, dict) or result.get("status") not in statuses:
             raise MaterialError("ONLINE_INVALID_RESULT")
         checkpoint = deepcopy(result.get("checkpoint"))
@@ -725,6 +770,10 @@ class OnlineWorkbench:
             coverage_ledger = _inventory_coverage(result.get("coverage_ledger"))
             job.update(status=status, error=error, diagnostic=diagnostic, updated_at=_now(), transfer=transfer,
                        progress={"phase": status, "model_calls": result.get("model_calls", 0), "actions": result.get("actions", 0)})
+            if storage_error:
+                job["storage_error"] = storage_error
+            else:
+                job.pop("storage_error", None)
             if coverage_ledger is not None:
                 job["coverage_ledger"] = coverage_ledger
             conversation.update(status=status, updated_at=_now())
@@ -773,6 +822,10 @@ class OnlineWorkbench:
                 conversation["pending"] = None
             else:
                 pending.update(checkpoint=checkpoint, status=status, error=error, diagnostic=diagnostic)
+                if storage_error:
+                    pending["storage_error"] = storage_error
+                else:
+                    pending.pop("storage_error", None)
                 if coverage_ledger is not None:
                     pending["coverage_ledger"] = coverage_ledger
             self._save_conversation(db, conversation)

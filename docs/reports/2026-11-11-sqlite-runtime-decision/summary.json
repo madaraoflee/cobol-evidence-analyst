@@ -1,0 +1,41 @@
+{
+  "kind": "read_only_sqlite_runtime_dependency_preparation",
+  "runtime_replaced": false,
+  "binary_executed_or_loaded": false,
+  "application_compiled": false,
+  "repository_modified": false,
+  "current_official_latest": "3.54.1",
+  "observed_application_windows_sqlite": "3.50.4",
+  "verified_candidate_archive": {
+    "version": "3.54.1",
+    "official_archive_sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4",
+    "archive_sha256": "f436f53ad8f965af43f3817b42c99c0689e6787f6b7ace208fe38dab7ffc4971",
+    "dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+    "dll_pe_machine": "0x8664",
+    "official_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76"
+  },
+  "Windows_CPython_ABI_compatibility_tested": false,
+  "proposed_preferred_scope": "application-private shared SQLite component and build/identity checks, only after new explicit scope authorization",
+  "shared_local_runtime_affected": true,
+  "explicit_local_WAL_users": [
+    "poc/structural_index.py:1733",
+    "poc/source_catalog.py:47"
+  ],
+  "independent_online_connection_boundary": "poc/online_inventory_store.py:51-72",
+  "ordinary_venv_proves_engine_isolation": false,
+  "recommended_production_journal_mode": null,
+  "full_detail": "DEPENDENCY-BOUNDARY.md",
+  "official_sources": [
+    "https://sqlite.org/wal.html#11",
+    "https://sqlite.org/download.html",
+    "https://sqlite.org/releaselog/3_54_1.html",
+    "https://sqlite.org/src/info/c7facf7ac58d2cda",
+    "https://sqlite.org/versionnumbers.html",
+    "https://github.com/python/cpython/blob/v3.13.17/PC/layout/main.py#L195",
+    "https://github.com/python/cpython/blob/v3.13.17/PCbuild/sqlite3.vcxproj#L98",
+    "https://docs.python.org/3.13/library/venv.html",
+    "https://github.com/Nuitka/Nuitka/blob/4.2.2/nuitka/freezer/DllDependenciesWin32.py#L489",
+    "https://github.com/Nuitka/Nuitka/blob/4.2.2/nuitka/reports/Reports.py#L1029",
+    "https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order"
+  ]
+}

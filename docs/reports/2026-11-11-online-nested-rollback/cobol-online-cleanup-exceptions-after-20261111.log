@@ -1,0 +1,4 @@
+WAL original_preserved True MaterialError ONLINE_STATE_INVALID notes ['Online SQLite rollback cleanup failed (OperationalError); the original exception is preserved.', 'Online SQLite close cleanup failed (OperationalError); the original exception is preserved.']
+WAL rows []
+DELETE original_preserved True MaterialError ONLINE_STATE_INVALID notes ['Online SQLite rollback cleanup failed (OperationalError); the original exception is preserved.', 'Online SQLite close cleanup failed (OperationalError); the original exception is preserved.']
+DELETE rows []

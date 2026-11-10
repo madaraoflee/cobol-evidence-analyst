@@ -1,0 +1,3 @@
+nested_observed IntegrityError neutral rollback trigger notes ['Online SQLite nested transaction had already rolled back; the original exception is preserved.']
+outer_observed OperationalError Online SQLite enclosing transaction cannot commit after nested rollback
+committed_rows []
