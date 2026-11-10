@@ -1,0 +1,14 @@
+{
+  "source_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "tests_run": 7,
+  "failed_ids": [
+    "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_changed_new_source_and_compilation_identity_reject_failed_donor",
+    "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_completed_compaction_before_http500_is_inherited_by_next_question",
+    "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_deictic_failed_chain_preserves_verified_lineage",
+    "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_two_failed_turns_preserve_monotonic_analysis_and_latest_owned_handle"
+  ],
+  "error_ids": [],
+  "skipped": 0,
+  "old_module_loaded_in_memory": true,
+  "working_tree_unchanged_by_runner": true
+}

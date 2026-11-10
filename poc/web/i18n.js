@@ -3,6 +3,7 @@
 // Translate authored interface text only. Template values (source, questions,
 // model output and evidence) are never sent through the translation catalog.
 const UI_MESSAGES = `
+Bitbucket 在線分析|Bitbucket 在线分析|Bitbucket online analysis
 目前只列出最近部分對話，較早記錄仍保存在本機。|目前只列出最近部分对话，较早记录仍保存在本地。|Only recent conversations are listed. Earlier records remain saved locally.
 已重新讀取對話，請先查看已保存的問題與回答，再決定是否重試。|已重新读取对话，请先查看已保存的问题与回答，再决定是否重试。|Conversations were reloaded. Review the saved question and answer before deciding whether to retry.
 核對這次提交|核对这次提交|Check this submission
@@ -1156,6 +1157,7 @@ JSON · 保留本次診斷與分析結果|JSON · 保留本次诊断与分析结
 待確認|待确认|Open issues
 未建立|未建立|Not created
 首頁|首页|Home
+此前失敗|此前失败|Earlier failure
 `.trim().split('\n').filter(Boolean).map(line => line.split('|'));
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-HK', 'en'];
 const LOCALE_STORAGE_KEY = 'cobol-lens.locale';

@@ -10,6 +10,8 @@ import re
 import secrets
 import threading
 
+from api_error_details import sanitize_diagnostic
+from response_language import SUPPORTED_LANGUAGES
 from online_material_format import (MaterialError, canonical_json, digest, relative_path,
                                     valid_commit, valid_hash)
 from online_material_query import MaterialQuery
@@ -173,11 +175,12 @@ class OnlineWorkbench:
     Neither injection is selectable through an HTTP payload.
     """
 
-    def __init__(self, root: Path, *, config_provider=None, material_factory=None,
+    def __init__(self, root: Path, *, config_provider=None, answer_instructions_provider=None, material_factory=None,
                  source_factory=None, investigator=None):
         self.lock = threading.RLock()
         self.store = OnlineState(root)
         self.config_provider = config_provider
+        self.answer_instructions_provider = answer_instructions_provider
         self.material_factory = material_factory
         self.source_factory = source_factory
         self.investigator = investigator
@@ -374,7 +377,7 @@ class OnlineWorkbench:
             try:
                 work(check_cancel)
             except Exception as error:
-                self._fail_job(job["job_id"], _safe_error(error))
+                self._fail_job(job["job_id"], _safe_error(error), getattr(error, "diagnostic", None))
             finally:
                 with self.lock:
                     self._events.pop(job["job_id"], None)
@@ -383,17 +386,20 @@ class OnlineWorkbench:
         self._threads[job["job_id"]] = thread
         thread.start()
 
-    def _fail_job(self, identifier, code):
+    def _fail_job(self, identifier, code, diagnostic=None):
         with self.lock, self.store.transaction() as db:
             job = self._get(db, "jobs", identifier)
             status = "cancelled" if code == "ONLINE_CANCELLED" else "failed"
-            job.update(status=status, error=code, updated_at=_now())
+            diagnostic = sanitize_diagnostic(diagnostic)
+            job.update(status=status, error=code, diagnostic=diagnostic, updated_at=_now())
             self.store.put(db, "jobs", identifier, job)
             if job.get("conversation_id"):
                 conversation = self._conversation(db, job["conversation_id"])
                 conversation.update(status=status, updated_at=_now())
                 if conversation.get("pending"):
                     conversation["pending"]["status"] = status
+                    conversation["pending"]["error"] = code
+                    conversation["pending"]["diagnostic"] = diagnostic
                 self._save_conversation(db, conversation)
 
     def connect(self, payload, *, updating=False):
@@ -506,6 +512,12 @@ class OnlineWorkbench:
         approve_retry = payload.get("approve_retry", False)
         if type(approve_retry) is not bool:
             raise MaterialError("ONLINE_INVALID_RETRY_APPROVAL")
+        instructions = self.answer_instructions_provider() if self.answer_instructions_provider is not None else ""
+        if not isinstance(instructions, str):
+            raise MaterialError("ONLINE_INVALID_ANSWER_REQUIREMENTS")
+        locale = payload.get("locale")
+        if locale is not None and (not isinstance(locale, str) or locale not in SUPPORTED_LANGUAGES):
+            raise MaterialError("ONLINE_INVALID_LOCALE")
         with self.lock:
             with self.store.transaction() as db:
                 conversation = self._conversation(db, payload.get("conversation_id"))
@@ -513,6 +525,7 @@ class OnlineWorkbench:
                 if workspace["id"] not in self._credentials:
                     raise MaterialError("ONLINE_RECONNECT_REQUIRED")
                 credentials = dict(self._credentials[workspace["id"]])
+                _guard_secrets(instructions, credentials)
                 if resume:
                     pending = conversation.get("pending")
                     if not pending or pending.get("status") == "running":
@@ -522,6 +535,8 @@ class OnlineWorkbench:
                     # failures have no checkpoint and are safe to retry. Once
                     # a request starts, the runner has persisted its status.
                     checkpoint = deepcopy(pending.get("checkpoint"))
+                    if locale is None:
+                        locale = pending.get("locale")
                 else:
                     if conversation.get("pending"):
                         raise MaterialError("ONLINE_PENDING_INVESTIGATION")
@@ -538,6 +553,7 @@ class OnlineWorkbench:
                 job = self._new_job(db, "resume" if resume else "question", workspace_id=workspace["id"], conversation_id=conversation["id"])
                 conversation.update(status="running", updated_at=_now())
                 conversation["pending"]["status"] = "running"
+                conversation["pending"]["locale"] = locale
                 self._save_conversation(db, conversation)
                 self._select(db, workspace["id"], conversation["id"])
             def work(check_cancel):
@@ -570,7 +586,8 @@ class OnlineWorkbench:
                         item["citations_omitted"] = max(0, len(citations) - 64)
                     history.append(item)
                 result = runner(query, read_source, question, config=config, history=history, checkpoint=checkpoint,
-                                allow_source_transfer=True, check_cancel=check_cancel, progress=progress, approve_retry=approve_retry)
+                                allow_source_transfer=True, check_cancel=check_cancel, progress=progress, approve_retry=approve_retry,
+                                answer_instructions=instructions, locale=locale)
                 result = _guard_secrets(result, credentials)
                 self._complete(job["job_id"], result, {"material_bytes": query.reader.fetched_bytes,
                                "network_material_bytes": getattr(query.reader, "network_fetched_bytes", query.reader.fetched_bytes),
@@ -581,9 +598,12 @@ class OnlineWorkbench:
     def _progress(self, identifier, event, credentials):
         if not isinstance(event, dict):
             return
+        event = deepcopy(event)
         checkpoint = event.get("checkpoint")
         if checkpoint is not None and (not isinstance(checkpoint, dict) or len(canonical_json(checkpoint)) > _MAX_CHECKPOINT_BYTES):
             raise MaterialError("ONLINE_CHECKPOINT_LIMIT")
+        if isinstance(checkpoint, dict) and "diagnostic" in checkpoint:
+            checkpoint["diagnostic"] = sanitize_diagnostic(checkpoint["diagnostic"])
         safe = _guard_secrets(event, credentials)
         visible = {key: safe[key] for key in ("phase", "status", "model_calls", "actions", "completed", "total")
                    if key in safe and isinstance(safe[key], (str, int, float, bool))}
@@ -592,11 +612,14 @@ class OnlineWorkbench:
         with self.lock, self.store.transaction() as db:
             job = self._get(db, "jobs", identifier)
             job.update(progress=visible, updated_at=_now())
+            if isinstance(checkpoint, dict):
+                job["diagnostic"] = sanitize_diagnostic(checkpoint.get("diagnostic"))
             self.store.put(db, "jobs", identifier, job)
             if checkpoint is not None:
                 conversation = self._conversation(db, job["conversation_id"])
                 if conversation.get("pending"):
                     conversation["pending"]["checkpoint"] = safe["checkpoint"]
+                    conversation["pending"]["diagnostic"] = sanitize_diagnostic(checkpoint.get("diagnostic"))
                     conversation["updated_at"] = _now()
                     self._save_conversation(db, conversation)
 
@@ -630,9 +653,11 @@ class OnlineWorkbench:
         statuses = {"answered", "needs_continuation", "cancelled", "failed", "retry_confirmation_required"}
         if not isinstance(result, dict) or result.get("status") not in statuses:
             raise MaterialError("ONLINE_INVALID_RESULT")
-        checkpoint = result.get("checkpoint")
+        checkpoint = deepcopy(result.get("checkpoint"))
         if checkpoint is not None and (not isinstance(checkpoint, dict) or len(canonical_json(checkpoint)) > _MAX_CHECKPOINT_BYTES):
             raise MaterialError("ONLINE_CHECKPOINT_LIMIT")
+        if isinstance(checkpoint, dict) and "diagnostic" in checkpoint:
+            checkpoint["diagnostic"] = sanitize_diagnostic(checkpoint["diagnostic"])
         answer = _text(result.get("answer", ""), 1024 * 1024, "ONLINE_INVALID_ANSWER", empty=True)
         with self.lock, self.store.transaction() as db:
             job = self._get(db, "jobs", identifier)
@@ -640,7 +665,8 @@ class OnlineWorkbench:
             status = result["status"]
             error = result.get("error")
             error = error if isinstance(error, str) and _ERROR.fullmatch(error) else None
-            job.update(status=status, error=error, updated_at=_now(), transfer=transfer,
+            diagnostic = sanitize_diagnostic(result.get("diagnostic"))
+            job.update(status=status, error=error, diagnostic=diagnostic, updated_at=_now(), transfer=transfer,
                        progress={"phase": status, "model_calls": result.get("model_calls", 0), "actions": result.get("actions", 0)})
             conversation.update(status=status, updated_at=_now())
             pending = conversation.get("pending")
@@ -670,7 +696,7 @@ class OnlineWorkbench:
             if status == "answered":
                 conversation["pending"] = None
             else:
-                pending.update(checkpoint=checkpoint, status=status, error=error)
+                pending.update(checkpoint=checkpoint, status=status, error=error, diagnostic=diagnostic)
             self._save_conversation(db, conversation)
             self.store.put(db, "jobs", identifier, job)
 
@@ -807,4 +833,4 @@ class OnlineWorkbench:
                 else 403 if code.endswith(("_FORBIDDEN", "_UNAUTHORIZED")) or code == "ONLINE_SOURCE_TRANSFER_REQUIRED"
                 else 429 if code.endswith("_RATE_LIMIT") else 400 if code.startswith(("ONLINE_INVALID", "MATERIAL_INVALID", "SOURCE_INVALID"))
                 else 502)
-            return status, {"error": code}
+            return status, {"error": code, "diagnostic": sanitize_diagnostic(getattr(error, "diagnostic", None))}

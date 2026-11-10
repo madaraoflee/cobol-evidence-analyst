@@ -1,0 +1,14 @@
+{
+  "external_model_calls": 0,
+  "socket_network_blocked": true,
+  "failed_answer_available": false,
+  "failed_answer_origin": "diagnostic",
+  "failed_stop_reason": "HTTP_ERROR",
+  "failed_status": "failed",
+  "failed_uncertain_requests": [],
+  "failed_generations": 2,
+  "history_assistant_count": 0,
+  "next_initial_generation": 0,
+  "next_handoff": null,
+  "failed_checkpoint_unchanged": true
+}

@@ -1,0 +1,355 @@
+{
+  "schema_version": "safe-stream-error-repro/v1",
+  "source_commit": "8b4747a190cdf1aae124a07b2926e5455eefd814",
+  "files_before": {
+    "poc/company_api.py": "71f072ec814749583dfad973a69e8f7f05f3ba85d6bf89c0a97fbc92cd2bd57e",
+    "poc/api_error_details.py": "cfbab56b9dadca7a0eab2486699f4720af2569fc119011cb78b65a97b7298fff",
+    "poc/api_diagnostics.py": "5a98084fdfa9d6be8865ba947756598839e9c7737bccf5b77fec6ad0e87ce35a"
+  },
+  "external_calls": 0,
+  "scenarios": [
+    {
+      "kind": "http500_json",
+      "input_provider_code": "insufficient_quota",
+      "error_code": "HTTP_ERROR",
+      "safe_diagnostic": {
+        "code": "HTTP_ERROR",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "quota_exhausted",
+          "reason": "账号配额或累计使用额度不足。",
+          "next_step": "检查账号配额或账单状态，恢复额度后再试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-cfb9f42d956f4de592e65e122fb66dc7",
+          "request_id_source": "local",
+          "http_status": 500,
+          "provider_code": "insufficient_quota",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 500
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        500
+      ],
+      "capture_categories": [
+        "quota_exhausted"
+      ]
+    },
+    {
+      "kind": "http200_json",
+      "input_provider_code": "insufficient_quota",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "quota_exhausted",
+          "reason": "账号配额或累计使用额度不足。",
+          "next_step": "检查账号配额或账单状态，恢复额度后再试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-85b801cd3ee943d7b73ebe3db7d3e65b",
+          "request_id_source": "local",
+          "http_status": 200,
+          "provider_code": "insufficient_quota",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 200
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "quota_exhausted"
+      ]
+    },
+    {
+      "kind": "http200_sse_injected",
+      "input_provider_code": "insufficient_quota",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-c05f7d0a300f443b9f7bc4dd9a16bcab",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    },
+    {
+      "kind": "http200_sse_native",
+      "input_provider_code": "insufficient_quota",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-3c26293620cf4954b3a55525edc6b336",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        null
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    },
+    {
+      "kind": "http500_json",
+      "input_provider_code": "rate_limit_exceeded",
+      "error_code": "HTTP_ERROR",
+      "safe_diagnostic": {
+        "code": "HTTP_ERROR",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "rate_limit",
+          "reason": "接口明确报告请求速率受限。",
+          "next_step": "等待限流窗口结束后再手动重试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-8394140c20f348d5802931b554e92e8b",
+          "request_id_source": "local",
+          "http_status": 500,
+          "provider_code": "rate_limit_exceeded",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 500
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        500
+      ],
+      "capture_categories": [
+        "rate_limit"
+      ]
+    },
+    {
+      "kind": "http200_json",
+      "input_provider_code": "rate_limit_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "rate_limit",
+          "reason": "接口明确报告请求速率受限。",
+          "next_step": "等待限流窗口结束后再手动重试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-6066266051154794a7a8aa1c45b85153",
+          "request_id_source": "local",
+          "http_status": 200,
+          "provider_code": "rate_limit_exceeded",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 200
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "rate_limit"
+      ]
+    },
+    {
+      "kind": "http200_sse_injected",
+      "input_provider_code": "rate_limit_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-d372697339844154ad94fb1de4bd9a9c",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    },
+    {
+      "kind": "http200_sse_native",
+      "input_provider_code": "rate_limit_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-616154649ca549cebce06d4ea2526fa0",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        null
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    },
+    {
+      "kind": "http500_json",
+      "input_provider_code": "context_length_exceeded",
+      "error_code": "HTTP_ERROR",
+      "safe_diagnostic": {
+        "code": "HTTP_ERROR",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "context_too_large",
+          "reason": "本次请求超过模型上下文限制。",
+          "next_step": "减少历史消息和供应资料，分段分析后再试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-d124e2629a814b56bdf142b3a878be13",
+          "request_id_source": "local",
+          "http_status": 500,
+          "provider_code": "context_length_exceeded",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 500
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        500
+      ],
+      "capture_categories": [
+        "context_too_large"
+      ]
+    },
+    {
+      "kind": "http200_json",
+      "input_provider_code": "context_length_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "context_too_large",
+          "reason": "本次请求超过模型上下文限制。",
+          "next_step": "减少历史消息和供应资料，分段分析后再试。",
+          "evidence_source": "provider_code",
+          "request_id": "local-44d3386d12974107b7f98d71034d3e78",
+          "request_id_source": "local",
+          "http_status": 200,
+          "provider_code": "context_length_exceeded",
+          "retry_after_seconds": 7,
+          "upstream_request_id": "req_0123456789abcdef",
+          "upstream_request_id_source": "header"
+        },
+        "http_status": 200
+      },
+      "request_outcome": "response_received",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "context_too_large"
+      ]
+    },
+    {
+      "kind": "http200_sse_injected",
+      "input_provider_code": "context_length_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-1659b336537e45bcbc89e149d3504a64",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        200
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    },
+    {
+      "kind": "http200_sse_native",
+      "input_provider_code": "context_length_exceeded",
+      "error_code": "MODEL_ERROR_RESPONSE",
+      "safe_diagnostic": {
+        "code": "MODEL_ERROR_RESPONSE",
+        "diagnostic": {
+          "schema_version": "safe-api-error/v1",
+          "category": "invalid_response",
+          "reason": "接口返回的响应格式无效。",
+          "next_step": "检查接口兼容性和服务端响应日志。",
+          "evidence_source": "local",
+          "request_id": "local-152c0fe5739b4065842552173fbfc040",
+          "request_id_source": "local"
+        }
+      },
+      "request_outcome": "unknown",
+      "calls": 1,
+      "capture_status": [
+        null
+      ],
+      "capture_categories": [
+        "invalid_response"
+      ]
+    }
+  ],
+  "files_after": {
+    "poc/company_api.py": "71f072ec814749583dfad973a69e8f7f05f3ba85d6bf89c0a97fbc92cd2bd57e",
+    "poc/api_error_details.py": "cfbab56b9dadca7a0eab2486699f4720af2569fc119011cb78b65a97b7298fff",
+    "poc/api_diagnostics.py": "5a98084fdfa9d6be8865ba947756598839e9c7737bccf5b77fec6ad0e87ce35a"
+  },
+  "scope": "Synthetic transport-only diagnostic audit, no company API or model calls; does not establish field root cause.",
+  "source_unchanged": true
+}

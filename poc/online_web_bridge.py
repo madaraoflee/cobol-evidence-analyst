@@ -22,6 +22,7 @@ def dispatch_online(server, method, target, payload=None):
             from online_workspace import OnlineWorkbench
             from app_paths import state_root
             parent = Path(server.app.state_path).parent if server.app.state_path else state_root()
-            server.online_app = OnlineWorkbench(parent / "online", config_provider=server.app.config_provider)
+            server.online_app = OnlineWorkbench(parent / "online", config_provider=server.app.config_provider,
+                answer_instructions_provider=lambda: getattr(server.app, "answer_instructions", ""))
         controller = server.online_app
     return controller.dispatch(method, route.path, payload=payload, query=query)

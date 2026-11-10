@@ -1,0 +1,16 @@
+{
+  "current_project_visible_categories": [
+    "system_error"
+  ],
+  "stored_conversation_visible_categories": [
+    "system_error"
+  ],
+  "stored_conversation_retains_prior_diagnostic": false,
+  "explicit_diagnostics_control_categories": [
+    "rate_limit",
+    "system_error"
+  ],
+  "confirmed": "The safe prior API error is retained on disk but omitted from current and historical UI diagnostics after a subsequent local error.",
+  "not_established": "The company incident cause; the local RuntimeError in this reproduction is injected.",
+  "external_model_calls": 0
+}
