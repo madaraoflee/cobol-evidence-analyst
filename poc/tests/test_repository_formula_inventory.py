@@ -45,10 +45,13 @@ class RepositoryFormulaInventoryTests(unittest.TestCase):
         ensure_repository_search(self.database, self.source)
         mapping = build_business_map(self.database, self.source, QUESTION)
         self.state = prepare_inventory(self.database, mapping["snapshot_id"], QUESTION)
-        self.pages = [{"relative_path": path, "start_line": 1, "end_line": len(text.splitlines()),
-            "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "source_text": text,
-            "evidence_id": "ev_page_" + hashlib.sha256(path.encode()).hexdigest()[:24], "span_truncated": False}
-            for path, text in files.items()]
+        self.pages = []
+        for path in files:
+            raw = (self.source / path).read_bytes()
+            text = raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+            self.pages.append({"relative_path": path, "start_line": 1, "end_line": len(text.splitlines()),
+                "source_sha256": hashlib.sha256(raw).hexdigest(), "source_text": text,
+                "evidence_id": "ev_page_" + hashlib.sha256(path.encode()).hexdigest()[:24], "span_truncated": False})
         return mapping
 
     def findings(self, items, pages):

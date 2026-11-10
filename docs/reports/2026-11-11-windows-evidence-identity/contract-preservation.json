@@ -1,0 +1,8 @@
+{
+  "base_commit": "b2995f2e154c846f09f76c1f08edf5b4e20e5119",
+  "corrected_helper": "RepositoryFormulaInventoryTests.prepare",
+  "existing_test_methods": 16,
+  "all_existing_test_method_asts_unchanged": true,
+  "runtime_changes": false,
+  "fixture_or_gold_changes": false
+}

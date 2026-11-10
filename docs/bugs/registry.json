@@ -7794,6 +7794,51 @@
           "limitations": "须固定PF文本换行且保持原fixture/gold/旧断言不变，用真实Git Windows过滤逐条重验全部18文件。源码离线检查不代替实际Windows构建与最终EXE。"
         }
       ]
+    },
+    {
+      "id": "BUG-20261111-008",
+      "title": "Windows生成的临时原文与测试供证哈希不一致导致真实身份被拒绝",
+      "symptom": "Windows完整回归中清单测试4失败1错误。强制CRLF在Mac精确复现同样4失败1错误，所有原文核对因错误哈希拒绝。",
+      "root_cause": "prepare用write_text写盘，Windows转换为CRLF，却按原LF输入字符串算source_sha256；真实索引按写后原始bytes计算SHA，两者不一致。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-11-windows-evidence-identity/README.md",
+        "docs/reports/2026-11-11-windows-evidence-identity/result.json",
+        "docs/reports/2026-11-11-windows-evidence-identity/windows-attempt2-job0.log",
+        "docs/reports/2026-11-11-windows-evidence-identity/contract-preservation.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_lf_and_crlf_sources_use_their_actual_bytes_for_index_and_evidence_identity"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_wrong_original_hash_is_still_rejected_for_both_newline_formats"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "仅纠正测试供证helper真实原文身份，未改runtime、原16项测试方法AST/断言、输入、gold或跳过项。保持实际来源哈希校验严格，LF/CRLF各自原bytes的SHA都有效，错SHA仍拒绝。新Windows全套与最终EXE仍须重新验证，不能用Mac回归替代。"
     }
   ],
   "updated_at": "2026-11-10"

@@ -1,0 +1,32 @@
+{
+  "before": {
+    "tests_run": 16,
+    "failures": 4,
+    "errors": 1,
+    "skipped": 0,
+    "runtime_changed": false
+  },
+  "after": {
+    "tests_run": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "runtime_changed": false
+  },
+  "new_tests": {
+    "tests_run": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "files_sha256": {
+    "poc/tests/test_repository_formula_inventory.py": "767703840236a79b8a876b35f53825cd3ad65ee003d40c923ed7defe94c83897",
+    "poc/tests/test_repository_fixture_source_identity.py": "753f96e7db5ea52533bd7881086ce7f07384d191a42d534fb98da90789cb0514"
+  },
+  "before_file_sha256": "07d8cdd4c291295e9dbb330ede380adee15ee90550d0ddb22c71821a8681c93f",
+  "new_test_ids": [
+    "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_lf_and_crlf_sources_use_their_actual_bytes_for_index_and_evidence_identity",
+    "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_wrong_original_hash_is_still_rejected_for_both_newline_formats"
+  ],
+  "boundary": "Mac forced-CRLF fixture creation reproduces the Windows default; no runtime validator or historical test assertion modified."
+}

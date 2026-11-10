@@ -5280,7 +5280,9 @@
     "test_online_source_deadline.OnlineSourceDeadlineTests.test_header_open_elapsed_time_is_rejected_on_return_without_reading_body",
     "test_online_source_deadline.OnlineSourceDeadlineTests.test_ordinary_read_and_existing_socket_timeout_classification_remain_compatible",
     "test_online_source_deadline.OnlineSourceDeadlineTests.test_real_continuously_arriving_body_reaches_total_deadline_and_is_not_retried",
-    "test_global_formula_fixture_checkout.GlobalFormulaFixtureCheckoutTests.test_windows_autocrlf_filter_preserves_every_frozen_original_hash_and_range"
+    "test_global_formula_fixture_checkout.GlobalFormulaFixtureCheckoutTests.test_windows_autocrlf_filter_preserves_every_frozen_original_hash_and_range",
+    "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_lf_and_crlf_sources_use_their_actual_bytes_for_index_and_evidence_identity",
+    "test_repository_fixture_source_identity.RepositoryFixtureSourceIdentityTests.test_wrong_original_hash_is_still_rejected_for_both_newline_formats"
   ],
   "browser_ids": [
     "poc/tests/web_answer_instructions.test.cjs::a failed reset keeps both the saved requirement and the current unsaved draft",
