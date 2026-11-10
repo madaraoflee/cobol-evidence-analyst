@@ -1,0 +1,14 @@
+{
+  "platform": "Mac with source write newline=CRLF to reproduce Windows default",
+  "raw_has_crlf": true,
+  "raw_sha256": "67f3fc36f72399b058009a7f47f4708bbd654d7d891fdc12c813ad0fda8ca4d3",
+  "fixture_page_sha256": "5a107e517dfca1a18238ee3751146b7925260a378a93c31f21c33150fe6c8c00",
+  "catalog_source_sha256": "67f3fc36f72399b058009a7f47f4708bbd654d7d891fdc12c813ad0fda8ca4d3",
+  "original_page_matches_index": false,
+  "accepted_before": 0,
+  "accepted_with_raw_hash": 2,
+  "requested_items": 2,
+  "runtime_source_validation_unchanged": true,
+  "raw_text_decoded_normalized_lf": true,
+  "fixture_sha256": "07d8cdd4c291295e9dbb330ede380adee15ee90550d0ddb22c71821a8681c93f"
+}

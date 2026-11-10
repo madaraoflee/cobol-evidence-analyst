@@ -1,0 +1,65 @@
+test_additional_formula_is_bound_to_reviewed_original_window (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window) ... FAIL
+test_catalog_contains_every_physical_occurrence_and_every_source_window (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_catalog_contains_every_physical_occurrence_and_every_source_window) ... ok
+test_changed_language_rephrases_saved_findings_without_discarding_source_review (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review) ... FAIL
+test_directory_and_citation_without_business_formula_is_not_final_delivery (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery) ... ERROR
+test_explicit_continue_seed_retains_inventory_and_old_checkpoint_stays_compatible (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_continue_seed_retains_inventory_and_old_checkpoint_stays_compatible) ... ok
+test_explicit_global_catalog_includes_disconnected_chinese_business_alias (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_global_catalog_includes_disconnected_chinese_business_alias) ... ok
+test_global_question_releases_previous_exclusive_scope (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_global_question_releases_previous_exclusive_scope) ... ok
+test_original_question_positive_delivers_first_and_last_batches_in_final_answer (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer) ... ok
+test_partial_or_wrong_version_citation_cannot_complete_review (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_partial_or_wrong_version_citation_cannot_complete_review) ... ok
+test_render_retains_business_sections_and_traditional_language (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language) ... FAIL
+test_review_partition_preserves_every_character_beyond_thirty_two_paragraphs (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_review_partition_preserves_every_character_beyond_thirty_two_paragraphs) ... ok
+test_same_snapshot_resumes_directory_without_database_scan (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_same_snapshot_resumes_directory_without_database_scan) ... ok
+test_seventy_formulas_complete_review_in_persisted_batches_without_rechecking_finished_parts (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_seventy_formulas_complete_review_in_persisted_batches_without_rechecking_finished_parts) ... ok
+test_source_review_can_correct_wrong_formula_without_restoring_the_wrong_canonical_text (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_source_review_can_correct_wrong_formula_without_restoring_the_wrong_canonical_text) ... ok
+test_uncertain_classification_does_not_block_unseen_batch_or_count_complete (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete) ... FAIL
+test_unstructured_claim_of_global_completion_cannot_finish (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_unstructured_claim_of_global_completion_cannot_finish) ... ok
+
+======================================================================
+ERROR: test_directory_and_citation_without_business_formula_is_not_final_delivery (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_formula_inventory.py", line 149, in test_directory_and_citation_without_business_formula_is_not_final_delivery
+    formula = next(row for row in self.state["findings"].values() if row["kind"] == "formula")
+StopIteration
+
+======================================================================
+FAIL: test_additional_formula_is_bound_to_reviewed_original_window (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_formula_inventory.py", line 167, in test_additional_formula_is_bound_to_reviewed_original_window
+    self.assertEqual(len(self.state["additional_findings"]), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_changed_language_rephrases_saved_findings_without_discarding_source_review (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_formula_inventory.py", line 180, in test_changed_language_rephrases_saved_findings_without_discarding_source_review
+    self.assertTrue(all(item["kind"] == "formula" for item in inventory_batch(self.state)))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_render_retains_business_sections_and_traditional_language (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_formula_inventory.py", line 138, in test_render_retains_business_sections_and_traditional_language
+    self.assertIn("## 業務因果", answer)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '## 業務因果' not found in '已核對固定索引快照中已納入原始碼的 0/2 項原文窗口與公式位置。\n\n### 累計公式位置與業務規則\n\n仍有 2 項待核對或分類；以上是已確認內容，尚不能作為全庫完整清單。\n\n- entry.cbl:1-11 (source_review)\n- entry.cbl:10-10 (formula)'
+
+======================================================================
+FAIL: test_uncertain_classification_does_not_block_unseen_batch_or_count_complete (test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_repository_formula_inventory.py", line 128, in test_uncertain_classification_does_not_block_unseen_batch_or_count_complete
+    self.assertFalse({r["candidate_id"] for r in items} & {r["candidate_id"] for r in remaining})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'inventory_1d590e9c10a4ed5c2e267d54', 'inventory_552a7444c119a158c61db093', 'inventory_ffba4dae1149b1567a5dd5a4', 'inventory_79f285a1ba5ac566db29d955', 'inventory_dbdb58af5ed4208fb2a03584', 'inventory_05da41de277cba114686064c', 'inventory_1a9b1cb2b0746d2928e1823c', 'inventory_8ece847db755cd85500f0551', 'inventory_7b23a2d1f04517d344352306', 'inventory_ee1fb3116bee4abc5f170d3f', 'inventory_1ae7fd821bc596e4cf8548ac', 'inventory_3f90ee82a0faaa7b1abdca60', 'inventory_8bdb67e1b400f51cc95877e5', 'inventory_7f56c8248e37ff4b20cc8f40', 'inventory_753275fc31cb9591be37aca7', 'inventory_c988eb0d2d7a2f99702f0a1f'} is not false
+
+----------------------------------------------------------------------
+Ran 16 tests in 1.272s
+
+FAILED (failures=4, errors=1)

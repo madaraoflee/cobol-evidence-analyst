@@ -1,0 +1,21 @@
+{
+  "status": "blocked",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "python_tests": 5281,
+  "browser_tests": 334,
+  "errors": [],
+  "source_snapshot": "87f2032ca76b6c1cbf9b0c79c097118c4e806d84e9f721e97247946fb51512bd",
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "total_bugs": 292,
+  "source_verified_bugs": 285,
+  "archive_sha256": "d3ea2ae2d6c0a91fd1c67e0347b45e24404ad5fb8b9a8761027f037f443661c5"
+}
