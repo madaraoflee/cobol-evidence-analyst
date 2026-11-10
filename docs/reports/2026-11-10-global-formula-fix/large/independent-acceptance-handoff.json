@@ -1,0 +1,82 @@
+{
+  "schema": "large-inventory-independent-acceptance/v1",
+  "owned_files_frozen": {
+    "owned_files_sha256": {
+      "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+      "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+      "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+    },
+    "frozen": true,
+    "formal_test_ids": [
+      "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_authored_10001_roots_and_positions_match_original_bytes",
+      "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_equal_counts_cannot_hide_a_missing_middle_and_duplicate_neighbor",
+      "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_directory_only_or_wrong_source_export_is_not_complete_business_delivery",
+      "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once",
+      "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_explicit_single_file_question_does_not_expand_to_10001_roots",
+      "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+      "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory"
+    ],
+    "runtime_old_tests_ledger_unchanged_by_this_agent": true,
+    "large_fixture_files": 10001,
+    "real_model_or_company_source_used": false,
+    "driver_protocol": "Recall one retained original source, then final answer: exact two requests, identical final citation; gold unchanged."
+  },
+  "source_files": 10001,
+  "independent_business_gold_positions": 10001,
+  "formal_targeted_results": {
+    "first_six_large_methods": "passed, local-large-acceptance-r2.log",
+    "strengthened_hash_oracle_controls": "3 passed, oracle-controls-r2.log",
+    "frozen_18_file_business_suite": "11 passed after owner corrected small-library regression; frozen-business-acceptance-rerun-r2.log",
+    "online_long_history_and_full_answer": "2 passed, online-history-full-answer-rerun.log",
+    "online_next_model_receives_full_historical_answer": "1 passed, online-model-full-history-rerun.log",
+    "seventh_large_method": "Not reported as unittest passed yet; full frozen regression now runs it from scratch."
+  },
+  "local_component": {
+    "evidence": "local-oracle/result.json",
+    "all_formula_positions_delivered": 10001,
+    "unique_review_items": 20002,
+    "restores": 3,
+    "maximum_checkpoint_bytes": 304,
+    "catalog_builds": 1,
+    "strict_review_executed": false,
+    "completion_remains_false_until_strict_review": true
+  },
+  "online_component_and_fresh_final": {
+    "evidence": "online-oracle/result.json",
+    "actual_export": "online-oracle/actual-export.json",
+    "all_formula_positions_delivered": 10001,
+    "source_files_reverified_by_fresh_final_run": 10001,
+    "pagination_pages": 137,
+    "missing": 0,
+    "duplicate": 0,
+    "unexpected": 0,
+    "invalid_business_or_hash_rows": 0,
+    "first_middle_last_preserved": true,
+    "completed_action_fingerprints": 40106,
+    "initial_action_retained": true,
+    "older_publication_unchanged": true,
+    "final_requests": 2,
+    "final_status": "answered",
+    "version_boundary": "Tool traversal began before online workspace/store 024 edits. Completed records were reopened by a fresh process on frozen modules; all originals and every delivered position reverified. Final full regression binds all phases from scratch."
+  },
+  "read_only_review_evidence": [
+    "local-history-owner-audit.json",
+    "online-publication-owner-audit.json",
+    "store-cross-file-provenance.json",
+    "online-rewrite-publication.json"
+  ],
+  "before_evidence": [
+    "before-online-capacity.json",
+    "before-metrics.json",
+    "online-driver-before-protocol-fix.json",
+    "frozen-business-acceptance-rerun.log"
+  ],
+  "limitations": [
+    "Synthetic interpretation reads actual supplied fixture source; no real model/company source used.",
+    "Exact locations, original hashes, authored business labels/formulas and persistent delivery are measured; real business semantics and production runtime inputs remain unverified.",
+    "10,001 independent small files are a scale fixture; deep CALL/LV/COPY chain behavior is separately covered by the frozen 18-file fixture, not this scale fixture.",
+    "Only final-response orchestration is executed via actual model protocol in the 10,001 driver; per-file interpretation uses real production tools with an offline source-derived reviewer.",
+    "No claim that target API timeout/rate-limit or company startup latency is resolved.",
+    "No application/EXE build, deployment or release performed by this agent."
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "mode": "offline synthetic original-source pages; no model or company network",
+  "source_bytes": 843278,
+  "valid_source_pages": 15,
+  "source_window_bytes": 798089,
+  "answer_bytes": 54000,
+  "history_measurements": [
+    {
+      "attempt": 1,
+      "bytes": 854256
+    },
+    {
+      "attempt": 2,
+      "bytes": 1707488
+    },
+    {
+      "attempt": 3,
+      "bytes": 2560720
+    },
+    {
+      "attempt": 4,
+      "bytes": 3413952
+    },
+    {
+      "attempt": 5,
+      "bytes": 4267184
+    },
+    {
+      "attempt": 6,
+      "bytes": 5120416
+    },
+    {
+      "attempt": 7,
+      "bytes": 5973648
+    },
+    {
+      "attempt": 8,
+      "bytes": 6826880
+    },
+    {
+      "attempt": 9,
+      "bytes": 7680112
+    },
+    {
+      "attempt": 10,
+      "bytes": 8533344
+    },
+    {
+      "attempt": 11,
+      "bytes": 9386576
+    },
+    {
+      "attempt": 12,
+      "bytes": 10239808
+    },
+    {
+      "attempt": 13,
+      "bytes": 11093040
+    },
+    {
+      "attempt": 14,
+      "bytes": 11946272
+    },
+    {
+      "attempt": 15,
+      "bytes": 12799504
+    },
+    {
+      "attempt": 16,
+      "bytes": 13652736
+    },
+    {
+      "attempt": 17,
+      "bytes": 14505968
+    },
+    {
+      "attempt": 18,
+      "bytes": 15359200
+    },
+    {
+      "attempt": 19,
+      "bytes": 16212432
+    }
+  ],
+  "failure": {
+    "attempt": 20,
+    "error": "ONLINE_HISTORY_LIMIT"
+  },
+  "frozen_workspace_sha256": "08f8640feb72263a5a005fc3d003033b0c3173a5677534c4b61e5fcae54eb0ee"
+}

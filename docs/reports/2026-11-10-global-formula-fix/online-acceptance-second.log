@@ -1,0 +1,19 @@
+test_premature_model_complete_cannot_clear_unreviewed_global_work (test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_premature_model_complete_cannot_clear_unreviewed_global_work) ... ok
+test_real_online_batches_deliver_every_gold_site_after_observation_eviction (test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_real_online_batches_deliver_every_gold_site_after_observation_eviction) ... FAIL
+
+======================================================================
+FAIL: test_real_online_batches_deliver_every_gold_site_after_observation_eviction (test_global_formula_online_acceptance.OnlineGlobalFormulaDeliveryTests.test_real_online_batches_deliver_every_gold_site_after_observation_eviction)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_global_formula_online_acceptance.py", line 169, in test_real_online_batches_deliver_every_gold_site_after_observation_eviction
+    self.assertEqual(result["status"], "needs_continuation", result.get("error"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'failed' != 'needs_continuation'
+- failed
++ needs_continuation
+ : ONLINE_OPERATION_FAILED
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.528s
+
+FAILED (failures=1)

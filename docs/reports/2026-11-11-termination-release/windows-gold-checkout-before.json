@@ -1,0 +1,171 @@
+{
+  "scope": "read_only_git_checkout_filter_under_core_autocrlf_true",
+  "source_commit": "41ec9b55ee9e7e2ecea8ee2546aa2ec09f2b3a58",
+  "files": [
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/RATELV.dds",
+      "gold_sha256": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "original_bytes": 86,
+      "filtered_bytes": 86,
+      "original_sha256": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "filtered_sha256": "cc93c7fdf53ea8f4d9f1e6c4b4d006c1f3fafc781f895f56a1a0e7a12aa4ee48",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/RATEPF.pf",
+      "gold_sha256": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "original_bytes": 64,
+      "filtered_bytes": 66,
+      "original_sha256": "e433d14082f99241d2aadf6c48e40b0ed9b8f6182e2cc8e57ebb872dfc7dcc21",
+      "filtered_sha256": "c11df1ae30c03a651dbd0ab50741ed9e8cf412e6a6d7446358c431be1f5aa668",
+      "matches_gold_after_windows_filter": false
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/RULE-BODY.cpy",
+      "gold_sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "original_bytes": 91,
+      "filtered_bytes": 91,
+      "original_sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "filtered_sha256": "6624b40b11463903c6418f5bb94df4aaee2d10e6d7c2c6120a4fbeee166ffc41",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/cancellation.cbl",
+      "gold_sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+      "original_bytes": 375,
+      "filtered_bytes": 375,
+      "original_sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+      "filtered_sha256": "55995fc282c1959970cfb8b741da74161de33d7b79324b373881aaac8c5154db",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/collection.cbl",
+      "gold_sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+      "original_bytes": 368,
+      "filtered_bytes": 368,
+      "original_sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+      "filtered_sha256": "8a0bc41b6be865575e727b0afbd2a2f2f78bbf236e5184ecf168e36414374ee1",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/copy-entry.cbl",
+      "gold_sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "original_bytes": 293,
+      "filtered_bytes": 293,
+      "original_sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "filtered_sha256": "a127119e0225cdec4c6bd38881ad79f022b5f7914ff05c02126590b663ed3e30",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/endorsement.cbl",
+      "gold_sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+      "original_bytes": 376,
+      "filtered_bytes": 376,
+      "original_sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+      "filtered_sha256": "4abe419995bf295a224926139d7b0923ba2c9cfbd5f8479e8ff6ae6f59d3732d",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/issue.cbl",
+      "gold_sha256": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "original_bytes": 467,
+      "filtered_bytes": 467,
+      "original_sha256": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "filtered_sha256": "ab641fa5a7f883cb2633c8e5b64fb840e4093b3d1814f968debc8d56a5ae03bc",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/monthly.cbl",
+      "gold_sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+      "original_bytes": 381,
+      "filtered_bytes": 381,
+      "original_sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+      "filtered_sha256": "2d766ed563d7f75bf3b967500aa98a4fdebc69c88d4e63f7082c051799d3dc4b",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/proration.cbl",
+      "gold_sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+      "original_bytes": 381,
+      "filtered_bytes": 381,
+      "original_sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+      "filtered_sha256": "9bff9257a864e29e2ce6e2a33f591672305f3d9960805796cc30dbf620c462a2",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/reinstatement.cbl",
+      "gold_sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+      "original_bytes": 376,
+      "filtered_bytes": 376,
+      "original_sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+      "filtered_sha256": "8eaa0da3b745c6dcd4c9b1f5b0c65c51ca11209dde3e4e288fd187a3899380fe",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/renewal.cbl",
+      "gold_sha256": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+      "original_bytes": 470,
+      "filtered_bytes": 470,
+      "original_sha256": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+      "filtered_sha256": "4ab53257587b16ec2ab0d078751a248d27aa239f08004af91fa43f9de82363d7",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/report-only.cbl",
+      "gold_sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+      "original_bytes": 409,
+      "filtered_bytes": 409,
+      "original_sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+      "filtered_sha256": "c32fe8da9b27da2708de974b6b402548f6ea520dbf62883d6fbb36c15fbf4697",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/rider.cbl",
+      "gold_sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+      "original_bytes": 375,
+      "filtered_bytes": 375,
+      "original_sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+      "filtered_sha256": "abad966ceb64f0bb8d4173a45c5590e9db3375e71b204c04286e19bb32c94409",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/unrelated-counter.cbl",
+      "gold_sha256": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+      "original_bytes": 268,
+      "filtered_bytes": 268,
+      "original_sha256": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+      "filtered_sha256": "f2cf84165f1fc573eb26e3c35b9cbaef4be1da073f3cb5870a6965c74de5d0fd",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/value-adjust.cbl",
+      "gold_sha256": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "original_bytes": 243,
+      "filtered_bytes": 243,
+      "original_sha256": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "filtered_sha256": "40399e1996c196b1603736dfb1e6e0128219e705a4aca9f65eb60ea65f836788",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/view-entry.cbl",
+      "gold_sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "original_bytes": 561,
+      "filtered_bytes": 561,
+      "original_sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "filtered_sha256": "07dccbeb0ece83d75027723596a15c7a1a172c5f39bb9760fd3d1dfb5e8d4d59",
+      "matches_gold_after_windows_filter": true
+    },
+    {
+      "path": "poc/tests/fixtures/global-premium-inventory-v1/source/z-local-language.cbl",
+      "gold_sha256": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+      "original_bytes": 368,
+      "filtered_bytes": 368,
+      "original_sha256": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+      "filtered_sha256": "34ccd61ef5ec9ec21a9f0e71fcaf9b6ac100a395cf78fc8e0c87b8a0b68b31f3",
+      "matches_gold_after_windows_filter": true
+    }
+  ],
+  "mismatches": [
+    "poc/tests/fixtures/global-premium-inventory-v1/source/RATEPF.pf"
+  ]
+}

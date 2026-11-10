@@ -1695,6 +1695,8 @@ class WorkbenchState:
                      "related_sources": [{key: item[key] for key in ("relative_path", "program_names", "direct_source_match") if key in item}
                          for item in ((agent.get("investigation") or {}).get("business_map") or {}).get("programs", [])],
                      "impact_result": agent.get("impact_result"),
+                     **({"repository_inventory":{**agent["repository_inventory"],"rows":[],
+                         "next_cursor":0 if agent["repository_inventory"].get("total",0) else None}} if isinstance(agent.get("repository_inventory"),dict) and agent["repository_inventory"].get("paged") else {}),
                      "snapshot_id": agent.get("snapshot_id"), "metrics": agent.get("metrics", {}),
                      "diagnostics": agent.get("diagnostics", []),
                      "diagnostic": sanitize_diagnostic(agent.get("diagnostic")) or sanitize_diagnostic(project_agent.get("diagnostic")),
@@ -2669,6 +2671,33 @@ class WorkbenchState:
                 raise RequestError("IMPACT_NOT_FOUND", "相关对象清单不可用。", 404) from None
 
 
+    def repository_inventory(self, handle, conversation_id, message_id, *, cursor=0, page_size=50,
+                             export=False, action=None, candidate_id=None, index=0, revision_id=None):
+        from repository_inventory_store import InventoryStore
+        with self.lock:
+            try:
+                if self.conversation_store is None:
+                    raise ValueError("workspace")
+                conversation=self.conversation_store.get(conversation_id)
+                message=next(item for item in conversation["messages"] if item["id"]==message_id)
+                if revision_id:
+                    message=self.conversation_store.get_revision(conversation_id,message_id,revision_id)
+                descriptor=message.get("repository_inventory") or {}
+                if not descriptor.get("paged") or descriptor.get("handle")!=handle:
+                    raise ValueError("handle")
+                store=InventoryStore(Path(self.project["output"])/"structural-index.sqlite")
+                owned=store.page(handle,page_size=1)
+                if owned["snapshot_id"]!=descriptor.get("snapshot_id") or owned.get("run_id")!=message.get("investigation_run_id"):
+                    raise ValueError("owner")
+                if action=="evidence":
+                    return store.evidence(handle,candidate_id,index)
+                if action not in {None,""}:
+                    raise ValueError("action")
+                return store.export(handle) if export else store.page(handle,cursor=cursor,page_size=page_size)
+            except (ValueError,TypeError,StopIteration,OSError,sqlite3.Error,KeyError):
+                raise RequestError("INVENTORY_NOT_FOUND","完整分析清单或该版本来源不可用。",404) from None
+
+
 class LocalServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -2865,6 +2894,17 @@ class RequestHandler(BaseHTTPRequestHandler):
                     raise RequestError("INVALID_QUERY", "请提供一个有效证据标识。")
                 self._json(200, self.server.app.evidence(query["id"][0], query.get("conversation_id", [None])[0],
                     query.get("message_id", [None])[0], query.get("revision_id", [None])[0]))
+            elif path == "/api/repository-inventory":
+                query=parse_qs(route.query,keep_blank_values=True)
+                allowed={"handle","conversation_id","message_id","revision_id","cursor","page_size","export","action","candidate_id","index"}
+                if set(query)-allowed or any(len(value)!=1 for value in query.values()):
+                    raise RequestError("INVALID_QUERY","分析清单查询参数无效。")
+                numbers={key:query.get(key,[default])[0] for key,default in (("cursor","0"),("page_size","50"),("index","0"))}
+                if any(not value.isdecimal() for value in numbers.values()) or query.get("export",[""])[0] not in {"","jsonl"}:
+                    raise RequestError("INVALID_QUERY","分析清单查询参数无效。")
+                self._json(200,self.server.app.repository_inventory(query.get("handle",[""])[0],query.get("conversation_id",[""])[0],query.get("message_id",[""])[0],
+                    cursor=int(numbers["cursor"]),page_size=int(numbers["page_size"]),index=int(numbers["index"]),export=query.get("export",[""])[0]=="jsonl",
+                    action=query.get("action",[None])[0],candidate_id=query.get("candidate_id",[None])[0],revision_id=query.get("revision_id",[None])[0]))
             elif path == "/api/impact":
                 query = parse_qs(route.query, keep_blank_values=True)
                 if set(query) - {"handle", "conversation_id", "message_id", "cursor", "export"} or any(len(v) != 1 for v in query.values()):

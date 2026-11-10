@@ -1,0 +1,74 @@
+{
+  "source_snapshot": "f1c8d0acd70e2d552760d2753db5797fdfc328ca2f2e221588b94f5b858d86ca",
+  "current_source_matches_tested_snapshot": true,
+  "python_tests": 5253,
+  "browser_tests": 334,
+  "fixed_bugs_verified": 277,
+  "total_recorded_bugs": 284,
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "gate_status": "blocked",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "errors": [],
+  "python_shards": [
+    {
+      "file": "python-0.json",
+      "status": "passed",
+      "tests_run": 1313,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0
+    },
+    {
+      "file": "python-1.json",
+      "status": "passed",
+      "tests_run": 1313,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0
+    },
+    {
+      "file": "python-2.json",
+      "status": "passed",
+      "tests_run": 1313,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0
+    },
+    {
+      "file": "python-3.json",
+      "status": "passed",
+      "tests_run": 1313,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0
+    },
+    {
+      "file": "python-tools.json",
+      "status": "passed",
+      "tests_run": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0
+    }
+  ],
+  "evidence_archive": {
+    "path": "full-regression-evidence.zip",
+    "bytes": 1293360,
+    "sha256": "a8f7165ca1351570459137e3ecadc7f407bb72abc0df9a1bb674ac36c55c5b9c"
+  },
+  "package_or_real_model_acceptance": false
+}

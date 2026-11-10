@@ -1,0 +1,204 @@
+{
+  "first_question": "a.cbl 的 PREMIUM-AMT 怎么计算？",
+  "next_question": "列出系统所有计算所有premium formula 的地方",
+  "first_subject": {
+    "schema": "conversation-subject/v1",
+    "status": "resolved",
+    "source_root_hash": "4be348e7a4b3876b245fac772bd335bb7dadc9cf05368d52281a81f6c64e5513",
+    "snapshot_id": "sha256:862b5a842259f4a6b7a6953f60a130c484e6eaa5676ce9dcc787f1d7dd965200",
+    "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+    "root_paths": [
+      "a.cbl"
+    ],
+    "programs": [
+      {
+        "relative_path": "a.cbl",
+        "program_name": "ENTRY-A",
+        "definition_line": 2,
+        "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+      }
+    ],
+    "entities": [
+      "PREMIUM-AMT"
+    ],
+    "entity_bindings": [
+      {
+        "symbol_id": "sym_b42c52ba58a2df66d56389ee",
+        "relative_path": "a.cbl",
+        "program_name": "ENTRY-A",
+        "qualified_name": "ENTRY-A::PREMIUM-AMT",
+        "definition_line": 5,
+        "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+      }
+    ],
+    "focus_entities": [
+      "PREMIUM-AMT"
+    ],
+    "ordinal_subjects": [],
+    "revalidated": true,
+    "version_changed": false,
+    "previous_positions_discarded": false,
+    "scope": {
+      "exclusive_source_scope": false,
+      "paths": [
+        "a.cbl"
+      ],
+      "origin": "question"
+    },
+    "basis": {
+      "selection_source": "question",
+      "question_sha256": "255d63da3e4789f71402e3e15fda29231aa609d294e3c29f1728ea50a722de5d"
+    },
+    "unresolved": [],
+    "diagnostics": []
+  },
+  "fresh_discovery_paths": [
+    "a.cbl",
+    "c.cbl"
+  ],
+  "history_discovery_paths": [
+    "a.cbl",
+    "c.cbl"
+  ],
+  "history_identity": {
+    "status": "resolved",
+    "kind": "relative_path",
+    "direct_paths": [
+      "a.cbl"
+    ],
+    "requested": [
+      "a.cbl"
+    ],
+    "candidates": [
+      {
+        "identifier": "a.cbl",
+        "kind": "relative_path",
+        "relative_paths": [
+          "a.cbl"
+        ],
+        "role": "analysis_subject"
+      }
+    ],
+    "hard_constraint": false,
+    "exclusive_source_scope": false,
+    "selection_source": "conversation_subject",
+    "selection_basis": "locally_revalidated_conversation_subject",
+    "session_subject": {
+      "schema": "conversation-subject/v1",
+      "status": "resolved",
+      "source_root_hash": "4be348e7a4b3876b245fac772bd335bb7dadc9cf05368d52281a81f6c64e5513",
+      "snapshot_id": "sha256:862b5a842259f4a6b7a6953f60a130c484e6eaa5676ce9dcc787f1d7dd965200",
+      "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+      "root_paths": [
+        "a.cbl"
+      ],
+      "programs": [
+        {
+          "relative_path": "a.cbl",
+          "program_name": "ENTRY-A",
+          "definition_line": 2,
+          "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+        }
+      ],
+      "entities": [
+        "PREMIUM-AMT"
+      ],
+      "entity_bindings": [
+        {
+          "symbol_id": "sym_b42c52ba58a2df66d56389ee",
+          "relative_path": "a.cbl",
+          "program_name": "ENTRY-A",
+          "qualified_name": "ENTRY-A::PREMIUM-AMT",
+          "definition_line": 5,
+          "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+        }
+      ],
+      "focus_entities": [
+        "PREMIUM-AMT"
+      ],
+      "ordinal_subjects": [],
+      "revalidated": true,
+      "version_changed": false,
+      "previous_positions_discarded": false,
+      "scope": {
+        "exclusive_source_scope": false,
+        "paths": [
+          "a.cbl"
+        ],
+        "origin": "conversation_subject"
+      },
+      "basis": {
+        "selection_source": "conversation_subject",
+        "question_sha256": "0dacb068275d0d769b373848c962d05550beae13309209d3f8d88c0725c45933"
+      },
+      "unresolved": [],
+      "diagnostics": []
+    },
+    "focused_entities": [
+      "PREMIUM-AMT"
+    ]
+  },
+  "second_status": "PARTIAL",
+  "second_stop_reason": "answer_incomplete",
+  "second_model_request_count": 1,
+  "second_source_paths": [
+    "a.cbl",
+    "c.cbl"
+  ],
+  "second_subject": {
+    "schema": "conversation-subject/v1",
+    "status": "resolved",
+    "source_root_hash": "4be348e7a4b3876b245fac772bd335bb7dadc9cf05368d52281a81f6c64e5513",
+    "snapshot_id": "sha256:862b5a842259f4a6b7a6953f60a130c484e6eaa5676ce9dcc787f1d7dd965200",
+    "compilation_context_fingerprint": "e755be87b1a2385d06e83eb50e1873605d6c21af46580b0a56768a359a3c99bd",
+    "root_paths": [
+      "a.cbl"
+    ],
+    "programs": [
+      {
+        "relative_path": "a.cbl",
+        "program_name": "ENTRY-A",
+        "definition_line": 2,
+        "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+      }
+    ],
+    "entities": [
+      "PREMIUM-AMT"
+    ],
+    "entity_bindings": [
+      {
+        "symbol_id": "sym_b42c52ba58a2df66d56389ee",
+        "relative_path": "a.cbl",
+        "program_name": "ENTRY-A",
+        "qualified_name": "ENTRY-A::PREMIUM-AMT",
+        "definition_line": 5,
+        "source_sha256": "bdd70527d08d6db9587364bffcbde5183dec4cd97e1f5d021825827eabf96373"
+      }
+    ],
+    "focus_entities": [
+      "PREMIUM-AMT"
+    ],
+    "ordinal_subjects": [],
+    "revalidated": true,
+    "version_changed": false,
+    "previous_positions_discarded": false,
+    "scope": {
+      "exclusive_source_scope": false,
+      "paths": [
+        "a.cbl"
+      ],
+      "origin": "conversation_subject"
+    },
+    "basis": {
+      "selection_source": "conversation_subject",
+      "question_sha256": "0dacb068275d0d769b373848c962d05550beae13309209d3f8d88c0725c45933"
+    },
+    "unresolved": [],
+    "diagnostics": []
+  },
+  "second_answer": "a.cbl 按原文的基础金额与系数计算保费，结果存入PREMIUM-AMT，随后返回。[ev_page_a3808816d33d57abc3cad84e]\nc.cbl 按原文的基础金额与系数计算保费，结果存入PREMIUM-AMT，随后返回。[ev_page_c7bb7aef5835dde053f1a593]\n以上是本系统全部保费计算位置。",
+  "second_gaps": [],
+  "full_repository_semantics_verified": false,
+  "model_is_synthetic": true,
+  "network_blocked": true
+}

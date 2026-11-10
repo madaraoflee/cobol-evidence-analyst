@@ -1,0 +1,113 @@
+{
+  "runtime_and_tests_frozen": true,
+  "files_sha256": {
+    "poc/business_chat.py": "1dc764434ad4ba23fce6bf0d2f7f181262a704b04e5f395aefa988de88ae07b4",
+    "poc/business_map.py": "f1f1b12c421cbcb6f6d2c6afd1b4a1b3a66b40263ba6f78a1332be4a714175aa",
+    "poc/complete_working_set.py": "ccdfe8e3881b3f7277f5fb652449e749110d11bc752be72a9b2cf259ceb9cdd5",
+    "poc/conversation_focus.py": "f4caa931ce0c853e86c3c20600adb98ceda81ca56b1f41a815c3f5125aa0dbe2",
+    "poc/question_investigation.py": "9fe704a18dadee3f8c03ef2e82bd98ef9f44acfe4f14c4c607d60f98c6ba7b0d",
+    "poc/repository_discovery.py": "90045e2a12464bd6beac16231d6f9ded2f2bb7207938adad40513c1b503643ce",
+    "poc/repository_inventory.py": "75cecd2da8b70cd7330233dc9d79ecfd7351a5bd89471ba49b5da104c61d2a0d",
+    "poc/repository_inventory_store.py": "90a7ae8229c52873cc2c5b51eec7efa48fc4258c0f46ec24fc15ea8b9af1f396",
+    "poc/web_app.py": "16b83bf74d58b574fe8323670dff195453b24b4bb3a3de1e50373139076dc9f0",
+    "poc/report_view.py": "9a6cb5fd305205c251a3ab106192907de22f949e501bf829ee636583eb45d884",
+    "poc/tests/test_repository_formula_inventory.py": "07d8cdd4c291295e9dbb330ede380adee15ee90550d0ddb22c71821a8681c93f",
+    "poc/tests/test_repository_inventory_store.py": "8766d79c087c7bfdd0242980a7b0733a81dce4fee31b590dc8da63721e1684e4",
+    "poc/conversation_store.py": "9d17382ebb793341fba060e338fd5e53bd2948efad84f7128c6dbd5ee0b7186c",
+    "tools/verify_large_local_inventory.py": "16db52054121f7128940005cff90981b18b9290ed9b52abed2c6419a32605144"
+  },
+  "new_test_ids": [
+    "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_earlier_business_narrative_is_reviewed_and_corrected_without_losing_other_batches",
+    "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_server_failure_preserves_published_batch_and_resume_does_not_repeat_it",
+    "test_repository_inventory_store.PagedInventoryOrchestrationTests.test_small_windows_and_explicit_resumes_deliver_every_formula_and_all_review_parts",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_bounded_checkpoint_rehydrates_without_source_catalog_scan_and_language_restarts_review",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_filtered_dense_cursor_reaches_first_middle_last_with_review_and_excluded_rows",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_immutable_handles_keep_corrected_history_and_all_narrative_versions",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_plain_answer_without_inventory_keeps_existing_revision_rule",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_real_http_pages_exports_and_verified_spans_are_bound_to_message_and_revision",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_recalled_span_selection_metadata_does_not_conflict_but_changed_original_does",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_same_overview_with_corrected_inventory_handle_preserves_previous_revision",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_source_tampering_and_store_sidecars_are_rejected",
+    "test_repository_inventory_store.RepositoryInventoryStoreTests.test_unchanged_inventory_handle_does_not_add_duplicate_revision"
+  ],
+  "new_test_result": {
+    "tests_run": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "existing_inventory_tests": {
+    "tests_run": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "independent_business_fixture": {
+    "tests_run": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "development_before_evidence": "/private/tmp/cobol-large-inventory-audit-20261110/local/development-boundaries-before.json",
+  "actual_scale_running": "/private/tmp/cobol-large-inventory-audit-20261110/local/actual-orchestration-v3/progress.json",
+  "limits": "All local tests and 10001-file orchestration use injected responses on neutral source. No real-model, corporate-source, EXE or target-device claim. Parent is running the mandatory entire ledger regression.",
+  "old_conversation_store_tests": {
+    "tests_run": 21,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "same_summary_history_before": "/private/tmp/cobol-large-inventory-audit-20261110/local/same-summary-revision-before.json",
+  "driver_smoke": "/private/tmp/cobol-large-local-driver-smoke-20261110/report.json",
+  "scale_source_scope": "v3 hashes 12 relevant analysis/store/HTTP runtime files. conversation_store.py was subsequently changed only for historical answer revisions and is covered separately by actual HTTP/version regressions; not a whole-tree frozen run.",
+  "actual_scale_complete": {
+    "status": "ANALYZED",
+    "seconds": 589.18,
+    "analysis_requests": 3332,
+    "review_requests": 2084,
+    "narrative_review_count": 3332,
+    "current_narrative_count": 3332,
+    "unique_classifications": 20002,
+    "final_counts": {
+      "candidates": 20002,
+      "excluded": 0,
+      "files": 10001,
+      "included": 10001,
+      "pending": 0,
+      "review_pending": 0,
+      "reviewed": 20002
+    },
+    "oracle": {
+      "expected_positions": 10001,
+      "unique_delivered_positions": 10001,
+      "missing_count": 0,
+      "duplicate_count": 0,
+      "unexpected_count": 0,
+      "invalid_business_rows": 0,
+      "first_middle_last_preserved": true,
+      "missing_sample": [],
+      "duplicate_sample": [],
+      "invalid_sample": [],
+      "complete": true,
+      "real_model_semantics_verified": false
+    }
+  },
+  "actual_scale_report": "/private/tmp/cobol-large-inventory-audit-20261110/local/actual-orchestration-v3/report.json",
+  "actual_scale_delivery_verification": "/private/tmp/cobol-large-inventory-audit-20261110/local/actual-orchestration-v3/delivery-verification.json",
+  "freeze_files_current_matches": {
+    "poc/business_chat.py": true,
+    "poc/business_map.py": true,
+    "poc/complete_working_set.py": true,
+    "poc/conversation_focus.py": true,
+    "poc/question_investigation.py": true,
+    "poc/repository_discovery.py": true,
+    "poc/repository_inventory.py": true,
+    "poc/repository_inventory_store.py": true,
+    "poc/web_app.py": true,
+    "poc/report_view.py": true,
+    "poc/tests/test_repository_formula_inventory.py": true,
+    "poc/tests/test_repository_inventory_store.py": true,
+    "poc/conversation_store.py": true,
+    "tools/verify_large_local_inventory.py": true
+  }
+}

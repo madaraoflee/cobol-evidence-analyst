@@ -1,0 +1,86 @@
+{
+  "task": "Local explicit repository formula inventory 009 / formula frontier 026",
+  "runtime_frozen": true,
+  "files": {
+    "poc/business_chat.py": "6ff51a80ab5e3e4d017ad2ed0356bae3c1549dfd22e60e2df96f4c1f949a20ef",
+    "poc/business_map.py": "f1f1b12c421cbcb6f6d2c6afd1b4a1b3a66b40263ba6f78a1332be4a714175aa",
+    "poc/complete_working_set.py": "ccdfe8e3881b3f7277f5fb652449e749110d11bc752be72a9b2cf259ceb9cdd5",
+    "poc/conversation_focus.py": "f4caa931ce0c853e86c3c20600adb98ceda81ca56b1f41a815c3f5125aa0dbe2",
+    "poc/question_investigation.py": "9fe704a18dadee3f8c03ef2e82bd98ef9f44acfe4f14c4c607d60f98c6ba7b0d",
+    "poc/repository_discovery.py": "90045e2a12464bd6beac16231d6f9ded2f2bb7207938adad40513c1b503643ce",
+    "poc/repository_inventory.py": "6f1d866647f6b181382ea0e65057aadd17af1512709753cbf4ce381ddb709993",
+    "poc/tests/test_repository_formula_inventory.py": "07d8cdd4c291295e9dbb330ede380adee15ee90550d0ddb22c71821a8681c93f"
+  },
+  "new_test_ids": [
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_additional_formula_is_bound_to_reviewed_original_window",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_catalog_contains_every_physical_occurrence_and_every_source_window",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_changed_language_rephrases_saved_findings_without_discarding_source_review",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_directory_and_citation_without_business_formula_is_not_final_delivery",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_continue_seed_retains_inventory_and_old_checkpoint_stays_compatible",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_explicit_global_catalog_includes_disconnected_chinese_business_alias",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_global_question_releases_previous_exclusive_scope",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_original_question_positive_delivers_first_and_last_batches_in_final_answer",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_partial_or_wrong_version_citation_cannot_complete_review",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_render_retains_business_sections_and_traditional_language",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_review_partition_preserves_every_character_beyond_thirty_two_paragraphs",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_same_snapshot_resumes_directory_without_database_scan",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_seventy_formulas_complete_review_in_persisted_batches_without_rechecking_finished_parts",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_source_review_can_correct_wrong_formula_without_restoring_the_wrong_canonical_text",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_uncertain_classification_does_not_block_unseen_batch_or_count_complete",
+    "test_repository_formula_inventory.RepositoryFormulaInventoryTests.test_unstructured_claim_of_global_completion_cannot_finish"
+  ],
+  "targeted_regression": {
+    "report": "/private/tmp/cobol-global-formula-audit-20261110/local/fix-targeted-regressions.json",
+    "tests_run": 293,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "development_regressions_caught": [
+    {
+      "id": "BUG-20261110-012",
+      "symptom": "Enabling formula-only frontier removed the root program token during initial unbound-field lookup and nominated peer arithmetic",
+      "test": "test_question_scope_regressions.QuestionScopeRegressions.test_unbound_or_declared_unused_target_does_not_select_peer_formulas",
+      "resolution": "Exclude root program names only in legacy overview or a later callee-only batch; original 21 scope checks pass."
+    },
+    {
+      "id": "BUG-20261106-026",
+      "symptom": "Explicit continue omitted repository_inventory_state from the seed whitelist and repeated already reviewed candidates",
+      "evidence": "/private/tmp/cobol-global-formula-audit-20261110/evals/local-resume-probe.json",
+      "resolution": "Carry the snapshot-bound inventory through explicit continuation; preserve unknown request and source identity gates; oracle independent retest pending its final report."
+    },
+    {
+      "id": "BUG-20261106-026",
+      "symptom": "Legacy direct formula budget status/gap assertions changed when adding the persistent cursor",
+      "tests": [
+        "test_question_investigation.QuestionInvestigationTests.test_path_budget_keeps_direct_root_ahead_of_leaf_formula_matches",
+        "test_question_investigation.QuestionInvestigationTests.test_related_formula_budget_is_not_hidden_by_exact_field_match",
+        "test_question_procedural_calculation.ProceduralCalculationTests.test_procedural_fallback_preserves_candidate_budget_and_frontier"
+      ],
+      "resolution": "Keep the existing bounded_partial state and located_path_budget diagnostic while preserving and advancing remaining work; 29+9 pass."
+    }
+  ],
+  "confirmed_behavior": [
+    "Explicit global request builds a fixed indexed-source catalog without keyword reachability; historical exclusive source focus is released but current explicit narrow questions stay local.",
+    "All arithmetic physical occurrences and all indexed source windows have stable obligations; COPY/DDS/non-Program sources are eligible.",
+    "Eight-path/32-item batches persist classifications and full source-bound business formula/conditions; uncertain and missing items do not count complete.",
+    "Fixed snapshot directory reuses state without sqlite access on same-snapshot continuation.",
+    "Final output is accumulated business prose plus formula locations, summaries, formulas, applicability and citations; directory/citations alone fail delivery.",
+    "Source-based corrections replace erroneous canonical findings, keep old finding_history, and require another strict review.",
+    "70-formula real local orchestration with max_model_requests=3 progresses through three analysis batches and persisted independent review batches across explicit continuations; final result ANALYZED with all 70 locations visible.",
+    "Semantic review retains original strict hash/quote/unit protocol and partitions every answer character rather than expanding or bypassing old limits.",
+    "Changing response language/instructions retains source investigation and requires rephrasing current finding presentation; traditional and English rendering supported."
+  ],
+  "validation_boundaries": [
+    "Targeted verification only; root must still run the full mandatory defect ledger and all Python/browser tests.",
+    "All model responses are injected neutral fixtures; passing protocols and coverage is not evidence of real model semantic accuracy or company-source completeness.",
+    "Full scope means source included in the fixed index snapshot, not all filesystem/company source; full_repository_semantics_verified remains false.",
+    "Existing runtime/parse/dynamic binding limitations remain separate; unmatched physical source or uncertain classification remains pending.",
+    "Material limits for a single unreviewable chunk or oversized raw evidence remain explicit PARTIAL, never silently complete.",
+    "A preliminary broad question-pattern test selection encountered one localhost bind permission error; the final 293 targeted tests contain no skipped tests and exclude that server suite by explicit module selection."
+  ],
+  "network_calls": 0,
+  "real_model_calls": 0,
+  "builds": 0,
+  "commits": 0
+}

@@ -1,0 +1,1071 @@
+{
+  "schema": "global-formula-coverage-audit/v1",
+  "source_commit": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "audit_mode": "read_only_static_test_contract_review",
+  "reported_suite_python_count": 5170,
+  "suite_rerun": false,
+  "real_model_calls": 0,
+  "company_source_access": false,
+  "repository_changed": false,
+  "key_judgment": "No located end-to-end success contract proves unscoped repository-wide premium calculation enumeration with final-answer site recall across independent roots, aliases, calls and logical views. Existing component and scoped-chain contracts do not establish this property.",
+  "runtime_bug_confirmed_by_this_audit": false,
+  "missing_contracts": [
+    "root-universe discovery beyond a selected call closure",
+    "independent gold inventory of every business calculation site",
+    "combined alias/call-parameter/COPY/LV business derivation across independent roots",
+    "final delivered answer site recall separate from evidence supplied",
+    "exhaustiveness gating for never-discovered/unvisited roots",
+    "same contract exercised through isolated online path and user-visible delivery"
+  ],
+  "strongest_existing_contracts": {
+    "local_frontier": "Selected named entry; 12 source paths and 37-rule batches; pending work retained; synthetic prose not assessed against full formula inventory.",
+    "logical_views": "43 paths from 21 selected LF/PF relationships; explicitly not runtime binding proof.",
+    "formula_derivation": "Two formula candidates after parameter rename; local alias discovery requests original evidence; not a whole-repository inventory.",
+    "synthetic_insurance_acceptance": "Explicitly indexed_source_fact_coverage; question/retrieval/answer-completeness flags false; agent integration question_coverage not_assessed.",
+    "online": "Scripted known-root tool actions, verified citation/source contract, full_repository_or_runtime_proof false."
+  },
+  "related_bug_ids": [
+    "BUG-20261001-006",
+    "BUG-20261002-001",
+    "BUG-20261015-008",
+    "BUG-20261020-111",
+    "BUG-20261106-009",
+    "BUG-20261106-010",
+    "BUG-20261106-012",
+    "BUG-20261106-013",
+    "BUG-20261106-026",
+    "BUG-20261106-027",
+    "BUG-20261106-028",
+    "BUG-20261107-001",
+    "BUG-20261106-904",
+    "BUG-20261110-001",
+    "BUG-20261110-007"
+  ],
+  "manual_focus_test_files": [
+    "test_persistent_investigation_frontier.py",
+    "test_business_quality_independent.py",
+    "test_question_investigation.py",
+    "test_business_acceptance.py",
+    "test_agent_integration.py",
+    "test_online_investigation.py",
+    "test_business_map_selection.py",
+    "test_framework_scale_oracle.py",
+    "test_dependency_source_availability.py",
+    "test_business_overview_scope.py",
+    "test_online_material_query.py",
+    "test_weak_calculation_discovery.py"
+  ],
+  "located_test_methods_in_focus_files": [
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_static_fanout_advances_after_the_batch_and_sql_limits_without_rereading",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 60
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_unresolved_relation_cursor_retains_every_boundary_without_claiming_closure",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 87
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_changing_the_question_root_resets_a_saved_source_cursor",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 107
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_rule_path_batches_remain_open_until_the_last_related_path_is_processed",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 119
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_fallback_reads_after_the_first_sixty_four_handoffs_until_source_is_covered",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 141
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_thirty_two_primary_rules_resume_within_the_same_file",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 169
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_completed_review_batch_still_accepts_a_later_discovered_source_path",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 213
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_new_snapshot_discards_old_navigation_and_rule_progress",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 254
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_chat_advances_all_source_and_rule_batches_before_completing",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 295
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_finite_chat_preserves_pending_work_and_explicit_continuation_advances_it",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 314
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_actual_chat_advances_rule_batches_once_even_when_source_is_unchanged",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 335
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_earlier_unresolved_callee_is_retained_after_later_batches_are_read",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 349
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_prompt_projection_never_serializes_local_frontier_or_all_gap_records",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 368
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_sixteen_logical_view_objects_remain_in_the_saved_cursor",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 380
+    },
+    {
+      "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_global_dependency_depth_is_not_capped_by_the_per_batch_file_allowance",
+      "path": "poc/tests/test_persistent_investigation_frontier.py",
+      "line": 407
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_unknown_zero_hit_call_catalog_does_not_become_analyzed",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 211
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_chinese_formula_planning_prose_requires_action_and_real_request_evidence",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 220
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_positive_unsupported_prose_zero_hit_is_retried_and_rejected",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 235
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_zero_hit_search_keeps_orientation_dependencies_out_of_answer_evidence",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 243
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_malformed_discovery_action_is_bounded_without_success",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 253
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_discovery_single_request_budget_cannot_promote_unsupported_prose",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 261
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_business_period_alias_has_final_deep_formula_input_condition_and_override",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 270
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_alias_call_does_not_finish_with_only_entry_display_and_call_metadata",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 278
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_perform_cross_paragraph_rounded_formula_is_actual_source",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 287
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_copy_input_and_alias_formula_are_both_original_physical_excerpts",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 295
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_manual_business_alias_does_not_substitute_for_program_formula",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 305
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_manual_definition_can_still_be_answered_with_question_reference",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 321
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_question_matched_manual_alone_cannot_close_source_formula_obligation",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 334
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_orientation_framework_source_marker_does_not_answer_unknown_business",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 343
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_small_source_budget_reports_missing_material_instead_of_sufficient",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 353
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_missing_external_implementation_cannot_be_sufficient_for_complete_formula",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 367
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_explicit_absent_program_keeps_identity_gap",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 375
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_explicit_program_id_not_found_control",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 387
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_known_caller_formula_survives_missing_external_dependency_as_partial",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 396
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_duplicate_program_ids_supply_separate_candidates_without_selecting_a_version",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 412
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_explicit_read_past_eof_finishes_at_physical_end_without_phantom_gap",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 444
+    },
+    {
+      "test_id": "test_business_quality_independent.IndependentBusinessQualityTests.test_business_prose_about_reading_parameters_is_not_mistaken_for_deferral",
+      "path": "poc/tests/test_business_quality_independent.py",
+      "line": 464
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_history_field_outside_navigation_preview_drives_local_candidates",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 27
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_large_dependency_closure_visits_the_relation_catalog_once",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 49
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_dependency_closure_preserves_root_and_edge_order_and_resolution",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 72
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_late_formula_is_selected_before_budget_and_unrelated_gaps_are_excluded",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 125
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_crlf_source_keeps_raw_version_and_rejects_normalized_digest",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 141
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_input_field_match_keeps_later_formula_with_same_output",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 153
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_explicit_result_keeps_distinct_assignments_to_same_field",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 166
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_natural_expression_question_investigates_the_formula",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 174
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_unfocused_formula_enumeration_remains_bounded_and_reports_its_gap",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 185
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_field_priority_applies_across_source_files",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 193
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_result_keeps_called_formula_when_parameter_name_changes",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 204
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_path_budget_keeps_direct_root_ahead_of_leaf_formula_matches",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 223
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_related_formula_budget_is_not_hidden_by_exact_field_match",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 240
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_common_field_query_work_does_not_scale_with_unrelated_rules",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 249
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_peripheral_alias_needs_deep_formula_and_cross_paragraph_adjustments",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 274
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_called_formula_requires_callee_original_source",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 292
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_target_does_not_require_incoming_callers_arithmetic",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 305
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_external_only_call_preserves_callsite_but_does_not_prove_formula",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 343
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_unknown_input_remains_unresolved_without_assignment",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 353
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_visible_value_declaration_is_an_input_origin_candidate",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 361
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_procedure_using_is_a_visible_input_origin_and_arithmetic_has_result_role",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 368
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_condition_comment_envelope_uses_supplied_parsed_predicate",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 389
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_cached_candidates_recheck_visible_pages_and_invalidate_new_snapshot",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 409
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_cached_page_cleaning_does_not_accept_changed_literal_or_trimmed_source",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 429
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_duplicate_id_wrong_hash_and_prefix_expression_do_not_supply_formula",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 441
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_repeated_multiline_formula_can_use_contiguous_pages",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 458
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_conflicting_overlap_cannot_compose_a_formula",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 468
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_unknown_dependency_does_not_locate_and_english_substrings_are_not_intents",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 479
+    },
+    {
+      "test_id": "test_question_investigation.QuestionInvestigationTests.test_eof_finishes_out_of_range_request_but_budget_truncation_stays_open",
+      "path": "poc/tests/test_question_investigation.py",
+      "line": 492
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_real_fixture_has_source_chain_but_known_business_gaps",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 55
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_evidence_has_source_spans_hashes_and_scoped_copy_origin",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 70
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_removing_condition_continuation_fails_status_obligation",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 86
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_reversing_condition_outcome_fails_error_clearing",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 90
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_removing_factor_sql_write_is_not_satisfied_by_other_statements",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 94
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_removing_factor_sql_input_is_not_satisfied_by_field_definition",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 100
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_nonzero_error_amount_fails_even_when_normal_formula_exists",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 104
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_missing_annual_component_and_rounding_are_detected",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 110
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_changed_rider_status_cannot_pass_on_sql_success_condition_alone",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 117
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_literal_target_does_not_satisfy_dynamic_call_boundary",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 121
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_fabricated_literal_edge_on_dynamic_statement_fails_boundary",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 125
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_read_only_report_does_not_change_snapshot",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 140
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_a_small_fully_covered_profile_is_still_not_complete_business_analysis",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 149
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_profile_is_explicit_and_cannot_match_a_different_program_scope",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 157
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_empty_or_duplicate_obligations_are_rejected",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 163
+    },
+    {
+      "test_id": "test_business_acceptance.BusinessSourceCoverageTests.test_a_missing_index_is_not_created",
+      "path": "poc/tests/test_business_acceptance.py",
+      "line": 174
+    },
+    {
+      "test_id": "test_agent_integration.RealAgentIntegrationTests.test_replaced_source_can_be_discovered_and_explained_without_demo_symbols",
+      "path": "poc/tests/test_agent_integration.py",
+      "line": 264
+    },
+    {
+      "test_id": "test_agent_integration.RealAgentIntegrationTests.test_calc_01_closes_with_four_real_tool_calls_and_dynamic_evidence",
+      "path": "poc/tests/test_agent_integration.py",
+      "line": 300
+    },
+    {
+      "test_id": "test_agent_integration.RealAgentIntegrationTests.test_real_tool_legacy_claim_remains_citation_only",
+      "path": "poc/tests/test_agent_integration.py",
+      "line": 360
+    },
+    {
+      "test_id": "test_agent_integration.RealAgentIntegrationTests.test_business_reason_and_production_value_questions_abstain",
+      "path": "poc/tests/test_agent_integration.py",
+      "line": 378
+    },
+    {
+      "test_id": "test_agent_integration.RealAgentIntegrationTests.test_every_fixture_symbol_shape_passes_canonical_projection",
+      "path": "poc/tests/test_agent_integration.py",
+      "line": 399
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_default_requires_explicit_source_transfer_authorization",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 94
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_real_material_search_relation_read_business_answer_has_only_verified_citations",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 102
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_action_budget_checkpoint_resumes_pending_work_without_repeating_planner",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 119
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_partial_answer_preserves_question_and_remaining_on_continuation",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 133
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_same_file_multiple_ranges_use_bounded_per_run_memory_cache",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 143
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_unknown_model_outcome_requires_explicit_retry_and_never_auto_repeats",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 149
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_known_auth_failure_is_safe_and_does_not_auto_retry",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 162
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_response_journal_recovers_without_resending_received_model_exchange",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 169
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_failed_pre_request_journal_never_sends_request",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 185
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_cancel_after_received_response_retains_it_for_resume",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 193
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_cancel_during_source_read_keeps_action_pending",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 207
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_checkpoint_cannot_change_source_revision_or_question",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 220
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_old_evidence_is_revalidated_and_revoked_access_stops_before_model",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 229
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_tampered_excerpt_cannot_be_promoted_by_recomputing_its_id",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 238
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_invalid_citations_never_become_delivered_answer",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 249
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_malformed_model_reply_can_recover_without_claiming_it_was_answer",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 258
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_unsupported_tools_are_rejected_and_never_executed",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 263
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_partial_line_remains_explicit_and_has_precise_citation",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 269
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_dynamic_and_missing_copy_boundaries_are_not_promoted_to_confirmed",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 277
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_history_is_bounded_and_omission_is_explicit",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 284
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_followup_uses_prior_citation_location_and_reads_source_again",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 300
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_prior_citation_id_cannot_be_reused_without_current_source_read",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 318
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_history_hint_from_another_commit_or_revision_is_rejected_before_model",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 330
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_malformed_history_hint_is_not_a_source_read_instruction",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 340
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_long_previous_answer_preserves_navigation_hints_and_marks_text_truncation",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 350
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_history_hint_budget_reports_prior_and_current_omission_counts",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 359
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_actual_skipped_source_reaches_model_even_when_coverage_details_are_compacted",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 367
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_skipped_source_details_are_bounded_without_losing_count_or_unknown_completeness",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 403
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_per_run_source_budget_preserves_pending_action_for_explicit_continuation",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 421
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_completed_action_repetition_stops_without_unbounded_model_loop",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 428
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_call_copy_chain_answer_uses_original_program_and_declaration",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 434
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_material_or_source_access_failure_keeps_read_pending_and_does_not_ask_model_again",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 451
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_source_mismatch_never_reaches_model_as_evidence",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 464
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_received_final_answer_is_revalidated_on_restart_without_new_model_call",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 471
+    },
+    {
+      "test_id": "test_online_investigation.OnlineInvestigationTests.test_evidence_catalog_and_recall_preserve_older_verified_pages",
+      "path": "poc/tests/test_online_investigation.py",
+      "line": 487
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_program_identity_retains_a_distinct_deep_result_within_four_rules",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 42
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_followup_result_field_ranks_before_an_early_counter",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 58
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_resolved_identity_never_starts_unscoped_full_text_discovery",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 72
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_program_names_read_only_selected_paths_even_with_many_unrelated_units",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 95
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_unmatched_business_question_leaves_discovery_open_without_global_dependencies",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 125
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_complete_field_phrase_limits_rules_despite_shared_word_noise",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 141
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_unresolved_identity_does_not_start_unscoped_phrase_lookup",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 160
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_budget_omissions_are_counted_with_deterministic_path_selection",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 184
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_generic_calculation_fallback_counts_its_omitted_candidate",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 210
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_ranked_rule_paths_are_not_alphabetized_before_the_existing_budget",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 229
+    },
+    {
+      "test_id": "test_business_map_selection.BusinessMapSelectionTests.test_concept_order_keeps_text_lead_and_diversifies_repeated_call_navigation",
+      "path": "poc/tests/test_business_map_selection.py",
+      "line": 246
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_oracle_is_recorded_from_original_physical_bytes_and_runtime_is_absent",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 33
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_distant_outer_guard_has_no_executable_sentence_terminator_before_override",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 46
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_ranked_formula_without_guard_or_later_overwrite_is_incomplete",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 62
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_contiguous_actual_pages_cover_multiline_call_but_missing_middle_line_does_not",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 69
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_correct_range_metadata_cannot_cover_clipped_or_forged_wire_text",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 79
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_long_physical_line_is_required_even_when_complete_tail_was_supplied",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 91
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_same_named_copy_and_duplicate_pages_do_not_add_missing_evidence",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 98
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_empty_gold_cannot_report_complete",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 109
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_memory_requires_original_body_binding_and_actual_retransmitted_text",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 112
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_full_index_audit_counts_gaps_and_overlap_independently",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 129
+    },
+    {
+      "test_id": "test_framework_scale_oracle.FrameworkScaleOracleTests.test_full_index_metadata_cannot_disguise_truncated_or_corrupt_page_text",
+      "path": "poc/tests/test_framework_scale_oracle.py",
+      "line": 136
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_incoming_hub_does_not_displace_outgoing_subroutine",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 60
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_indexed_duplicate_implementations_are_reading_candidates_not_missing",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 74
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_field_binding_does_not_assert_missing_or_same_named_program",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 89
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dependency_checklist_preserves_binding_gap_and_candidate_paths",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 104
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_missing_target_is_only_absent_from_the_index",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 126
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_duplicate_candidate_projection_is_bounded",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 136
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_actual_request_supplies_seven_hops_copy_and_logical_file_definition",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 146
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 206
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_accept_and_branch_assignments_supply_candidates_without_binding",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 231
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_nomination_rejects_unrelated_program_field_and_post_call_assignment",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 249
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_same_file_other_program_and_indirect_move_do_not_leak_literals",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 264
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_duplicate_implementations_are_both_read_without_choosing_one",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 276
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidates_and_assignment_scan_have_explicit_limits",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 289
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_candidate_source_hash_still_rejects_changed_file",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 300
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_direct_literal_move_without_initial_value_supplies_candidate",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 313
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_repeated_literal_provenance_is_bounded_without_copying_statements",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 324
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 338
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_far_literal_assignment_survives_many_unrelated_statements",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 363
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_field_assignment_window_reuses_reads_and_invalidates_on_new_move",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 372
+    },
+    {
+      "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_cached_multiline_move_window_matches_uncached_later_call",
+      "path": "poc/tests/test_dependency_source_availability.py",
+      "line": 395
+    },
+    {
+      "test_id": "test_business_overview_scope.BusinessOverviewScopeTests.test_exclusive_overview_does_not_nominate_external_cl_or_leave_its_read_pending",
+      "path": "poc/tests/test_business_overview_scope.py",
+      "line": 39
+    },
+    {
+      "test_id": "test_business_overview_scope.BusinessOverviewScopeTests.test_ordinary_overview_still_nominates_the_known_cl_caller_with_one_read",
+      "path": "poc/tests/test_business_overview_scope.py",
+      "line": 52
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_search_ranks_terms_and_reads_metadata_only_for_returned_hits",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 70
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_natural_language_zero_match_does_not_establish_absence",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 89
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_query_without_tokens_is_explicit_and_does_not_read_material",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 97
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_query_normalizes_full_width_and_hyphenated_terms",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 103
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_query_and_result_count_limits_fail_before_reading",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 109
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_search_resource_budgets_fail_explicitly_instead_of_silent_partial_hits",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 122
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_incoming_candidate_budget_is_checked_before_fetching_facts",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 134
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_cumulative_transfer_budget_includes_separate_posting_reads",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 140
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_incoming_fact_budget_counts_nonmatching_and_nonrelation_facts",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 154
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_manifest_identity_is_pinned_and_results_do_not_mutate_it",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 161
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_relation_filter_preserves_candidate_status_and_evidence",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 171
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_incoming_verifies_target_and_type_and_does_not_resolve_duplicate_names",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 179
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_incoming_copy_candidate_is_not_promoted_to_confirmed",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 198
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_unsupported_reverse_relation_and_bad_target_fail",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 205
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_unindexed_paths_do_not_become_source_absence_claims",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 214
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_malformed_relation_fields_raise_bounded_material_errors",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 221
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_evidence_verifies_one_file_and_cites_fixed_commit_and_physical_lines",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 231
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_source_uses_indexed_encoding_bom_and_all_physical_newlines",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 244
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_chunk_boundaries_preserve_multibyte_decoding_crlf_and_requested_lines",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 257
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_many_short_lines_do_not_allocate_a_whole_file_line_list",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 272
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_overlong_line_is_marked_partial_without_claiming_omitted_lines",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 283
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_excerpt_boundary_counts_newlines_and_reports_unrepresented_next_line",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 294
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_empty_physical_lines_have_precise_count_and_no_synthetic_extra_line",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 311
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_source_is_revalidated_on_every_call_without_implicit_cache",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 319
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_source_size_hash_and_response_type_are_checked_before_text_exposure",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 326
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_bad_source_encoding_and_line_count_are_rejected",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 335
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_invalid_ranges_and_oversized_file_fail_without_source_read",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 350
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_source_errors_never_expose_remote_response_or_credentials",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 365
+    },
+    {
+      "test_id": "test_online_material_query.OnlineMaterialQueryTests.test_source_path_traversal_is_rejected_before_any_read",
+      "path": "poc/tests/test_online_material_query.py",
+      "line": 377
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_generic_chinese_comment_requires_expansion_to_real_formula",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 68
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_exact_field_calculation_does_not_add_discovery_request",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 86
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_unsuccessful_expansion_does_not_make_old_comment_a_formula_match",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 95
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_explicit_file_without_formula_does_not_expand_to_other_files",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 109
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_external_calculation_boundary_does_not_restart_word_discovery",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 123
+    },
+    {
+      "test_id": "test_weak_calculation_discovery.WeakCalculationDiscoveryTests.test_weak_match_discovery_keeps_single_request_budget",
+      "path": "poc/tests/test_weak_calculation_discovery.py",
+      "line": 143
+    }
+  ],
+  "artifacts": [
+    "assessment.md",
+    "fixture-plan.json",
+    "related-existing-bugs.json"
+  ],
+  "scope_limit": "Test-source inspection and targeted searches, not a proof that no alternative unnamed test exists; findings are grounded in strongest located contracts. No existing test weakened, executed or bypassed."
+}

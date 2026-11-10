@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "inventory_only",
+  "all_recorded_bugs_verified": false,
+  "scope": "source_offline_only",
+  "native_or_real_model_acceptance": false,
+  "errors": [],
+  "source_commit": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "source_snapshot": "e4c6259f29fa0a0b69f464a799c7a5c0819028e823aa46272e18c1089378ed4a",
+  "started_at": "2026-11-10T14:18:46.642618+00:00",
+  "python_tests": 5170,
+  "browser_files": 21,
+  "finished_at": "2026-11-10T14:18:48.290211+00:00"
+}

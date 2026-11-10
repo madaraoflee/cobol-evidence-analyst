@@ -1,0 +1,16 @@
+{
+  "scope": "offline_injected_model_responses",
+  "files": 10001,
+  "analysis_turn_seconds_first_last": [
+    3.145,
+    4.58
+  ],
+  "review_turn_seconds_min_max": [
+    0.944,
+    3.037
+  ],
+  "max_complete_checkpoint_bytes": 5287938,
+  "max_inventory_checkpoint_bytes": 304,
+  "company_latency_or_quota_verified": false,
+  "exponential_complexity_proven_or_disproven": false
+}

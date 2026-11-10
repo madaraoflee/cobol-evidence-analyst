@@ -459,6 +459,9 @@ def resolve_conversation_subject(connection, question, history, *, current_ident
     may recover a program from the latest explicit user question, never from
     assistant text, citations, evidence ordering, or rule-lead ordering.
     """
+    from repository_scope import repository_inventory_requested
+    if repository_inventory_requested(question):
+        return None
     current = current_identity if current_identity is not None else _question_identity(connection, question)
     if current.get("status", "none") != "none" or current.get("hard_constraint") or _PROGRAM_CUE.search(str(question)) or _RESET.search(str(question)):
         return None

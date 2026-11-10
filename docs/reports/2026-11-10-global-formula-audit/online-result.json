@@ -1,0 +1,304 @@
+{
+  "head": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "boundary": "Offline synthetic parser/export/query execution and scripted responses; no real model or company network.",
+  "lexical_paging": {
+    "total_matches": 25,
+    "truncated": true,
+    "offset": 0,
+    "match_mode": "any_term",
+    "terms": [
+      "premium"
+    ],
+    "first_count": 20,
+    "second_count": 5,
+    "second_truncated": false,
+    "total_unique_paths": 25
+  },
+  "candidate_discovery": {
+    "manifest_indexed_files": 27,
+    "premium_lexical_paths": [
+      "premium_00.cbl",
+      "premium_01.cbl",
+      "premium_02.cbl",
+      "premium_03.cbl",
+      "premium_04.cbl",
+      "premium_05.cbl",
+      "premium_06.cbl",
+      "premium_07.cbl",
+      "premium_08.cbl",
+      "premium_09.cbl",
+      "premium_10.cbl",
+      "premium_11.cbl",
+      "premium_12.cbl",
+      "premium_13.cbl",
+      "premium_14.cbl",
+      "premium_15.cbl",
+      "premium_16.cbl",
+      "premium_17.cbl",
+      "premium_18.cbl",
+      "premium_19.cbl",
+      "premium_20.cbl",
+      "premium_21.cbl",
+      "premium_22.cbl",
+      "premium_23.cbl",
+      "premium_24.cbl"
+    ],
+    "compute_lexical_paths": [
+      "abbreviated.cbl",
+      "premium_00.cbl",
+      "premium_01.cbl",
+      "premium_02.cbl",
+      "premium_03.cbl",
+      "premium_04.cbl",
+      "premium_05.cbl",
+      "premium_06.cbl",
+      "premium_07.cbl",
+      "premium_08.cbl",
+      "premium_09.cbl",
+      "premium_10.cbl",
+      "premium_11.cbl",
+      "premium_12.cbl",
+      "premium_13.cbl",
+      "premium_14.cbl",
+      "premium_15.cbl",
+      "premium_16.cbl",
+      "premium_17.cbl",
+      "premium_18.cbl",
+      "premium_19.cbl",
+      "premium_20.cbl",
+      "premium_21.cbl",
+      "premium_22.cbl",
+      "premium_23.cbl",
+      "premium_24.cbl"
+    ],
+    "abbreviated_exported_rules": [
+      {
+        "condition": [],
+        "first_line": 11,
+        "last_line": 11,
+        "occurrence_count": 1,
+        "paragraph_name": "CALCULATE-AMOUNT",
+        "program_name": "RATE-ENGINE",
+        "reads": [],
+        "rule_id": "rule_4a4aa50b537d_360874f282b8f6d48ff29ed9",
+        "rule_kind": "CALL",
+        "writes": []
+      },
+      {
+        "condition": [],
+        "first_line": 10,
+        "last_line": 10,
+        "occurrence_count": 1,
+        "paragraph_name": "CALCULATE-AMOUNT",
+        "program_name": "RATE-ENGINE",
+        "reads": [
+          "BASE-AMOUNT",
+          "RATE-VALUE"
+        ],
+        "rule_id": "rule_4a4aa50b537d_72864c69bf57b555b6510515",
+        "rule_kind": "COMPUTE",
+        "writes": [
+          "PRM-AMT"
+        ]
+      }
+    ],
+    "abbreviated_relations": {
+      "revision": "56a722e415ce1dcf53348bc049893ba8b10de3301e374cdfc2c33d5c59989ddf",
+      "repository": {
+        "commit": "cccccccccccccccccccccccccccccccccccccccc",
+        "identity": "example/source",
+        "subdirectory": ""
+      },
+      "coverage": {
+        "boundaries": [
+          {
+            "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+          },
+          {
+            "code": "SPARSE_SEMANTICS_ONLY"
+          },
+          {
+            "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+          }
+        ],
+        "build_scope": {
+          "catalog_file_count": 27,
+          "complete_dependency_closure": true,
+          "file_count": 27,
+          "full_statement_analysis_performed": false,
+          "index_kind": "business_sparse",
+          "input_coverage_complete": true,
+          "kind": "full_directory",
+          "mode": "business_sparse_directory",
+          "runtime_paths_verified": false,
+          "selected_file_count": 27,
+          "truncated": false
+        },
+        "indexed_files": 27,
+        "input_skips": [],
+        "scope": "indexed_snapshot_only",
+        "source_bytes": 7263
+      },
+      "relative_path": "abbreviated.cbl",
+      "source_sha256": "aa6840f47be73da9655c5b8c33705aa197a1875383d2bfcf7bc36e88b07592b2",
+      "relations": [
+        {
+          "end_line": 11,
+          "evidence_id": "ev_99345b56ef5edbdb30bae2f6",
+          "from_entity_id": "unit_1b3cdd2b00ff352dfc4bfea0",
+          "metadata": {
+            "semantic_binding_performed": false,
+            "source_index_kind": "business_sparse"
+          },
+          "program_name": "RATE-ENGINE",
+          "relation_id": "rel_27b9936cc6d755ccb0f74388",
+          "relation_type": "CALLS",
+          "start_line": 11,
+          "status": "confirmed",
+          "target_entity_id": "sym_535f5e77b58fe1e6a02bac34",
+          "target_name": "ROUNDING-ENGINE",
+          "target_scope": null
+        }
+      ]
+    },
+    "relations_return_rules": false
+  },
+  "unsupported_inventory_tools": {
+    "files": "ONLINE_INVALID_MODEL_ACTION",
+    "rules": "ONLINE_INVALID_MODEL_ACTION",
+    "formula_candidates": "ONLINE_INVALID_MODEL_ACTION"
+  },
+  "premature_completion": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 3,
+    "actions": 2,
+    "evidence_paths": [
+      "premium_00.cbl"
+    ],
+    "last_context_remaining": [
+      "24 candidate files remain unverified"
+    ],
+    "result_remaining": [],
+    "search_total": 25,
+    "search_rows": 20,
+    "search_truncated": true,
+    "search_next_offset": 20,
+    "coverage": {
+      "scope": "indexed_snapshot_only",
+      "indexed_files": 27,
+      "source_bytes": 7263,
+      "boundaries": [
+        {
+          "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+        },
+        {
+          "code": "SPARSE_SEMANTICS_ONLY"
+        },
+        {
+          "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+        }
+      ],
+      "boundary_count": 3,
+      "coverage_report_truncated": false,
+      "input_skip_count": 0,
+      "input_skips": [],
+      "input_skips_truncated": false,
+      "input_coverage_complete": true,
+      "full_repository_or_runtime_proof": false
+    },
+    "workspace_status": "answered",
+    "workspace_pending": null
+  },
+  "search_frontier_eviction": {
+    "status": "answered",
+    "model_calls": 4,
+    "actions": 14,
+    "durable_observations_count": 14,
+    "durable_search_retained": true,
+    "model_observations_count": 12,
+    "model_observations_omitted": 2,
+    "model_has_search_or_cursor": false,
+    "model_remaining": [],
+    "evidence_count": 13,
+    "model_system_has_only_six_tools": true
+  },
+  "durable_frontier_eviction_after_explicit_continuations": {
+    "runs": [
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 4
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "answered",
+        "error": null,
+        "actions": 2,
+        "model_calls": 2
+      }
+    ],
+    "actions_total": 98,
+    "observations_total": 98,
+    "retained_observations": 96,
+    "search_observation_retained": false,
+    "evidence_count": 97,
+    "remaining": [],
+    "note": "Each invocation uses the default budgets; the harness explicitly resumes the saved checkpoint."
+  },
+  "default_model_budget": {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "model_calls": 6,
+    "actions": 6,
+    "evidence_count": 6,
+    "pending_actions": [],
+    "remaining": [
+      "Continue the complete formula inventory"
+    ]
+  },
+  "default_action_budget": {
+    "status": "needs_continuation",
+    "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+    "model_calls": 4,
+    "actions": 24,
+    "evidence_count": 24,
+    "pending_actions": [
+      {
+        "tool": "read",
+        "path": "premium_24.cbl",
+        "start_line": 1,
+        "end_line": 11,
+        "max_characters": 12000
+      }
+    ],
+    "remaining": [
+      "Continue the complete formula inventory"
+    ]
+  },
+  "sha256": {
+    "poc/online_investigation.py": "73549f45c2955e5cbb5fc7d11b77aea56e8cda3e4e49c0727910747b7d9c585c",
+    "poc/online_material_query.py": "8598871e8da76e127556b8af2c8fa3dcfeb7208571093542d375302ac708fc8d",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/online_material_reader.py": "6799088afa463eac00949b27c0d62b05db8beacf6968af75dc448b437eb3ef12",
+    "poc/online_workspace.py": "c2e41a4a89a3199b1e8eefafd92f4a4c8f3b010460ab1c4f5a4c7947e4baf0d8"
+  }
+}

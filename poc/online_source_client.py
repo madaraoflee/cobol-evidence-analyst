@@ -6,6 +6,7 @@ import base64
 from http.client import HTTPException
 import re
 import socket
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -56,7 +57,7 @@ def _status_error(status, prefix):
 
 
 def _https_read(url, *, token=None, username=None, opener=None, max_bytes=MAX_SOURCE_BYTES,
-                prefix="SOURCE", reject_lfs=False):
+                prefix="SOURCE", reject_lfs=False, check_cancel=None):
     """Injected openers are trusted transports; the default never follows redirects."""
     _limit(max_bytes, prefix)
     authorization = _authorization(token, username, prefix)
@@ -64,8 +65,16 @@ def _https_read(url, *, token=None, username=None, opener=None, max_bytes=MAX_SO
     if authorization:
         request.add_header("Authorization", authorization)
     transport = opener if opener is not None else build_opener(_NoRedirect())
+    deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+    def check_budget():
+        if check_cancel is not None:
+            check_cancel()
+        if time.monotonic() >= deadline:
+            raise MaterialError(prefix + "_TIMEOUT")
     try:
+        check_budget()
         with transport.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            check_budget()
             status = getattr(response, "status", None)
             if status is None:
                 status = response.getcode() if hasattr(response, "getcode") else 200
@@ -89,7 +98,9 @@ def _https_read(url, *, token=None, username=None, opener=None, max_bytes=MAX_SO
                 raise MaterialError("SOURCE_LFS_UNSUPPORTED")
             result = bytearray()
             while True:
+                check_budget()
                 part = getattr(response, "read1", response.read)(min(_CHUNK_BYTES, max_bytes + 1 - len(result)))
+                check_budget()
                 if not isinstance(part, bytes):
                     raise MaterialError(prefix + "_INVALID_RESPONSE")
                 if not part:
@@ -116,7 +127,7 @@ def _https_read(url, *, token=None, username=None, opener=None, max_bytes=MAX_SO
 class PinnedSourceClient:
     """No branch resolution, cloning, writes, retry, or credential persistence."""
 
-    def __init__(self, workspace, repository, commit, *, token=None, username=None, opener=None):
+    def __init__(self, workspace, repository, commit, *, token=None, username=None, opener=None, check_cancel=None):
         if any(not isinstance(value, str) or not _SLUG.fullmatch(value)
                for value in (workspace, repository)):
             raise MaterialError("SOURCE_INVALID_REPOSITORY")
@@ -126,6 +137,7 @@ class PinnedSourceClient:
                       + "/" + quote(repository, safe="") + "/src/" + commit + "/")
         self._token, self._username, self._opener = token, username, opener
         self._commit = commit
+        self._check_cancel = check_cancel
 
     @property
     def commit(self):
@@ -135,4 +147,4 @@ class PinnedSourceClient:
         path = _relative_path(relative_path)
         return _https_read(self._base + quote(path, safe="/"), token=self._token,
                            username=self._username, opener=self._opener,
-                           max_bytes=max_bytes, reject_lfs=True)
+                           max_bytes=max_bytes, reject_lfs=True, check_cancel=self._check_cancel)

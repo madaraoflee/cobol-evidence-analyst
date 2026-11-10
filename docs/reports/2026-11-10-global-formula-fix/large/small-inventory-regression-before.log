@@ -1,0 +1,29 @@
+.......FF..
+======================================================================
+FAIL: test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items (test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_global_formula_inventory_acceptance.py", line 226, in test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items
+    self.assertEqual(result["status"], "ANALYZED", result.get("diagnostics"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'PARTIAL' != 'ANALYZED'
+- PARTIAL
++ ANALYZED
+ : []
+
+======================================================================
+FAIL: test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery (test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_global_formula_inventory_acceptance.py", line 257, in test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery
+    self.assertEqual(result["status"], "ANALYZED", result.get("diagnostics"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'PARTIAL' != 'ANALYZED'
+- PARTIAL
++ ANALYZED
+ : []
+
+----------------------------------------------------------------------
+Ran 11 tests in 8.555s
+
+FAILED (failures=2)

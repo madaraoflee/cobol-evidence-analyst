@@ -1,0 +1,40 @@
+[
+  {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "model_calls": 6,
+    "actions": 6,
+    "no_progress_rounds": 0,
+    "observed_errors": [
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS"
+    ],
+    "completed_actions": 0
+  },
+  {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "model_calls": 6,
+    "actions": 6,
+    "no_progress_rounds": 0,
+    "observed_errors": [
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS",
+      "MATERIAL_RANGE_OUT_OF_BOUNDS"
+    ],
+    "completed_actions": 0
+  }
+]

@@ -1,0 +1,79 @@
+{
+  "prepare_seconds": 0.11055987502913922,
+  "catalog_items": 20002,
+  "catalog_bytes": 5930978,
+  "batch_seconds": 1.524195417005103,
+  "batches": 1251,
+  "resumes": [
+    {
+      "batch": 1,
+      "reviewed": 16,
+      "checkpoint_bytes": 5942253,
+      "catalog_builds": 1
+    },
+    {
+      "batch": 625,
+      "reviewed": 10000,
+      "checkpoint_bytes": 12979731,
+      "catalog_builds": 1
+    },
+    {
+      "batch": 1251,
+      "reviewed": 20002,
+      "checkpoint_bytes": 20029981,
+      "catalog_builds": 1
+    }
+  ],
+  "answer_characters": 3660546,
+  "review_parts": 626,
+  "review_parts_reconstruct_exact_answer": true,
+  "review_part_examples": [
+    {
+      "part": 0,
+      "source_count": 13,
+      "status": "reviewable",
+      "reason": null,
+      "units": 16
+    },
+    {
+      "part": 313,
+      "source_count": 16,
+      "status": "reviewable",
+      "reason": null,
+      "units": 16
+    },
+    {
+      "part": 625,
+      "source_count": 4,
+      "status": "reviewable",
+      "reason": null,
+      "units": 4
+    }
+  ],
+  "report_bytes": 22673126,
+  "projected_answer_characters": 1000000,
+  "projected_findings_count": 1000,
+  "projection_omissions": [
+    {
+      "path": "agent_result.narrative.text",
+      "retained_characters": 1000000,
+      "total_characters": 3660546
+    },
+    {
+      "path": "agent_result.answer",
+      "retained_characters": 1000000,
+      "total_characters": 3660546
+    },
+    {
+      "path": "agent_result.evidence_refs",
+      "retained_items": 3000,
+      "total_items": 10001
+    },
+    {
+      "path": "agent_result.repository_inventory.findings",
+      "retained_items": 1000,
+      "total_items": 20002
+    }
+  ],
+  "sqlite_raw_checkpoint_bytes": 20029981
+}

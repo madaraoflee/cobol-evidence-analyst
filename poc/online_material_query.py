@@ -20,7 +20,7 @@ from copy import deepcopy
 import re
 
 from online_material_format import (
-    MAX_SOURCE_BYTES, MaterialError, digest, normalized_term, reference_key,
+    MAX_SOURCE_BYTES, MaterialError, bucket, canonical_json, digest, normalized_term, reference_key,
     relative_path, tokens, valid_hash,
 )
 
@@ -216,6 +216,56 @@ class MaterialQuery:
             "matches": matches, "total_matches": len(ranked), "offset": offset,
             "truncated": len(ranked) > offset + len(matches),
         }
+
+    def inventory(self, limit=20, *, cursor=None):
+        """Enumerate selected-snapshot files independently of business wording."""
+        page = self.reader.files(limit, cursor=cursor)
+        rows = [{key: item[key] for key in ("relative_path", "sha256", "line_count")}
+                for item in page["files"]]
+        while rows and len(canonical_json(rows)) > 20000:
+            rows.pop()
+        if page["files"] and not rows:
+            raise MaterialError("MATERIAL_QUERY_BUDGET_EXCEEDED")
+        clipped = len(rows) != len(page["files"])
+        next_cursor = ({"bucket": bucket(rows[-1]["relative_path"]), "after": rows[-1]["relative_path"]}
+                       if clipped else page["next_cursor"])
+        return {"files": rows, "cursor": page["cursor"], "next_cursor": next_cursor,
+                "complete": not clipped and page["complete"], "revision": self._manifest["revision"],
+                "scope": "indexed_snapshot", "expected_files": self._manifest["coverage"].get("indexed_files")}
+
+    def arithmetic_candidates(self, path, limit=20, *, offset=0):
+        """Expose exported arithmetic/assignment anchors, never inferred formulas."""
+        _positive_integer(limit, _MAX_RESULT_LIMIT, "MATERIAL_INVALID_LIMIT")
+        if type(offset) is not int or not 0 <= offset < 2 ** 63:
+            raise MaterialError("MATERIAL_INVALID_OFFSET")
+        metadata = self._file(path)
+        facts = self._facts(path)
+        rows = []
+        # Assignments may carry intrinsic calculations or a renamed amount;
+        # their business relevance is decided only after reading original text.
+        kinds = {"ADD", "COMPUTE", "DIVIDE", "MULTIPLY", "SUBTRACT", "MOVE", "SET"}
+        for rule in facts["rules"]:
+            if rule.get("rule_kind") not in kinds:
+                continue
+            identifier = rule.get("rule_id")
+            occurrences = rule.get("occurrence_count", 1)
+            if (not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z0-9_:-]{1,200}", identifier)
+                    or type(rule.get("first_line")) is not int or type(rule.get("last_line")) is not int
+                    or not 1 <= rule["first_line"] <= rule["last_line"] <= metadata["line_count"]
+                    or type(occurrences) is not int or not 1 <= occurrences <= max(1, metadata["size"])):
+                raise MaterialError("MATERIAL_INVALID_FACTS")
+            candidate = {"candidate_id": "C" + digest(canonical_json([self._manifest["revision"], path, identifier]))[:24],
+                         "path": path, "start_line": rule["first_line"], "end_line": rule["last_line"],
+                         "rule_id": identifier, "rule_kind": rule["rule_kind"],
+                         "occurrence_count": occurrences,
+                         "reads": deepcopy(rule.get("reads", [])), "writes": deepcopy(rule.get("writes", [])),
+                         "condition": deepcopy(rule.get("condition", []))}
+            rows.append(candidate)
+        rows.sort(key=lambda row: (row["start_line"], row["end_line"], row["candidate_id"]))
+        selected = rows[offset:offset + limit]
+        return {"candidates": selected, "total_matches": len(rows), "offset": offset,
+                "truncated": offset + len(selected) < len(rows), "source_sha256": metadata["sha256"],
+                "scope": "exported_arithmetic_and_assignment_candidates", "absence_established": False}
 
     def relations(self, path, relation_type=None):
         """Return exported relations and preserve their evidence and status."""

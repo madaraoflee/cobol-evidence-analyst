@@ -1,0 +1,13 @@
+{
+  "kind": "component_boundary_actual_exported_catalog_and_candidates",
+  "source_files": 10001,
+  "files_enumerated": 10001,
+  "inventory_pages": 101,
+  "inventory_only_checkpoint_bytes": 2241329,
+  "candidate_files_registered_at_failure": 6200,
+  "checkpoint_bytes_at_failure": 4206728,
+  "checkpoint_limit": 4194304,
+  "failure": "ONLINE_CHECKPOINT_CAPACITY_LIMIT",
+  "elapsed_seconds": 11.560840542020742,
+  "not_a_model_quality_or_end_to_end_timing_result": true
+}

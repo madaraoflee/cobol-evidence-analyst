@@ -7,3 +7,4 @@ dialog{width:min(620px,calc(100vw - 32px));border:1px solid var(--line);border-r
 
 .topbar .topbar-actions{gap:10px;flex-wrap:wrap}.topbar-actions label{font-size:12px}.topbar-actions select{background:#213f49;color:#f4f7f8;border:1px solid #5c747c;border-radius:6px;padding:5px;max-width:145px}.notice.error{overflow-wrap:anywhere}
 @media(max-width:700px){.topbar{flex-wrap:wrap}.topbar .topbar-actions{gap:8px}}
+.inventory .inventory-pagination{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.inventory .inventory-row{padding:14px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.inventory .inventory-row h4{margin:0 0 10px;font-size:14px}.inventory .inventory-row p{line-height:1.85}

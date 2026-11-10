@@ -1,0 +1,40 @@
+{
+  "timeout": {
+    "configured_timeout": 0.05,
+    "error": "SOURCE_TIMEOUT",
+    "elapsed_seconds": 0.08087812503799796,
+    "bytes": 0,
+    "returned_success": false,
+    "real_network": "localhost_http_connection_injected_into_https_client"
+  },
+  "cancel": {
+    "configured_timeout": 0.05,
+    "elapsed_seconds": 0.03989379096310586,
+    "cancel_requested_after": 0.03975641599390656,
+    "cancel_observed_after": 0.03985974995885044,
+    "post_cancel_read_seconds": 0.0001373749691992998,
+    "outcome": "ONLINE_CANCELLED",
+    "checks": [
+      {
+        "after": 6.659538485109806e-07,
+        "requested": false
+      },
+      {
+        "after": 3.404100425541401e-05,
+        "requested": false
+      },
+      {
+        "after": 0.000506040989421308,
+        "requested": false
+      },
+      {
+        "after": 0.0005098749534226954,
+        "requested": false
+      },
+      {
+        "after": 0.03985974995885044,
+        "requested": true
+      }
+    ]
+  }
+}

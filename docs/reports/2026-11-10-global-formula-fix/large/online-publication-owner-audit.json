@@ -1,0 +1,8 @@
+{
+  "publication_owner_fields_rejected": [
+    "conversation_id",
+    "workspace_id",
+    "revision"
+  ],
+  "read_only_audit": true
+}

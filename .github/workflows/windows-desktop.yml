@@ -322,6 +322,29 @@ jobs:
               '--public-source', os.environ['PUBLIC_BUSINESS_SOURCE_ROOT'],
               '--output', str(temporary / 'native-release-performance')], check=True)
 
+      - name: Verify whole-library inventory in the same final EXE
+        timeout-minutes: 8
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'compiled-global-inventory-continuity'
+          subprocess.run([sys.executable, 'tools/check_global_inventory_continuity.py',
+              '--archive', 'windows-delivery/COBOLWorkbench-windows-x64.zip',
+              '--source-commit', os.environ['GITHUB_SHA'], '--output', str(output)], check=True)
+
+      - name: Preserve the separately bound whole-library inventory report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: global-inventory-continuity-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/compiled-global-inventory-continuity/GLOBAL-INVENTORY-CONTINUITY.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Preserve same-runner performance reports separately
         if: ${{ always() && inputs.compare_previous_candidates }}
         uses: actions/upload-artifact@v7

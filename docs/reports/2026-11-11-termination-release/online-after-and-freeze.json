@@ -1,0 +1,68 @@
+{
+  "repeated_failed_action": [
+    {
+      "status": "failed",
+      "error": "ONLINE_NO_PROGRESS",
+      "calls": 4,
+      "actions": 3,
+      "completed_actions": 0,
+      "pending_execution_actions": 0,
+      "no_progress_rounds": 3
+    },
+    {
+      "status": "failed",
+      "error": "ONLINE_NO_PROGRESS",
+      "calls": 1,
+      "actions": 0,
+      "completed_actions": 0,
+      "pending_execution_actions": 0,
+      "no_progress_rounds": 4
+    }
+  ],
+  "bounded_final_verification": {
+    "first": {
+      "status": "needs_continuation",
+      "error": "ONLINE_SOURCE_BUDGET_EXCEEDED",
+      "read_paths": [
+        "SHARED-RECORD.cpy",
+        "dynamic.cbl"
+      ],
+      "verification": {
+        "total": 4,
+        "checked": 2,
+        "pending": 2
+      },
+      "answer_prefix": "The business inventory is checked, but final source verification is unfinished: 2/4 files verified, 2 remain. Complete findings and verification progress are saved; source verification is not yet complete."
+    },
+    "second": {
+      "status": "answered",
+      "error": null,
+      "read_paths": [
+        "main.cbl",
+        "worker.cbl"
+      ]
+    },
+    "all_source_paths": [
+      "SHARED-RECORD.cpy",
+      "dynamic.cbl",
+      "main.cbl",
+      "worker.cbl"
+    ],
+    "extra_model_calls": 0
+  },
+  "source_sha256": {
+    "poc/online_inventory_store.py": "5fc9d4801f8592bce4bfb8c10d72334da80479eb973157b163f2d124373f35eb",
+    "poc/online_investigation.py": "6e32c41ee3d07f97cd43070768c4aafb9c47cbd72a26d74d020ede07ba095cab",
+    "poc/tests/test_online_investigation_termination.py": "2ed4e012781cbebbadef999815dc5592fe3616d0606ef7e7c8f3a94562aaab16"
+  },
+  "test_ids": [
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_changed_source_in_later_verification_slice_is_rejected_without_advancing_cursor",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_failure_then_valid_new_work_can_still_complete_normally",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_file_slice_preserves_cursor_and_finishes_without_model_calls",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_final_verification_slow_source_stops_at_time_slice_and_resumes_without_replay",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_partitioned_inventory_repeated_failure_stops_without_claiming_checked_coverage",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_repeated_known_failure_stops_across_checkpoint_without_becoming_completed_work",
+    "test_online_investigation_termination.OnlineInvestigationTerminationTests.test_unknown_model_outcome_after_failed_action_still_requires_confirmation_before_retry"
+  ],
+  "limitations": "Only offline neutral-source tests and controlled clocks; 30-second verification slice is checked between source reads, not an absolute network-operation deadline."
+}

@@ -1,0 +1,20 @@
+{
+  "base_commit": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "old_test_and_fixture_files_checked": 484,
+  "changed_or_missing_old_test_files": [],
+  "removed_bug_ids": [],
+  "reduced_old_bug_regression_mappings": [],
+  "baseline": {
+    "python_ids": {
+      "old": 5170,
+      "new": 5253,
+      "removed": []
+    },
+    "browser_ids": {
+      "old": 322,
+      "new": 334,
+      "removed": []
+    }
+  },
+  "old_test_assertions_unchanged": true
+}

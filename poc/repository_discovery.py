@@ -965,6 +965,8 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
                     if not row["span_truncated"] and evidence is None:
                         preview.update(evidence_id=None, cached_excerpt_missing=True)
                     matches.append(preview | {"score": 0, "snippet": snippet, "snippet_char_offset": offset})
+        from repository_scope import repository_inventory_requested
+        inventory = repository_inventory_requested(question) and not blocked
         fallback = not seeds and not blocked and fallback_to_repository
         rooted = _rooted_navigation(connection, scopes, all_paths, check_cancel) if scopes else None
         if rooted:
@@ -972,7 +974,10 @@ def discover_repository(database_path, question, *, search_terms=None, focus_pat
             deferred, unresolved = rooted["frontier"], rooted["unresolved"]
         else:
             paths, reasons, deferred, unresolved = _dependency_selection(connection, all_paths if fallback else seeds, all_paths, check_cancel)
-        if not rooted and identity.get("exclusive_source_scope") and identity["direct_paths"]:
+        if inventory:
+            paths = sorted(all_paths)
+            reasons = [{"relative_path": path, "reasons": ["fixed_repository_inventory"]} for path in paths]
+        if not inventory and not rooted and identity.get("exclusive_source_scope") and identity["direct_paths"]:
             paths = sorted(identity["direct_paths"])
             reasons = [{"relative_path": path, "reasons": ["source_identity"]} for path in paths]
             deferred, unresolved = [], []

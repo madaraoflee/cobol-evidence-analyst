@@ -1,0 +1,23 @@
+{
+  "status": "blocked",
+  "source_regressions_passed": true,
+  "all_recorded_bugs_verified": false,
+  "python_tests": 5279,
+  "browser_tests": 334,
+  "source_snapshot": "b786d8d98c1e32ad80ef361d83f7a040f34889d7a8ce266ef50f22a0e80ef8c6",
+  "unverified_bug_ids": [
+    "BUG-20261007-901",
+    "BUG-20261007-902",
+    "BUG-20261106-901",
+    "BUG-20261106-902",
+    "BUG-20261106-903",
+    "BUG-20261106-904",
+    "BUG-20261110-007"
+  ],
+  "errors": [],
+  "total_bugs": 291,
+  "verified_bugs": 284,
+  "extra_config_unchanged": true,
+  "archive_sha256": "64a94a6332ebae6899d0a45ddaf4ed4443e55a2b74b232677df6e8efa09534d0",
+  "native_or_company_model_acceptance": false
+}

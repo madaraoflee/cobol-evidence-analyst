@@ -1,0 +1,227 @@
+{
+  "source_revision": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "requested_user_question": "列出系统所有计算所有 premium formula 的地方",
+  "synthetic_question": "List every place in the system that calculates premium formulas and explain all formulas.",
+  "scope": "Read-only offline audit; neutral generated COBOL, real parser/material exporter/query/runner, injected scripted model replies; no company source, network, model or API call; no repository edits.",
+  "reproduce_script": "/private/tmp/cobol-global-formula-audit-20261110/online/reproduce.py",
+  "result": "/private/tmp/cobol-global-formula-audit-20261110/online/result.json",
+  "detailed_findings": "/private/tmp/cobol-global-formula-audit-20261110/online/findings.txt",
+  "confirmed_defects": [
+    {
+      "suggested_id": "BUG-20261110-010",
+      "summary": "An exhaustive question is marked answered and loses pending recovery while an observed search page and explicitly acknowledged candidate checks remain unfinished.",
+      "actual": {
+        "status": "answered",
+        "error": null,
+        "model_calls": 3,
+        "actions": 2,
+        "evidence_paths": [
+          "premium_00.cbl"
+        ],
+        "last_context_remaining": [
+          "24 candidate files remain unverified"
+        ],
+        "result_remaining": [],
+        "search_total": 25,
+        "search_rows": 20,
+        "search_truncated": true,
+        "search_next_offset": 20,
+        "coverage": {
+          "scope": "indexed_snapshot_only",
+          "indexed_files": 27,
+          "source_bytes": 7263,
+          "boundaries": [
+            {
+              "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+            },
+            {
+              "code": "SPARSE_SEMANTICS_ONLY"
+            },
+            {
+              "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+            }
+          ],
+          "boundary_count": 3,
+          "coverage_report_truncated": false,
+          "input_skip_count": 0,
+          "input_skips": [],
+          "input_skips_truncated": false,
+          "input_coverage_complete": true,
+          "full_repository_or_runtime_proof": false
+        },
+        "workspace_status": "answered",
+        "workspace_pending": null
+      },
+      "references": [
+        {
+          "file": "poc/online_investigation.py",
+          "line": 678,
+          "reason": "Replaces the remaining list from a model action response."
+        },
+        {
+          "file": "poc/online_investigation.py",
+          "line": 686,
+          "reason": "Final acceptance checks citation membership, then complete/remaining; no unfinished work reconciliation."
+        },
+        {
+          "file": "poc/online_workspace.py",
+          "line": 696,
+          "reason": "answered removes the pending checkpoint."
+        }
+      ]
+    },
+    {
+      "suggested_id": "BUG-20261110-011",
+      "summary": "Unfinished search cursor disappears from the model prompt and later from checkpoint without a durable unresolved-work record.",
+      "prompt_case": {
+        "status": "answered",
+        "model_calls": 4,
+        "actions": 14,
+        "durable_observations_count": 14,
+        "durable_search_retained": true,
+        "model_observations_count": 12,
+        "model_observations_omitted": 2,
+        "model_has_search_or_cursor": false,
+        "model_remaining": [],
+        "evidence_count": 13,
+        "model_system_has_only_six_tools": true
+      },
+      "checkpoint_case": {
+        "runs": [
+          {
+            "status": "needs_continuation",
+            "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+            "actions": 24,
+            "model_calls": 4
+          },
+          {
+            "status": "needs_continuation",
+            "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+            "actions": 24,
+            "model_calls": 3
+          },
+          {
+            "status": "needs_continuation",
+            "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+            "actions": 24,
+            "model_calls": 3
+          },
+          {
+            "status": "needs_continuation",
+            "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+            "actions": 24,
+            "model_calls": 3
+          },
+          {
+            "status": "answered",
+            "error": null,
+            "actions": 2,
+            "model_calls": 2
+          }
+        ],
+        "actions_total": 98,
+        "observations_total": 98,
+        "retained_observations": 96,
+        "search_observation_retained": false,
+        "evidence_count": 97,
+        "remaining": [],
+        "note": "Each invocation uses the default budgets; the harness explicitly resumes the saved checkpoint."
+      },
+      "references": [
+        {
+          "file": "poc/online_investigation.py",
+          "line": 231,
+          "reason": "Action responses may omit remaining and default it to empty."
+        },
+        {
+          "file": "poc/online_investigation.py",
+          "line": 345,
+          "reason": "Retains only last96 observations and512000bytes."
+        },
+        {
+          "file": "poc/online_investigation.py",
+          "line": 565,
+          "reason": "Sends only last12 observations; count does not preserve task/cursor identity."
+        },
+        {
+          "file": "poc/online_investigation.py",
+          "line": 416,
+          "reason": "Available recall operations cover source evidence, not omitted search work."
+        }
+      ]
+    }
+  ],
+  "capability_gap": {
+    "summary": "No indexed-file inventory or arithmetic-rule/occurrence query tool. The abbreviated COMPUTE is present in material but premium lexical search misses it; compute search finds it. This fixture does not prove parser arithmetic omission.",
+    "indexed_files": 27,
+    "premium_hits": 25,
+    "compute_hits": 26,
+    "references": [
+      {
+        "file": "poc/online_investigation.py",
+        "line": 159
+      },
+      {
+        "file": "poc/online_material_export.py",
+        "line": 157
+      },
+      {
+        "file": "poc/online_material_query.py",
+        "line": 220
+      }
+    ],
+    "completion_boundary": {
+      "file": "poc/online_investigation.py",
+      "line": 83,
+      "meaning": "complete means answering from stated evidence, never repository/runtime completeness. Do not delete this boundary as a substitute for actual inventory coverage."
+    }
+  },
+  "pagination": {
+    "total_matches": 25,
+    "truncated": true,
+    "offset": 0,
+    "match_mode": "any_term",
+    "terms": [
+      "premium"
+    ],
+    "first_count": 20,
+    "second_count": 5,
+    "second_truncated": false,
+    "total_unique_paths": 25
+  },
+  "default_model_budget": {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "model_calls": 6,
+    "actions": 6,
+    "evidence_count": 6,
+    "pending_actions": [],
+    "remaining": [
+      "Continue the complete formula inventory"
+    ]
+  },
+  "default_action_budget": {
+    "status": "needs_continuation",
+    "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+    "model_calls": 4,
+    "actions": 24,
+    "evidence_count": 24,
+    "pending_actions": [
+      {
+        "tool": "read",
+        "path": "premium_24.cbl",
+        "start_line": 1,
+        "end_line": 11,
+        "max_characters": 12000
+      }
+    ],
+    "remaining": [
+      "Continue the complete formula inventory"
+    ]
+  },
+  "limitations": [
+    "Scripted replies prove acceptance/state behavior, not the actual behavior of a live model.",
+    "No conclusion about which company formulas are missing or why the company API failed.",
+    "Source files were hash checked unchanged."
+  ]
+}

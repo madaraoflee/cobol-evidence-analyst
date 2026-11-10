@@ -18,6 +18,8 @@ from online_material_query import MaterialQuery
 from online_material_reader import HTTPSObjectStore, MaterialReader
 from online_source_client import PinnedSourceClient, _authorization
 from online_state import OnlineState
+from online_inventory_store import OnlineInventoryStore
+from repository_scope import repository_inventory_requested
 
 
 _ID = re.compile(r"[a-f0-9]{32}\Z")
@@ -30,6 +32,35 @@ _MAX_CONVERSATIONS = 200
 _MAX_WORKSPACES = 100
 _MAX_JOBS = 200
 _SOURCE_BASES = {"repository_snapshot", "sync_attested", "unknown"}
+
+
+def _inventory_coverage(value):
+    if not isinstance(value, dict) or value.get("active") is not True or value.get("scope") != "indexed_snapshot":
+        return None
+    result = {"scope": "indexed_snapshot", "active": True, "full_repository_or_runtime_proof": False}
+    for key in ("inventory_complete", "complete", "legacy_checkpoint_recheck"):
+        if type(value.get(key)) is not bool:
+            return None
+        result[key] = value[key]
+    for key in ("files_discovered", "files_reviewed", "candidates_total", "candidates_reviewed", "pending_count"):
+        if type(value.get(key)) is not int or value[key] < 0:
+            return None
+        result[key] = value[key]
+    return result
+
+
+def _inventory_answer_preview(answer, citations):
+    """Display a bounded preview; the immutable publication retains the whole answer."""
+    preview = answer[:4000].encode("utf-8")[:4000].decode("utf-8", errors="ignore")
+    pattern = re.compile(r"\[(E[0-9a-f]{24})\]")
+    while True:
+        visible = set(pattern.findall(preview))
+        selected = [item for item in citations if item.get("id") in visible]
+        if len(canonical_json({"content": preview, "citations": selected})) <= 6000:
+            break
+        matches = list(pattern.finditer(preview))
+        preview = preview[:matches[-1].start()] if matches else preview[:max(0, len(preview) // 2)]
+    return preview, selected, preview != answer or len(selected) != len(citations)
 
 
 def _now():
@@ -179,6 +210,7 @@ class OnlineWorkbench:
                  source_factory=None, investigator=None):
         self.lock = threading.RLock()
         self.store = OnlineState(root)
+        self._inventory_store = None
         self.config_provider = config_provider
         self.answer_instructions_provider = answer_instructions_provider
         self.material_factory = material_factory
@@ -190,6 +222,13 @@ class OnlineWorkbench:
         self._closed = False
         self._active_job_id = None
         self._recover()
+
+    @property
+    def inventory_store(self):
+        with self.lock:
+            if self._inventory_store is None:
+                self._inventory_store = OnlineInventoryStore(self.store.root / "inventories")
+            return self._inventory_store
 
     def _recover(self):
         with self.lock, self.store.transaction() as db:
@@ -333,7 +372,7 @@ class OnlineWorkbench:
             return self.source_factory(deepcopy(repository), dict(credentials), check_cancel)
         workspace, slug = repository["identity"].split("/")
         client = PinnedSourceClient(workspace, slug, repository["commit"], token=credentials.get("source_token"),
-                                    username=credentials.get("source_username"))
+                                    username=credentials.get("source_username"), check_cancel=check_cancel)
         prefix = repository["subdirectory"] + "/" if repository["subdirectory"] else ""
         def read(path, *, max_bytes):
             check_cancel()
@@ -578,16 +617,28 @@ class OnlineWorkbench:
                     if message["id"] == conversation["pending"]["user_message_id"]:
                         break
                     item = {"role": message["role"], "content": message["content"]}
-                    if message["role"] == "assistant" and message.get("citations"):
-                        citations = message["citations"]
+                    citations = message.get("citations", [])
+                    if message.get("inventory_answer_preview") and message.get("inventory_result"):
+                        publication = self.inventory_store.publication(message["inventory_result"]["id"],
+                            conversation_id=conversation["id"], workspace_id=workspace["id"], revision=workspace["revision"])
+                        item["content"] = publication.data["answer"]
+                        citations = publication.data.get("answer_citations", [])
+                    if message["role"] == "assistant" and citations:
                         item["citations"] = [{key: deepcopy(citation.get(key))
                                               for key in ("path", "start", "end", "commit", "revision", "hash")}
                                              for citation in citations[-64:]]
                         item["citations_omitted"] = max(0, len(citations) - 64)
                     history.append(item)
+                inventory_options = {}
+                if repository_inventory_requested(question):
+                    session_id = checkpoint.get("inventory_session", {}).get("id") if isinstance(checkpoint, dict) else None
+                    inventory_options["inventory_session"] = self.inventory_store.session(
+                        workspace_id=workspace["id"], conversation_id=conversation["id"],
+                        user_message_id=conversation["pending"]["user_message_id"], manifest=query.reader.manifest,
+                        question=question, identifier=session_id, guard=lambda value: _guard_secrets(value, credentials))
                 result = runner(query, read_source, question, config=config, history=history, checkpoint=checkpoint,
                                 allow_source_transfer=True, check_cancel=check_cancel, progress=progress, approve_retry=approve_retry,
-                                answer_instructions=instructions, locale=locale)
+                                answer_instructions=instructions, locale=locale, **inventory_options)
                 result = _guard_secrets(result, credentials)
                 self._complete(job["job_id"], result, {"material_bytes": query.reader.fetched_bytes,
                                "network_material_bytes": getattr(query.reader, "network_fetched_bytes", query.reader.fetched_bytes),
@@ -612,6 +663,9 @@ class OnlineWorkbench:
         with self.lock, self.store.transaction() as db:
             job = self._get(db, "jobs", identifier)
             job.update(progress=visible, updated_at=_now())
+            coverage_ledger = _inventory_coverage(safe.get("coverage_ledger"))
+            if coverage_ledger is not None:
+                job["coverage_ledger"] = coverage_ledger
             if isinstance(checkpoint, dict):
                 job["diagnostic"] = sanitize_diagnostic(checkpoint.get("diagnostic"))
             self.store.put(db, "jobs", identifier, job)
@@ -620,6 +674,8 @@ class OnlineWorkbench:
                 if conversation.get("pending"):
                     conversation["pending"]["checkpoint"] = safe["checkpoint"]
                     conversation["pending"]["diagnostic"] = sanitize_diagnostic(checkpoint.get("diagnostic"))
+                    if coverage_ledger is not None:
+                        conversation["pending"]["coverage_ledger"] = coverage_ledger
                     conversation["updated_at"] = _now()
                     self._save_conversation(db, conversation)
 
@@ -666,8 +722,11 @@ class OnlineWorkbench:
             error = result.get("error")
             error = error if isinstance(error, str) and _ERROR.fullmatch(error) else None
             diagnostic = sanitize_diagnostic(result.get("diagnostic"))
+            coverage_ledger = _inventory_coverage(result.get("coverage_ledger"))
             job.update(status=status, error=error, diagnostic=diagnostic, updated_at=_now(), transfer=transfer,
                        progress={"phase": status, "model_calls": result.get("model_calls", 0), "actions": result.get("actions", 0)})
+            if coverage_ledger is not None:
+                job["coverage_ledger"] = coverage_ledger
             conversation.update(status=status, updated_at=_now())
             pending = conversation.get("pending")
             if pending is None:
@@ -679,6 +738,13 @@ class OnlineWorkbench:
                     raise MaterialError("ONLINE_INVALID_RESULT")
                 evidence = deepcopy(result.get("evidence") or [])
                 coverage = deepcopy(result.get("coverage") or {})
+                preview = False
+                if result.get("inventory_result"):
+                    # Full original-source locations and narrative live in the
+                    # immutable result. Repeating raw windows here would fill
+                    # ordinary conversation storage during a long investigation.
+                    evidence = []
+                    answer, citations, preview = _inventory_answer_preview(answer, citations)
                 retained = self._retained_recovery_answer(conversation, pending, status, answer,
                                                           citations, evidence, coverage)
                 if not retained:
@@ -688,6 +754,16 @@ class OnlineWorkbench:
                     message = {"id": message_id, "role": "assistant", "content": answer, "created_at": _now(),
                                "status": status, "citations": citations, "evidence": evidence,
                                "coverage": coverage, "job_id": identifier}
+                    if coverage_ledger is not None:
+                        message["coverage_ledger"] = coverage_ledger
+                        if result.get("inventory_result"):
+                            publication = self.inventory_store.publication(result["inventory_result"].get("id"),
+                                conversation_id=conversation["id"], workspace_id=conversation["workspace_id"],
+                                revision=checkpoint["revision"])
+                            message["inventory_result"] = publication.page(preview=False)
+                            message["inventory_answer_preview"] = preview
+                        else:
+                            message["findings"] = deepcopy(result.get("findings", []))
                     conversation["messages"].append(message)
             for message in conversation["messages"]:
                 if message["id"] == pending["user_message_id"]:
@@ -697,6 +773,8 @@ class OnlineWorkbench:
                 conversation["pending"] = None
             else:
                 pending.update(checkpoint=checkpoint, status=status, error=error, diagnostic=diagnostic)
+                if coverage_ledger is not None:
+                    pending["coverage_ledger"] = coverage_ledger
             self._save_conversation(db, conversation)
             self.store.put(db, "jobs", identifier, job)
 
@@ -722,6 +800,8 @@ class OnlineWorkbench:
             selection = self._selection(db)
             if selection.get("conversation_id") == identifier:
                 self._select(db, selection.get("workspace_id"))
+        if (self.store.root / "inventories").exists():
+            self.inventory_store.delete_conversation(identifier)
         return {"deleted": identifier}
 
     def export(self, query):
@@ -730,7 +810,15 @@ class OnlineWorkbench:
             workspace = self._workspace(db, conversation["workspace_id"])
         public = self._public_conversation(conversation)
         public.pop("pending", None)
+        inventories = {}
+        for message in public["messages"]:
+            descriptor = message.get("inventory_result")
+            if descriptor and descriptor["id"] not in inventories:
+                inventories[descriptor["id"]] = self.inventory_store.publication(descriptor["id"],
+                    conversation_id=conversation["id"], workspace_id=workspace["id"], revision=workspace["revision"]).export_data()
         data = {"schema_version": "online-conversation-export/v1", "workspace": workspace, "conversation": public}
+        if inventories:
+            data["inventories"] = inventories
         if query.get("format", "markdown") == "json":
             content = json.dumps(data, ensure_ascii=False, indent=2)
             return {"filename": "online-conversation-" + conversation["id"] + ".json", "mime_type": "application/json", "content": content}
@@ -744,6 +832,9 @@ class OnlineWorkbench:
                 lines.extend(["Citations:", "", "```json", json.dumps(message["citations"], ensure_ascii=False, indent=2), "```", ""])
             if message.get("coverage"):
                 lines.extend(["Coverage:", "", "```json", json.dumps(message["coverage"], ensure_ascii=False, indent=2), "```", ""])
+        for identifier, inventory in inventories.items():
+            lines.extend(["## " + identifier, "", inventory["answer"], "", "```json",
+                          json.dumps(inventory, ensure_ascii=False, indent=2), "```", ""])
         return {"filename": "online-conversation-" + conversation["id"] + ".md", "mime_type": "text/markdown", "content": "\n".join(lines)}
 
     def evidence(self, query):
@@ -767,6 +858,35 @@ class OnlineWorkbench:
         if result["citation"]["hash"] != citation.get("hash"):
             raise MaterialError("ONLINE_CITATION_MISMATCH")
         return result
+
+    def inventory(self, identifier, query, *, operation="page"):
+        with self.lock, self.store.transaction() as db:
+            conversation = self._conversation(db, query.get("conversation_id"))
+            workspace = self._workspace(db, conversation["workspace_id"])
+            # Only a handle actually delivered into this history is public.
+            if not any(message.get("inventory_result", {}).get("id") == identifier for message in conversation["messages"]):
+                raise MaterialError("ONLINE_INVENTORY_NOT_FOUND")
+        publication = self.inventory_store.publication(identifier, conversation_id=conversation["id"],
+            workspace_id=workspace["id"], revision=workspace["revision"])
+        if operation == "export":
+            return publication.export()
+        if operation == "evidence":
+            page = publication.evidence(_text(query.get("citation_id"), 128, "ONLINE_INVALID_CITATION"))
+            citation = page["citation"]
+            with self.lock:
+                if workspace["id"] not in self._credentials:
+                    raise MaterialError("ONLINE_RECONNECT_REQUIRED")
+                credentials = dict(self._credentials[workspace["id"]])
+            service, source = self._session(workspace, credentials, self._require_open)
+            result = service.evidence(citation["path"], citation["start"], citation["end"], source)
+            if result["citation"]["hash"] != citation["hash"]:
+                raise MaterialError("ONLINE_CITATION_MISMATCH")
+            return result
+        try:
+            offset, limit = int(query.get("offset", 0)), int(query.get("limit", 40))
+        except (ValueError, TypeError):
+            raise MaterialError("ONLINE_INVALID_INVENTORY_PAGE") from None
+        return publication.page(offset, limit)
 
     def releases(self, payload):
         from online_distribution import DownloadsClient
@@ -799,6 +919,11 @@ class OnlineWorkbench:
                 raise MaterialError("ONLINE_INVALID_REQUEST")
             payload, query = payload or {}, query or {}
             if method == "GET":
+                if path.startswith("/api/online/inventories/"):
+                    parts = path.removeprefix("/api/online/inventories/").split("/")
+                    if len(parts) == 1 or len(parts) == 2 and parts[1] in {"export", "evidence"}:
+                        return 200, self.inventory(parts[0], query, operation=parts[1] if len(parts) == 2 else "page")
+                    raise MaterialError("ONLINE_ROUTE_NOT_FOUND")
                 if path == "/api/online/state":
                     return 200, self.state()
                 if path.startswith("/api/online/jobs/"):

@@ -296,6 +296,48 @@ class MaterialReader:
         return result
 
     @_bounded_operation
+    def files(self, limit=20, *, cursor=None):
+        """Page the immutable file routes without requiring a lexical seed."""
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise MaterialError("MATERIAL_INVALID_LIMIT")
+        routes = self._manifest["routes"]["files"]
+        if cursor is not None:
+            if (not isinstance(cursor, dict) or set(cursor) != {"bucket", "after"}
+                    or not isinstance(cursor["bucket"], str) or cursor["bucket"] not in routes):
+                raise MaterialError("MATERIAL_INVALID_CURSOR")
+            relative_path(cursor["after"])
+            if bucket(cursor["after"]) != cursor["bucket"]:
+                raise MaterialError("MATERIAL_INVALID_CURSOR")
+        rows, last, more = [], None, False
+        for prefix in sorted(routes):
+            if cursor is not None and prefix < cursor["bucket"]:
+                continue
+            value = self.read_object(routes[prefix], kind="files")
+            if set(value) != {"kind", "entries"} or not isinstance(value["entries"], dict):
+                raise MaterialError("MATERIAL_INVALID_OBJECT")
+            entries = value["entries"]
+            self._charge(entries=len(entries))
+            for path in entries:
+                relative_path(path)
+                if bucket(path) != prefix:
+                    raise MaterialError("MATERIAL_ROUTE_MISMATCH")
+            if cursor is not None and prefix == cursor["bucket"] and cursor["after"] not in entries:
+                raise MaterialError("MATERIAL_INVALID_CURSOR")
+            for path in sorted(entries):
+                if cursor is not None and prefix == cursor["bucket"] and path <= cursor["after"]:
+                    continue
+                if len(rows) == limit:
+                    more = True
+                    break
+                # Reuse the existing full metadata and content-reference checks.
+                rows.append(self.file(path))
+                last = {"bucket": prefix, "after": path}
+            if more:
+                break
+        return {"files": rows, "cursor": copy.deepcopy(cursor), "next_cursor": last if more else None,
+                "complete": not more}
+
+    @_bounded_operation
     def postings(self, key, route="terms"):
         if route not in {"terms", "references"} or not isinstance(key, str) or not key or len(key) > 1024:
             raise MaterialError("MATERIAL_INVALID_QUERY")

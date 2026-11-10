@@ -1,0 +1,368 @@
+{
+  "note": "Existing entries to compare with any new reproduced mechanism; no ledger mutation or reclassification performed.",
+  "bugs": [
+    {
+      "id": "BUG-20261001-006",
+      "title": "晚出现的目标公式被候选预算截掉",
+      "symptom": "明确问某字段，但其公式排在前32组之后时无法进入调查。",
+      "root_cause": "先按固定数量截断算术候选，再按问句相关性排序。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/92c0796c8ddf00888f9ebb3ab0c19c651e2a9331",
+        "docs/reports/2026-10-01-business-query-recovery.md",
+        "poc/tests/test_question_investigation.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_question_investigation.QuestionInvestigationTests.test_exact_late_formula_is_selected_before_budget_and_unrelated_gaps_are_excluded",
+          "path": "poc/tests/test_question_investigation.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261002-001",
+      "title": "泛泛计算短答被当作完整答案",
+      "symptom": "公式、输入和分支已供应，正文仅说由基础值与系数计算却被标为ANALYZED。",
+      "root_cause": "完成检查未核对当前供证中的运算、条件和覆盖事项。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/07992ecd624b6c773c68568e135b6d86c3398aaf",
+        "docs/reports/2026-10-01-business-query-recovery.md",
+        "poc/tests/test_answer_completion.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_generic_calculation_answer_is_not_success_after_bounded_review",
+          "path": "poc/tests/test_answer_completion.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_budget_cannot_turn_unexplained_supplied_formula_into_success",
+          "path": "poc/tests/test_answer_completion.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261015-008",
+      "title": "回答漏掉实际累加仍通过完成性检查",
+      "symptom": "月息公式修正后只讲计算，不讲ADD累计和写入仍可能通过。",
+      "root_cause": "覆盖检查没有把当前明确问到的累加操作作为独立事项。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/3b099c058f258824237835d7ea802a90055dee02",
+        "docs/reports/2026-10-15-partial-root-causes.md",
+        "poc/tests/test_business_accumulation.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_business_accumulation.AccumulationCoverageTests.test_explicit_multilingual_operation_requires_actual_accumulation",
+          "path": "poc/tests/test_business_accumulation.py"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_business_accumulation.DefaultAccumulationTests.test_default_one_request_supplies_operation_and_detects_only_its_actual_omission",
+          "path": "poc/tests/test_business_accumulation.py"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261020-111",
+      "title": "技术清单加套话被误判为完整业务说明",
+      "symptom": "回答只列程序、表和字段，再加通用结束语即直接交付，没有解释用途及数据作用。",
+      "root_cause": "详细解释意图路由和完整性检查依赖狭窄关键词，通用收尾句可遮蔽业务解释缺项。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-10-20-business-framework-streaming.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_business_explanation_intent.BusinessExplanationIntentTests.test_generic_completion_words_cannot_rescue_a_technical_inventory"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_business_explanation_intent.BusinessExplanationIntentTests.test_real_chat_revises_technical_draft_with_supplied_business_gaps"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-009",
+      "title": "大量上游调用方挤掉当前程序下游",
+      "symptom": "64条关系预览全部是上游，真正子程序无法进入分析。",
+      "root_cause": "调用方与下游关系混在按路径排列的同一有界列表。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/63d230063f5dcbcdca309737e7e32134988f502e",
+        "docs/reports/2026-11-06-business-depth/README.md",
+        "poc/tests/test_dependency_source_availability.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_incoming_hub_does_not_displace_outgoing_subroutine"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-010",
+      "title": "调用未绑定被误报实现不可用",
+      "symptom": "重复同名实现或动态目标不确定时，答案被告知没有源码。",
+      "root_cause": "没有唯一target_path就统一标为unavailable。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/63d230063f5dcbcdca309737e7e32134988f502e",
+        "docs/reports/2026-11-06-business-depth/README.md",
+        "poc/tests/test_dependency_source_availability.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_indexed_duplicate_implementations_are_reading_candidates_not_missing"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_field_binding_does_not_assert_missing_or_same_named_program"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-012",
+      "title": "动态调用已有字面量线索却未供应候选实现",
+      "symptom": "目标字段VALUE或先前MOVE已指向已索引程序，首轮仍只有调用方。",
+      "root_cause": "动态目标线索只能等待模型主动搜索，未提名有版本证明的本地候选。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/a17ee0a4b988d980b478d08d413d101515f17b4a",
+        "docs/reports/2026-11-06-business-depth/README.md",
+        "poc/tests/test_dependency_source_availability.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_dynamic_initial_value_supplies_first_request_without_model_search"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_direct_literal_move_without_initial_value_supplies_candidate"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-013",
+      "title": "重复动态调用来源元数据挤出源码",
+      "symptom": "很小的调用程序因重复候选说明超过请求上限。",
+      "root_cause": "每个调用点重复复制相同候选出处和赋值文本。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/a17ee0a4b988d980b478d08d413d101515f17b4a",
+        "docs/reports/2026-11-06-business-depth/README.md",
+        "poc/tests/test_dependency_source_availability.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_many_dynamic_calls_share_provenance_and_keep_all_candidate_source"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_dependency_source_availability.DependencySourceAvailabilityTests.test_repeated_literal_provenance_is_bounded_without_copying_statements"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-026",
+      "title": "批次文件规则限制永久丢弃未处理分支",
+      "symptom": "当前批可以回答后，全局未读文件、关系或规则不再推进。",
+      "root_cause": "批次上限被当成全局结束，未保存可恢复的来源和规则游标。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/6a67df0b16528d99733d248b689a5df5d298315b",
+        "docs/reports/2026-11-06-cumulative-analysis/README.md",
+        "poc/tests/test_persistent_investigation_frontier.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_static_fanout_advances_after_the_batch_and_sql_limits_without_rereading"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_rule_path_batches_remain_open_until_the_last_related_path_is_processed"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_sixteen_logical_view_objects_remain_in_the_saved_cursor"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-027",
+      "title": "每批文件额度错误限制全局调用深度",
+      "symptom": "复杂链路深度超过批文件额度后永远不能继续遍历。",
+      "root_cause": "max_semantic_files同时作为业务总览的全局depth_limit。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/6a67df0b16528d99733d248b689a5df5d298315b",
+        "docs/reports/2026-11-06-cumulative-analysis/README.md",
+        "poc/tests/test_persistent_investigation_frontier.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_global_dependency_depth_is_not_capped_by_the_per_batch_file_allowance"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-028",
+      "title": "后续批完成掩盖早期未解决依赖",
+      "symptom": "后面批次完整时整题可能忽略前面外部调用的缺口。",
+      "root_cause": "完成状态只考虑当前批，缺少跨批持久义务汇总。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/6a67df0b16528d99733d248b689a5df5d298315b",
+        "docs/reports/2026-11-06-cumulative-analysis/README.md",
+        "poc/tests/test_persistent_investigation_frontier.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_earlier_unresolved_callee_is_retained_after_later_batches_are_read"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261106-904",
+      "title": "复杂业务扣费顺序的真实回答质量尚待复核",
+      "symptom": "用户问题涉及逻辑视图和子程序的复杂链路，截图回答仍无法确认完整业务顺序。",
+      "root_cause": "源码供证、累计分析和失败恢复机制已修复，但尚未取得该业务题的同包真实模型及人工复核。",
+      "status": "open",
+      "evidence": [
+        "docs/bugs/audit-notes.md",
+        "docs/reports/2026-11-09-open-defects/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "field_revalidation",
+      "limitations": "未验证，不计入全部通过；这里记录尚未闭环的现象或证据缺口，不断言当前候选必然仍有相同故障。需要实际对应证据才能关闭。"
+    },
+    {
+      "id": "BUG-20261107-001",
+      "title": "完成末批后压缩续轮重扫第一批规则",
+      "symptom": "37条规则完成32+5后，压缩或继续又回到前32条。",
+      "root_cause": "末批advance清空processed_rule_ids，却恢复previous_active供核对。",
+      "status": "fixed",
+      "evidence": [
+        "https://github.com/madaraoflee/cobol-evidence-analyst/commit/aa6b89b4bdc26b975a5b4aea5e80a1f709c39228",
+        "poc/tests/test_persistent_investigation_frontier.py",
+        "poc/tests/test_compaction_rule_batch_continuity.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_more_than_thirty_two_primary_rules_resume_within_the_same_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_persistent_investigation_frontier.PersistentInvestigationFrontierTests.test_completed_review_batch_still_accepts_a_later_discovered_source_path"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_compaction_rule_batch_continuity.CompactionRuleBatchContinuityTests.test_completed_rules_are_not_reopened_after_compaction_and_later_reads"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "修复和复现依据见 evidence；每次实际测试结果以对应的 BUG-REGRESSION-REPORT.json 为准。源码离线检查不能替代真实模型业务质量、企业全库覆盖或最终 EXE 现场验收。"
+    },
+    {
+      "id": "BUG-20261110-001",
+      "title": "失败轮已完成的新分析未移交给普通追问",
+      "symptom": "第二轮完成新源码读取和第3代压缩后终答HTTP 500，下一轮退回第2代，漏掉新条件和原文页。",
+      "root_cause": "历史选择只认有可用回答的调查句柄；诊断轮只参与安全检查，未选择其中已完成的累计分析。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/failed-compaction-before.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_completed_compaction_before_http500_is_inherited_by_next_question"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_two_failed_turns_preserve_monotonic_analysis_and_latest_owned_handle"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_older_unknown_request_blocks_even_a_newer_known_failure"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_changed_new_source_and_compilation_identity_reject_failed_donor"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_no_progress_failure_keeps_original_anchor"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_deictic_failed_chain_preserves_verified_lineage"
+        },
+        {
+          "kind": "python",
+          "path": "poc/tests/test_failed_turn_analysis_progress.py",
+          "test_id": "test_failed_turn_analysis_progress.FailedTurnAnalysisProgressTests.test_forked_or_retracted_failed_checkpoint_is_not_merged"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "用户明确批准本地最小修复。仅接续同会话同源码同对象且严格扩展的已完成分析；未知请求仍阻断。不能确认公司500根因，也不涵盖此前完全没有可用回答的首轮失败。 定向回归已通过；完整旧缺陷验证结果以本次独立报告为准。"
+    },
+    {
+      "id": "BUG-20261110-007",
+      "title": "首轮失败且没有可用回答锚点时普通追问不接续已完成分析",
+      "symptom": "首次提问已完成2代压缩后终答HTTP500，检查点仍在磁盘且unknown为空；普通下一问没有assistant历史锚点，按第0代开始。",
+      "root_cause": "接续以可用assistant历史句柄作为所有权锚点；首轮诊断-only失败没有该锚点，不能进入现有失败轮累计状态选择。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-open.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/README.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/reproduce_first_failed_handoff.py",
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-continuation.json"
+      ],
+      "regressions": [],
+      "verification_scope": "source_offline",
+      "limitations": "已离线复现，属于原有问题；不纳入本次已准备并获准的已有成功锚点后最小接续修复。需另行设计并验证首轮所有权、原始请求证明与未知请求边界，不能绕过检查。未修复，不能因其他源码测试通过而关闭。"
+    }
+  ]
+}

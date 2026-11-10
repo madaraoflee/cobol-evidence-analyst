@@ -510,6 +510,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
     It reads the saved index only. In particular, it does not rescan source files
     or ask the model to summarise individual pages.
     """
+    from repository_scope import repository_inventory_requested
+    inventory = repository_inventory_requested(question)
     relation_direction = program_relation_direction(question)
     impact_requested = relation_direction == "incoming" or (
         relation_direction != "outgoing" and bool(_IMPACT_LANGUAGE.search(question)))
@@ -551,6 +553,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
             exact_lexical = _lexical_identifier_paths(connection, question + " " + " ".join(search_terms or []))
             if exact_lexical:
                 direct = exact_lexical
+        if inventory and not blocked:
+            direct = set(discovery["selected_paths"])
         query_direct = set(direct)
         historical = _paths_from_history(connection, prior_paths)
         if not direct and not blocked:
@@ -561,8 +565,12 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
             **({"navigation_rows": rooted["rows"]} if rooted else {})) if direct else ({}, []))
         ordered_direct, promoted_direct = _rank_direct_paths(query_direct, discovery["matched_pages"], all_edges,
             concept_candidates=identity.get("status") == "none" and not identity.get("exclusive_source_scope"))
+        if inventory and not blocked:
+            ordered_direct, promoted_direct = sorted(direct), []
         outgoing, outgoing_frontier = {}, []
-        if rooted:
+        if inventory and not blocked:
+            distance, selected = {path: 0 for path in direct}, set(direct)
+        elif rooted:
             distance = rooted["distance"]
             selected = set(rooted["selected_paths"])
         elif identity.get("exclusive_source_scope") and direct:
@@ -661,7 +669,8 @@ def build_business_map(database_path, source_root, question, *, search_terms=Non
             source_scopes=rooted["source_scopes"] if rooted else (), source_versions=source_versions)
         return {"snapshot_id": overview["snapshot_id"], "intent": intent, "relation_direction": relation_direction,
                 "direct_paths": ordered_direct, "selected_paths": ordered,
-                "direct_path_selection": {"basis": "text_rank_with_bounded_call_diversity",
+                "repository_inventory_requested": inventory and not blocked,
+                "direct_path_selection": {"basis": "fixed_repository_inventory" if inventory else "text_rank_with_bounded_call_diversity",
                     "promoted_navigation_paths": promoted_direct, "navigation_promotion_budget": 2,
                     "selection_is_relevance_proof": False, "semantic_execution_verified": False},
                 "outgoing_dependency_paths": sorted(set(outgoing) - direct,

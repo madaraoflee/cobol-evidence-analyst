@@ -430,6 +430,17 @@ COBOL 業務分析|COBOL 业务分析|COBOL Workbench
 已索引文字與靜態關係範圍|已索引文本与静态关系范围|Indexed text and static relations
 載入更多|加载更多|Load more
 匯出完整 JSONL|导出完整 JSONL|Export complete JSONL
+業務公式清單|业务公式清单|Business formula inventory
+載入公式清單|加载公式清单|Load formula inventory
+已記錄內容完整保存；分頁只控制本頁顯示。|已记录内容完整保存；分页只控制本页显示。|All recorded results are saved. Pagination only controls this view.
+仍有範圍待核對|仍有范围待核对|Some scope still needs review
+查看源碼依據|查看源码依据|View source evidence
+目前顯示|当前显示|Showing
+公式清單分頁|公式清单分页|Formula inventory pages
+首頁|首页|First page
+末頁|末页|Last page
+匯出完整分析清單|导出完整分析清单|Export the complete analysis inventory
+清單版本不一致，請重新讀取對話。|清单版本不一致，请重新读取对话。|The inventory version differs. Reload the conversation.
 合成源碼 · 示例起點|合成源码 · 示例起点|Synthetic source · Example starters
 選一個問題，開始對話。|选一个问题，开始对话。|Choose a question to start a conversation.
 案例只提供起始問題。你可以改寫問題，接著自由追問；回答由目前源碼與模型生成。|案例只提供起始问题。你可以改写问题，接着自由追问；回答由当前源码与模型生成。|Examples are starting questions. Edit one and keep asking follow-ups; answers are generated from the current source and model.

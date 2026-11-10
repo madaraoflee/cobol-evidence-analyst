@@ -1,0 +1,7 @@
+{
+  "kind": "static integration finding",
+  "producer": "poc/online_investigation.py: inventory_continuing phase",
+  "consumer": "poc/web/online.js: phaseNames and progress-detail fallback",
+  "finding": "New phase was absent from localized phaseNames and would be displayed verbatim as inventory_continuing in every locale. Reuse an existing localized investigating phase for this continuation.",
+  "browser_execution_claim": false
+}

@@ -1,0 +1,153 @@
+{
+  "scope": "Independent replay of offline defect reproductions; not a fix or a full regression run",
+  "runtime_source": "f7cfd140b22b9b2d5acb254bf9a8e44dd11461c5",
+  "external_model_calls": 0,
+  "local_global_omission": {
+    "source_truth": {
+      "path": "c.cbl",
+      "comment": "此项为保费金额。",
+      "expression": "COMPUTE PRM-AMT = BASIS * FACTOR.",
+      "business_meaning": "The Chinese source comment explicitly labels this amount as insurance premium; not inferred solely from PRM abbreviation."
+    },
+    "undiscovered": true,
+    "not_supplied_in_any_request": true,
+    "query_expansion_attempted": false,
+    "stop_reason": "sufficient_material",
+    "status": "ANALYZED",
+    "global_claim_retained": true
+  },
+  "local_batch_continuation": {
+    "original_run_id": "020942c96926266f79fa9dec",
+    "continued_run_id": "109a7c2c67f0d2ccc6fefa9f",
+    "model_requests": 1,
+    "initial_request_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-02.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl"
+    ],
+    "continued_request_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-02.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl"
+    ],
+    "new_paths": [],
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "gaps": [
+      {
+        "kind": "formula",
+        "reason": "located_path_budget",
+        "omitted_count": 4
+      }
+    ],
+    "pending_work": null,
+    "saved_frontier": null,
+    "previous_unchanged": true
+  },
+  "online_premature_completion": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 3,
+    "actions": 2,
+    "evidence_paths": [
+      "premium_00.cbl"
+    ],
+    "last_context_remaining": [
+      "24 candidate files remain unverified"
+    ],
+    "result_remaining": [],
+    "search_total": 25,
+    "search_rows": 20,
+    "search_truncated": true,
+    "search_next_offset": 20,
+    "coverage": {
+      "scope": "indexed_snapshot_only",
+      "indexed_files": 27,
+      "source_bytes": 7263,
+      "boundaries": [
+        {
+          "code": "REPOSITORY_COMPLETENESS_NOT_VERIFIED"
+        },
+        {
+          "code": "SPARSE_SEMANTICS_ONLY"
+        },
+        {
+          "code": "RULE_OCCURRENCE_DETAILS_NOT_EXPORTED"
+        }
+      ],
+      "boundary_count": 3,
+      "coverage_report_truncated": false,
+      "input_skip_count": 0,
+      "input_skips": [],
+      "input_skips_truncated": false,
+      "input_coverage_complete": true,
+      "full_repository_or_runtime_proof": false
+    },
+    "workspace_status": "answered",
+    "workspace_pending": null
+  },
+  "online_prompt_eviction": {
+    "status": "answered",
+    "model_calls": 4,
+    "actions": 14,
+    "durable_observations_count": 14,
+    "durable_search_retained": true,
+    "model_observations_count": 12,
+    "model_observations_omitted": 2,
+    "model_has_search_or_cursor": false,
+    "model_remaining": [],
+    "evidence_count": 13,
+    "model_system_has_only_six_tools": true
+  },
+  "online_checkpoint_eviction": {
+    "runs": [
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 4
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "needs_continuation",
+        "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+        "actions": 24,
+        "model_calls": 3
+      },
+      {
+        "status": "answered",
+        "error": null,
+        "actions": 2,
+        "model_calls": 2
+      }
+    ],
+    "actions_total": 98,
+    "observations_total": 98,
+    "retained_observations": 96,
+    "search_observation_retained": false,
+    "evidence_count": 97,
+    "remaining": [],
+    "note": "Each invocation uses the default budgets; the harness explicitly resumes the saved checkpoint."
+  }
+}

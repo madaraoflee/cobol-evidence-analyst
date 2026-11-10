@@ -7,6 +7,7 @@
 *.clle text eol=lf
 *.clp text eol=lf
 *.dds text eol=lf
+*.pf text eol=lf
 *.crt text eol=lf
 *.key text eol=lf
 *.yml text eol=lf

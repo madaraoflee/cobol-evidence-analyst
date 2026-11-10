@@ -1,0 +1,1780 @@
+{
+  "name": "twelve-matched-paths",
+  "question": "列出系统所有计算所有premium formula 的地方",
+  "instructions": "",
+  "business_overview": false,
+  "files": [
+    "calc-00.cbl",
+    "calc-01.cbl",
+    "calc-02.cbl",
+    "calc-03.cbl",
+    "calc-04.cbl",
+    "calc-05.cbl",
+    "calc-06.cbl",
+    "calc-07.cbl",
+    "calc-08.cbl",
+    "calc-09.cbl",
+    "calc-10.cbl",
+    "calc-11.cbl"
+  ],
+  "discovery": {
+    "selected_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-02.cbl",
+      "calc-03.cbl",
+      "calc-04.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-07.cbl",
+      "calc-08.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl"
+    ],
+    "matched_file_count": 12,
+    "repository_file_count": 12,
+    "fallback_all": false,
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "boundaries": [],
+    "search_terms": [
+      "列出系统所有计算所有",
+      "列出系统",
+      "出系统所",
+      "系统所有",
+      "统所有计",
+      "所有计算",
+      "有计算所",
+      "计算所有",
+      "列出系",
+      "出系统",
+      "系统所",
+      "统所有",
+      "所有计",
+      "有计算",
+      "计算所",
+      "算所有",
+      "列出",
+      "出系",
+      "系统",
+      "统所",
+      "有计",
+      "计算",
+      "算所",
+      "premium",
+      "formula",
+      "的地方",
+      "的地",
+      "地方"
+    ]
+  },
+  "mapping": {
+    "direct_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl",
+      "calc-02.cbl",
+      "calc-03.cbl",
+      "calc-04.cbl",
+      "calc-07.cbl",
+      "calc-08.cbl"
+    ],
+    "selected_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl",
+      "calc-02.cbl",
+      "calc-03.cbl",
+      "calc-04.cbl",
+      "calc-07.cbl",
+      "calc-08.cbl"
+    ],
+    "relations": [],
+    "source_identity": {
+      "status": "none",
+      "requested": [],
+      "kind": null,
+      "direct_paths": [],
+      "candidates": [],
+      "hard_constraint": false,
+      "selection_source": "question",
+      "exclusive_source_scope": false
+    },
+    "rule_lead_coverage": {
+      "scope": "navigation_candidates",
+      "preview_budget": 32,
+      "preview_candidates": 12,
+      "omitted_previews": 0,
+      "path_budget": 80,
+      "path_candidates": 12,
+      "omitted_paths": 0,
+      "per_path_rule_budget": 4,
+      "global_rule_budget": 48,
+      "candidate_rules": 12,
+      "selected_rules": 12,
+      "omitted_rules_per_path": {},
+      "omitted_rules_global": 0,
+      "query_frontier": [],
+      "candidate_selection_complete": true,
+      "omitted_rule_query_terms": 0,
+      "related_rules_added": 0,
+      "semantic_anchor_candidates": 12,
+      "semantic_anchor_budget": 4,
+      "omitted_semantic_anchors": 8
+    }
+  },
+  "all_pages_supplied_planner": {
+    "scope": "source_candidates",
+    "state": "bounded_partial",
+    "can_answer": true,
+    "can_answer_locally": null,
+    "candidate_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl",
+      "calc-02.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation"
+      ],
+      "entities": [],
+      "paths": [
+        "calc-00.cbl",
+        "calc-01.cbl",
+        "calc-05.cbl",
+        "calc-06.cbl",
+        "calc-09.cbl",
+        "calc-10.cbl",
+        "calc-11.cbl",
+        "calc-02.cbl",
+        "calc-03.cbl",
+        "calc-04.cbl",
+        "calc-07.cbl",
+        "calc-08.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_db288a081ba1afabc0252a04",
+          "ev_fe45039afd32c16ea43ef029",
+          "ev_c19b38394a41a45696466959",
+          "ev_eb44d1d9df54ef823ef0b967",
+          "ev_6b81b7900c0243c338e71b8d",
+          "ev_1059d832496ddd5e91abe9c5",
+          "ev_da10fa11f9eb961d01b8c678",
+          "ev_2d7b71f713bccc3df54f3751"
+        ],
+        "candidate_count": 8,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_db288a081ba1afabc0252a04",
+          "ev_fe45039afd32c16ea43ef029",
+          "ev_c19b38394a41a45696466959",
+          "ev_eb44d1d9df54ef823ef0b967",
+          "ev_6b81b7900c0243c338e71b8d",
+          "ev_1059d832496ddd5e91abe9c5",
+          "ev_da10fa11f9eb961d01b8c678",
+          "ev_2d7b71f713bccc3df54f3751"
+        ],
+        "candidate_count": 24,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_db288a081ba1afabc0252a04",
+          "ev_fe45039afd32c16ea43ef029",
+          "ev_c19b38394a41a45696466959",
+          "ev_eb44d1d9df54ef823ef0b967",
+          "ev_6b81b7900c0243c338e71b8d",
+          "ev_1059d832496ddd5e91abe9c5",
+          "ev_da10fa11f9eb961d01b8c678",
+          "ev_2d7b71f713bccc3df54f3751"
+        ],
+        "candidate_count": 16,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_db288a081ba1afabc0252a04",
+          "ev_fe45039afd32c16ea43ef029",
+          "ev_c19b38394a41a45696466959",
+          "ev_eb44d1d9df54ef823ef0b967",
+          "ev_6b81b7900c0243c338e71b8d",
+          "ev_1059d832496ddd5e91abe9c5",
+          "ev_da10fa11f9eb961d01b8c678",
+          "ev_2d7b71f713bccc3df54f3751"
+        ],
+        "candidate_count": 8,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      }
+    ],
+    "open_gaps": [
+      {
+        "kind": "formula",
+        "reason": "located_path_budget",
+        "omitted_count": 4
+      }
+    ],
+    "pending_work": null,
+    "investigation_complete": null,
+    "investigation_frontier_state": null,
+    "global_coverage": null
+  },
+  "request_count": 1,
+  "request_pages": [
+    [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-02.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl"
+    ]
+  ],
+  "request_investigations": [
+    {
+      "scope": "source_candidates",
+      "state": "bounded_partial",
+      "can_answer": true,
+      "can_answer_locally": null,
+      "candidate_paths": [
+        "calc-00.cbl",
+        "calc-01.cbl",
+        "calc-05.cbl",
+        "calc-06.cbl",
+        "calc-09.cbl",
+        "calc-10.cbl",
+        "calc-11.cbl",
+        "calc-02.cbl"
+      ],
+      "analysis_plan": {
+        "intents": [
+          "calculation"
+        ],
+        "entities": [],
+        "paths": [
+          "calc-00.cbl",
+          "calc-01.cbl",
+          "calc-05.cbl",
+          "calc-06.cbl",
+          "calc-09.cbl",
+          "calc-10.cbl",
+          "calc-11.cbl",
+          "calc-02.cbl",
+          "calc-03.cbl",
+          "calc-04.cbl",
+          "calc-07.cbl",
+          "calc-08.cbl"
+        ],
+        "tools": [
+          "explain_assignment",
+          "backward_slice"
+        ],
+        "required_obligations": [
+          "source_identity",
+          "supplied_source",
+          "assignment_expression",
+          "input_definitions",
+          "numeric_layout"
+        ],
+        "focus_basis": "question_and_source",
+        "unresolved": [
+          "conversation_program_not_uniquely_bound"
+        ],
+        "source_scopes": [],
+        "file_entities": [],
+        "relation_direction": null,
+        "relation_root": null,
+        "version": "business-analysis-plan/v13"
+      },
+      "required_items": [
+        {
+          "id": "calculation_procedure_body",
+          "kind": "procedure_body",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_formula",
+          "kind": "formula",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_a7c2def67f65b95741aea8f4",
+            "ev_page_0dd0dd38388fc15abe90de83",
+            "ev_page_9aa2414fff219aee75803aa2",
+            "ev_page_f3762691a8a12ead26862654",
+            "ev_page_753d0151d64185907275c5ec",
+            "ev_page_a0a10890658f7100423b079a",
+            "ev_page_d1e8cf63b91ae45fe55d5152",
+            "ev_page_9e96aa8b676502369f3425ac"
+          ],
+          "candidate_count": 8,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_declarations",
+          "kind": "declarations",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_a7c2def67f65b95741aea8f4",
+            "ev_page_0dd0dd38388fc15abe90de83",
+            "ev_page_7c78d422a8be8aa86fabc4e4",
+            "ev_page_f3762691a8a12ead26862654",
+            "ev_page_753d0151d64185907275c5ec",
+            "ev_page_a0a10890658f7100423b079a",
+            "ev_page_d1e8cf63b91ae45fe55d5152",
+            "ev_page_354ddc02e45a1da82c1850a0"
+          ],
+          "candidate_count": 24,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_inputs",
+          "kind": "inputs",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_a7c2def67f65b95741aea8f4",
+            "ev_page_0dd0dd38388fc15abe90de83",
+            "ev_page_7c78d422a8be8aa86fabc4e4",
+            "ev_page_f3762691a8a12ead26862654",
+            "ev_page_753d0151d64185907275c5ec",
+            "ev_page_a0a10890658f7100423b079a",
+            "ev_page_d1e8cf63b91ae45fe55d5152",
+            "ev_page_354ddc02e45a1da82c1850a0",
+            "ev_page_9aa2414fff219aee75803aa2",
+            "ev_page_a8adfb74a6505c25942c7cc9",
+            "ev_page_b02dc38afceddf3371246e05",
+            "ev_page_9e96aa8b676502369f3425ac",
+            "ev_page_a0c09c464863fe50fb94aa85",
+            "ev_page_25704c895baa3a0662edac39"
+          ],
+          "candidate_count": 16,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied",
+          "source_flow_origins": [
+            {
+              "relative_path": "calc-00.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_a7c2def67f65b95741aea8f4"
+              ],
+              "reader_occurrences": [
+                "e72b28e78e4c41929f4cda69"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-5"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-00.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_a7c2def67f65b95741aea8f4"
+              ],
+              "reader_occurrences": [
+                "e72b28e78e4c41929f4cda69"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-6"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-01.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_0dd0dd38388fc15abe90de83"
+              ],
+              "reader_occurrences": [
+                "3b0d10b69252c70b5d4d76b6"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-10"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-01.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_0dd0dd38388fc15abe90de83"
+              ],
+              "reader_occurrences": [
+                "3b0d10b69252c70b5d4d76b6"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-11"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-02.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_9aa2414fff219aee75803aa2",
+                "ev_page_7c78d422a8be8aa86fabc4e4",
+                "ev_page_a8adfb74a6505c25942c7cc9",
+                "ev_page_b02dc38afceddf3371246e05"
+              ],
+              "reader_occurrences": [
+                "93e643ac4db97167097d085c"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-25"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-02.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_9aa2414fff219aee75803aa2",
+                "ev_page_7c78d422a8be8aa86fabc4e4",
+                "ev_page_a8adfb74a6505c25942c7cc9",
+                "ev_page_b02dc38afceddf3371246e05"
+              ],
+              "reader_occurrences": [
+                "93e643ac4db97167097d085c"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-26"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-05.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_f3762691a8a12ead26862654"
+              ],
+              "reader_occurrences": [
+                "601b5ca03673430c9954f1b1"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-15"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-05.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_f3762691a8a12ead26862654"
+              ],
+              "reader_occurrences": [
+                "601b5ca03673430c9954f1b1"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-16"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-06.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_753d0151d64185907275c5ec"
+              ],
+              "reader_occurrences": [
+                "b29aac7cd05b4f9f87fd9772"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-20"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-06.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_753d0151d64185907275c5ec"
+              ],
+              "reader_occurrences": [
+                "b29aac7cd05b4f9f87fd9772"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-21"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-11.cbl",
+              "field": "BASIS",
+              "evidence_ids": [
+                "ev_page_9e96aa8b676502369f3425ac",
+                "ev_page_354ddc02e45a1da82c1850a0",
+                "ev_page_a0c09c464863fe50fb94aa85",
+                "ev_page_25704c895baa3a0662edac39"
+              ],
+              "reader_occurrences": [
+                "15f57ca3c053cf7670cf25e4"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-30"
+                }
+              ]
+            },
+            {
+              "relative_path": "calc-11.cbl",
+              "field": "FACTOR",
+              "evidence_ids": [
+                "ev_page_9e96aa8b676502369f3425ac",
+                "ev_page_354ddc02e45a1da82c1850a0",
+                "ev_page_a0c09c464863fe50fb94aa85",
+                "ev_page_25704c895baa3a0662edac39"
+              ],
+              "reader_occurrences": [
+                "15f57ca3c053cf7670cf25e4"
+              ],
+              "initial_definitions": [
+                {
+                  "navigation_fact_ref": "nav-31"
+                }
+              ]
+            }
+          ],
+          "source_flow_origins_shared_fields": {
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "unknown_reasons": [],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          }
+        },
+        {
+          "id": "calculation_conditions",
+          "kind": "conditions",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        },
+        {
+          "id": "calculation_result_adjustments",
+          "kind": "result_adjustments",
+          "status": "SATISFIED",
+          "evidence_ids": [
+            "ev_page_a7c2def67f65b95741aea8f4",
+            "ev_page_0dd0dd38388fc15abe90de83",
+            "ev_page_9aa2414fff219aee75803aa2",
+            "ev_page_f3762691a8a12ead26862654",
+            "ev_page_753d0151d64185907275c5ec",
+            "ev_page_a0a10890658f7100423b079a",
+            "ev_page_d1e8cf63b91ae45fe55d5152",
+            "ev_page_9e96aa8b676502369f3425ac"
+          ],
+          "candidate_count": 8,
+          "missing_count": 0,
+          "reason": "source_candidates_supplied"
+        },
+        {
+          "id": "calculation_dependencies",
+          "kind": "dependencies",
+          "status": "NOT_APPLICABLE",
+          "evidence_ids": [],
+          "candidate_count": 0,
+          "missing_count": 0,
+          "reason": "no_indexed_candidate"
+        }
+      ],
+      "open_gaps": [
+        {
+          "kind": "formula",
+          "reason": "located_path_budget",
+          "omitted_count": 4
+        }
+      ],
+      "pending_work": null,
+      "investigation_complete": null,
+      "investigation_frontier_state": null,
+      "global_coverage": null
+    }
+  ],
+  "request_ledger_generations": [
+    null
+  ],
+  "result": {
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "answer_available": true,
+    "answer_origin": "model",
+    "answer": "calc-00.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_a7c2def67f65b95741aea8f4]\n\ncalc-01.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_0dd0dd38388fc15abe90de83]\n\ncalc-05.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_f3762691a8a12ead26862654]\n\ncalc-06.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_753d0151d64185907275c5ec]\n\ncalc-09.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_a0a10890658f7100423b079a]\n\ncalc-10.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_d1e8cf63b91ae45fe55d5152]\n\ncalc-02.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_9aa2414fff219aee75803aa2]\n\ncalc-11.cbl 包含保费金额计算：按所示基础金额与系数计算，或继续累加调整，结果保留在对应金额字段中。[ev_page_9e96aa8b676502369f3425ac]\n\n以上是本系统全部保费计算位置。",
+    "answer_completion": {
+      "status": "not_assessed",
+      "reason": null,
+      "pending_investigation": false,
+      "pending_source_explanation": false,
+      "limitation_detected": false,
+      "source_selection_limitation_detected": false,
+      "method": "bounded_text_and_coverage_signals",
+      "semantic_verification": "unverified",
+      "source_availability_contradiction": false,
+      "source_availability_contradictions": [],
+      "sql_boundary_review": {
+        "method": "bounded_sql_boundary_heuristic",
+        "semantic_verification": false,
+        "review_required": false,
+        "risks": [],
+        "source_scan_truncated": false,
+        "answer_scan_truncated": false,
+        "omitted_risk_count": 0,
+        "report_byte_limit": 8000
+      },
+      "required_aspects": [
+        "formula"
+      ],
+      "missing_aspects": [],
+      "semantic_risk_candidates": []
+    },
+    "boundaries": []
+  },
+  "final_investigation": {
+    "scope": "source_candidates",
+    "state": "bounded_partial",
+    "can_answer": true,
+    "can_answer_locally": null,
+    "candidate_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl",
+      "calc-02.cbl"
+    ],
+    "analysis_plan": {
+      "intents": [
+        "calculation"
+      ],
+      "entities": [],
+      "paths": [
+        "calc-00.cbl",
+        "calc-01.cbl",
+        "calc-05.cbl",
+        "calc-06.cbl",
+        "calc-09.cbl",
+        "calc-10.cbl",
+        "calc-11.cbl",
+        "calc-02.cbl",
+        "calc-03.cbl",
+        "calc-04.cbl",
+        "calc-07.cbl",
+        "calc-08.cbl"
+      ],
+      "tools": [
+        "explain_assignment",
+        "backward_slice"
+      ],
+      "required_obligations": [
+        "source_identity",
+        "supplied_source",
+        "assignment_expression",
+        "input_definitions",
+        "numeric_layout"
+      ],
+      "focus_basis": "question_and_source",
+      "unresolved": [
+        "conversation_program_not_uniquely_bound"
+      ],
+      "source_scopes": [],
+      "file_entities": [],
+      "relation_direction": null,
+      "relation_root": null,
+      "version": "business-analysis-plan/v13"
+    },
+    "required_items": [
+      {
+        "id": "calculation_procedure_body",
+        "kind": "procedure_body",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_formula",
+        "kind": "formula",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_a7c2def67f65b95741aea8f4",
+          "ev_page_0dd0dd38388fc15abe90de83",
+          "ev_page_9aa2414fff219aee75803aa2",
+          "ev_page_f3762691a8a12ead26862654",
+          "ev_page_753d0151d64185907275c5ec",
+          "ev_page_a0a10890658f7100423b079a",
+          "ev_page_d1e8cf63b91ae45fe55d5152",
+          "ev_page_9e96aa8b676502369f3425ac"
+        ],
+        "candidate_count": 8,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_declarations",
+        "kind": "declarations",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_a7c2def67f65b95741aea8f4",
+          "ev_page_0dd0dd38388fc15abe90de83",
+          "ev_page_7c78d422a8be8aa86fabc4e4",
+          "ev_page_f3762691a8a12ead26862654",
+          "ev_page_753d0151d64185907275c5ec",
+          "ev_page_a0a10890658f7100423b079a",
+          "ev_page_d1e8cf63b91ae45fe55d5152",
+          "ev_page_354ddc02e45a1da82c1850a0"
+        ],
+        "candidate_count": 24,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_inputs",
+        "kind": "inputs",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_a7c2def67f65b95741aea8f4",
+          "ev_page_0dd0dd38388fc15abe90de83",
+          "ev_page_7c78d422a8be8aa86fabc4e4",
+          "ev_page_f3762691a8a12ead26862654",
+          "ev_page_753d0151d64185907275c5ec",
+          "ev_page_a0a10890658f7100423b079a",
+          "ev_page_d1e8cf63b91ae45fe55d5152",
+          "ev_page_354ddc02e45a1da82c1850a0",
+          "ev_page_9aa2414fff219aee75803aa2",
+          "ev_page_a8adfb74a6505c25942c7cc9",
+          "ev_page_b02dc38afceddf3371246e05",
+          "ev_page_9e96aa8b676502369f3425ac",
+          "ev_page_a0c09c464863fe50fb94aa85",
+          "ev_page_25704c895baa3a0662edac39"
+        ],
+        "candidate_count": 16,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied",
+        "source_flow_origins": [
+          {
+            "relative_path": "calc-00.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_a7c2def67f65b95741aea8f4"
+            ],
+            "reader_occurrences": [
+              "e72b28e78e4c41929f4cda69"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "c633f41e5a14c9fd572fa67ec22272e1b73918fc294b36b1cc82ef09358b5e9a"
+                  },
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-00.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_a7c2def67f65b95741aea8f4"
+            ],
+            "reader_occurrences": [
+              "e72b28e78e4c41929f4cda69"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "c633f41e5a14c9fd572fa67ec22272e1b73918fc294b36b1cc82ef09358b5e9a"
+                  },
+                  {
+                    "relative_path": "calc-00.cbl",
+                    "source_sha256": "9165a6036223752e4ab6e1a49e658d2a269f116fe442ae40bd37f9b965ea538d",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-01.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_0dd0dd38388fc15abe90de83"
+            ],
+            "reader_occurrences": [
+              "3b0d10b69252c70b5d4d76b6"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "74959a222135e41dad41ba9c2275d8a8320adba4819019d08cd43052ac95706d"
+                  },
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-01.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_0dd0dd38388fc15abe90de83"
+            ],
+            "reader_occurrences": [
+              "3b0d10b69252c70b5d4d76b6"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "74959a222135e41dad41ba9c2275d8a8320adba4819019d08cd43052ac95706d"
+                  },
+                  {
+                    "relative_path": "calc-01.cbl",
+                    "source_sha256": "2008070fb2a0fc2da6fdeb10d69fc5421a49917cdd05aa28524f573a67a78db3",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-02.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_9aa2414fff219aee75803aa2",
+              "ev_page_7c78d422a8be8aa86fabc4e4",
+              "ev_page_a8adfb74a6505c25942c7cc9",
+              "ev_page_b02dc38afceddf3371246e05"
+            ],
+            "reader_occurrences": [
+              "93e643ac4db97167097d085c"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "4a48b3524c67cbef964260fdf948ab5bbe9ff541b040008ab4eb6fa5a2ab70eb"
+                  },
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-02.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_9aa2414fff219aee75803aa2",
+              "ev_page_7c78d422a8be8aa86fabc4e4",
+              "ev_page_a8adfb74a6505c25942c7cc9",
+              "ev_page_b02dc38afceddf3371246e05"
+            ],
+            "reader_occurrences": [
+              "93e643ac4db97167097d085c"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "4a48b3524c67cbef964260fdf948ab5bbe9ff541b040008ab4eb6fa5a2ab70eb"
+                  },
+                  {
+                    "relative_path": "calc-02.cbl",
+                    "source_sha256": "10f0cd5d950333662b35a99a28074bd484cc19509dc3d11ec01c94a6ed7e6118",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-05.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_f3762691a8a12ead26862654"
+            ],
+            "reader_occurrences": [
+              "601b5ca03673430c9954f1b1"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "da2385d2979dafd6a3ae6fdde7dc923003bef2cc6bed573ba62329616dee6fd9"
+                  },
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-05.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_f3762691a8a12ead26862654"
+            ],
+            "reader_occurrences": [
+              "601b5ca03673430c9954f1b1"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "da2385d2979dafd6a3ae6fdde7dc923003bef2cc6bed573ba62329616dee6fd9"
+                  },
+                  {
+                    "relative_path": "calc-05.cbl",
+                    "source_sha256": "c0ae6e9a1270d87033b55844b63ea457c0d9aaff2158c3dfcfd721650f38d7d7",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-06.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_753d0151d64185907275c5ec"
+            ],
+            "reader_occurrences": [
+              "b29aac7cd05b4f9f87fd9772"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "56fea7e417de1757b468caeca5443fe81a6761bb10bdf73e515eeb761e5b7f85"
+                  },
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-06.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_753d0151d64185907275c5ec"
+            ],
+            "reader_occurrences": [
+              "b29aac7cd05b4f9f87fd9772"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "56fea7e417de1757b468caeca5443fe81a6761bb10bdf73e515eeb761e5b7f85"
+                  },
+                  {
+                    "relative_path": "calc-06.cbl",
+                    "source_sha256": "7196489ea038ee488e3a6bd9a1125f939014e15a2c24024db577db4746ea7c40",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-11.cbl",
+            "field": "BASIS",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_9e96aa8b676502369f3425ac",
+              "ev_page_354ddc02e45a1da82c1850a0",
+              "ev_page_a0c09c464863fe50fb94aa85",
+              "ev_page_25704c895baa3a0662edac39"
+            ],
+            "reader_occurrences": [
+              "15f57ca3c053cf7670cf25e4"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "BASIS",
+                "value": "100",
+                "declaration": "01 BASIS PIC 9(5) VALUE 100.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 6,
+                    "end_line": 6,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "599a6f07578eea09227c73e14b49c2f2f17d51dee436e540565a18ef16842f13"
+                  },
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "12c7b360b6fb3b53d99d231b6c1e3c956534b0e8301986dfb3216186257d4dce"
+                  },
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          },
+          {
+            "relative_path": "calc-11.cbl",
+            "field": "FACTOR",
+            "status": "source_origin_supplied",
+            "basis": "reaching_definitions_and_confirmed_call_returns",
+            "evidence_ids": [
+              "ev_page_9e96aa8b676502369f3425ac",
+              "ev_page_354ddc02e45a1da82c1850a0",
+              "ev_page_a0c09c464863fe50fb94aa85",
+              "ev_page_25704c895baa3a0662edac39"
+            ],
+            "reader_occurrences": [
+              "15f57ca3c053cf7670cf25e4"
+            ],
+            "unknown_reasons": [],
+            "initial_definitions": [
+              {
+                "field": "FACTOR",
+                "value": "1.25",
+                "declaration": "01 FACTOR PIC 9V99 VALUE 1.25.",
+                "storage_section": "WORKING-STORAGE",
+                "source_refs": [
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 7,
+                    "end_line": 7,
+                    "start_column": 1,
+                    "end_column": null,
+                    "copy_instance": null,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "coordinate_status": "physical",
+                    "excerpt_sha256": "055f69e9ae025c28222a91d16d61e44aa4bea2af551bfce6f6b142f42915e4ed"
+                  },
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 2,
+                    "end_line": 2,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "12c7b360b6fb3b53d99d231b6c1e3c956534b0e8301986dfb3216186257d4dce"
+                  },
+                  {
+                    "relative_path": "calc-11.cbl",
+                    "source_sha256": "869b0e545e4bce83de437394a5f10450ba59d683b3488b0cc447437fd6e864fe",
+                    "start_line": 4,
+                    "end_line": 4,
+                    "start_column": 1,
+                    "end_column": 1,
+                    "include_chain": [],
+                    "replacement_trace": [],
+                    "excerpt_sha256": "381272d9780e6be767fe6fa735d13f280e4c00a1771e800175c1ceb34d582f30"
+                  }
+                ],
+                "status": "conditional_initialization_source",
+                "unknown_reason": null,
+                "runtime_value_known": false,
+                "initial_program": false,
+                "activation_semantics": "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+              }
+            ],
+            "activation_semantics": [
+              "first_activation_or_initial_or_cancelled_program; subsequent_activations_may_retain_prior_state"
+            ],
+            "runtime_value_known": false,
+            "missing_reader_occurrences": [],
+            "execution_verified": false
+          }
+        ]
+      },
+      {
+        "id": "calculation_conditions",
+        "kind": "conditions",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      },
+      {
+        "id": "calculation_result_adjustments",
+        "kind": "result_adjustments",
+        "status": "SATISFIED",
+        "evidence_ids": [
+          "ev_page_a7c2def67f65b95741aea8f4",
+          "ev_page_0dd0dd38388fc15abe90de83",
+          "ev_page_9aa2414fff219aee75803aa2",
+          "ev_page_f3762691a8a12ead26862654",
+          "ev_page_753d0151d64185907275c5ec",
+          "ev_page_a0a10890658f7100423b079a",
+          "ev_page_d1e8cf63b91ae45fe55d5152",
+          "ev_page_9e96aa8b676502369f3425ac"
+        ],
+        "candidate_count": 8,
+        "missing_count": 0,
+        "reason": "source_candidates_supplied"
+      },
+      {
+        "id": "calculation_dependencies",
+        "kind": "dependencies",
+        "status": "NOT_APPLICABLE",
+        "evidence_ids": [],
+        "candidate_count": 0,
+        "missing_count": 0,
+        "reason": "no_indexed_candidate"
+      }
+    ],
+    "open_gaps": [
+      {
+        "kind": "formula",
+        "reason": "located_path_budget",
+        "omitted_count": 4
+      }
+    ],
+    "pending_work": null,
+    "investigation_complete": null,
+    "investigation_frontier_state": null,
+    "global_coverage": null
+  },
+  "public_scope": {
+    "scope_kind": "retrieved_context",
+    "full_repository_semantics_verified": false,
+    "selected_paths": [
+      "calc-01.cbl",
+      "calc-06.cbl",
+      "calc-11.cbl",
+      "calc-02.cbl",
+      "calc-10.cbl",
+      "calc-05.cbl",
+      "calc-09.cbl",
+      "calc-00.cbl"
+    ],
+    "query_expansion_attempted": false
+  },
+  "saved_frontier": {
+    "investigation_frontier_state": null,
+    "source_frontier_state": null,
+    "analysis_compaction_pending_ids": []
+  },
+  "saved_ledger_generations": 0
+}
