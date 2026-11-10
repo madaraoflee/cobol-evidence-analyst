@@ -1,0 +1,34 @@
+[
+  {
+    "stage": "before",
+    "plan": [
+      [
+        8,
+        0,
+        62,
+        "SEARCH records USING INDEX sqlite_autoindex_records_1 (session=? AND kind=?)"
+      ]
+    ],
+    "vm_steps": 50052,
+    "elapsed_with_callback": 0.014006042038090527,
+    "row_keys": [
+      "C0aba248e3799641fd21b50b5:1"
+    ]
+  },
+  {
+    "stage": "after",
+    "plan": [
+      [
+        8,
+        0,
+        61,
+        "SEARCH records USING INDEX record_path_key (session=? AND kind=? AND path=?)"
+      ]
+    ],
+    "vm_steps": 45,
+    "elapsed_with_callback": 3.2832962460815907e-05,
+    "row_keys": [
+      "C0aba248e3799641fd21b50b5:1"
+    ]
+  }
+]

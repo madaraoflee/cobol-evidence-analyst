@@ -1,0 +1,26 @@
+[
+  {
+    "shard": 0,
+    "artifact_id": 13787323000,
+    "digest": "sha256:e0f3ce5c042cdf49caf9ae9b3df3bafeb01e901aa21b20d3375d6445ef53a467",
+    "zip_digest_verified": true
+  },
+  {
+    "shard": 1,
+    "artifact_id": 13787828296,
+    "digest": "sha256:b874418ca109ede2239bcaddc8e9e3296260064e2a486d8a1ce426da4c9ced9f",
+    "zip_digest_verified": true
+  },
+  {
+    "shard": 2,
+    "artifact_id": 13790736028,
+    "digest": "sha256:45432176caccf3be945db4c0c9168106737acc30cf2d6f12d0687b5650306ab5",
+    "zip_digest_verified": true
+  },
+  {
+    "shard": 3,
+    "artifact_id": 13786919891,
+    "digest": "sha256:08ea10936f19c9e44344ddcd86de37d6f43a36f9ff43193b2e7477722018c024",
+    "zip_digest_verified": true
+  }
+]

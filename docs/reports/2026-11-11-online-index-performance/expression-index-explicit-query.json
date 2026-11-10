@@ -1,0 +1,30 @@
+[
+  {
+    "sql": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records INDEXED BY summary_candidate_occurrences WHERE session=? AND kind='candidates'",
+    "plan": [
+      [
+        4,
+        0,
+        61,
+        "SEARCH records USING INDEX summary_candidate_occurrences (session=?)"
+      ]
+    ],
+    "json_extract_calls": 0,
+    "seconds": 0.0005082499701529741,
+    "value": 10001
+  },
+  {
+    "sql": "SELECT count(*) FROM records INDEXED BY summary_inventoried_files WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+    "plan": [
+      [
+        4,
+        0,
+        61,
+        "SEARCH records USING INDEX summary_inventoried_files (session=?)"
+      ]
+    ],
+    "json_extract_calls": 0,
+    "seconds": 0.0003707080031745136,
+    "value": 10001
+  }
+]

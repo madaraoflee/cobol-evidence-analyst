@@ -1,0 +1,62 @@
+[
+  {
+    "stage": "before_expression_indexes",
+    "sql": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'",
+    "plan": [
+      [
+        4,
+        0,
+        62,
+        "SEARCH records USING INDEX record_path_key (session=? AND kind=?)"
+      ]
+    ],
+    "json_extract_calls": 10001,
+    "seconds": 0.55078216700349,
+    "value": 10001
+  },
+  {
+    "stage": "before_expression_indexes",
+    "sql": "SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+    "plan": [
+      [
+        4,
+        0,
+        62,
+        "SEARCH records USING INDEX record_path_key (session=? AND kind=?)"
+      ]
+    ],
+    "json_extract_calls": 10001,
+    "seconds": 0.2101063330192119,
+    "value": 10001
+  },
+  {
+    "stage": "after_expression_indexes",
+    "sql": "SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'",
+    "plan": [
+      [
+        4,
+        0,
+        61,
+        "SEARCH records USING INDEX record_path_key (session=? AND kind=?)"
+      ]
+    ],
+    "json_extract_calls": 10001,
+    "seconds": 0.026391333027277142,
+    "value": 10001
+  },
+  {
+    "stage": "after_expression_indexes",
+    "sql": "SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1",
+    "plan": [
+      [
+        4,
+        0,
+        61,
+        "SEARCH records USING INDEX record_path_key (session=? AND kind=?)"
+      ]
+    ],
+    "json_extract_calls": 10001,
+    "seconds": 0.0314960420364514,
+    "value": 10001
+  }
+]

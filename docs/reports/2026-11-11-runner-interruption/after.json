@@ -1,0 +1,15 @@
+{
+  "injected_exception": "KeyboardInterrupt",
+  "test_results": [
+    {
+      "id": "__main__.Interrupted.test_interrupted",
+      "seconds": 2.1e-05,
+      "outcome": "incomplete"
+    }
+  ],
+  "started_ids": [
+    "__main__.Interrupted.test_interrupted"
+  ],
+  "log": "START __main__.Interrupted.test_interrupted\nEND __main__.Interrupted.test_interrupted incomplete (0.000021s)\n",
+  "source_sha256": "e7e418351996f483ae51ad8f29ef127f97876260aa00682e63f368c857f2a31c"
+}

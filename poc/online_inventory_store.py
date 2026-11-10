@@ -36,7 +36,12 @@ class OnlineInventoryStore:
                 CREATE INDEX IF NOT EXISTS version_lookup ON versions(session,kind,key,seq);
                 CREATE TABLE IF NOT EXISTS records(session TEXT NOT NULL,kind TEXT NOT NULL,key TEXT NOT NULL,
                     path TEXT NOT NULL,seq INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(session,kind,key));
-                CREATE INDEX IF NOT EXISTS record_path ON records(session,kind,path);
+                CREATE INDEX IF NOT EXISTS record_path_key ON records(session,kind,path,key);
+                CREATE INDEX IF NOT EXISTS summary_candidate_occurrences
+                    ON records(session,json_extract(data,'$.occurrence_count')) WHERE kind='candidates';
+                CREATE INDEX IF NOT EXISTS summary_inventoried_files
+                    ON records(session) WHERE kind='files' AND json_extract(data,'$.inventoried')=1;
+                DROP INDEX IF EXISTS record_path;
                 CREATE TABLE IF NOT EXISTS tasks(session TEXT NOT NULL,group_key TEXT NOT NULL,ordinal INTEGER NOT NULL,
                     data BLOB NOT NULL,PRIMARY KEY(session,group_key,ordinal));
                 CREATE TABLE IF NOT EXISTS publications(id TEXT PRIMARY KEY,session TEXT NOT NULL,generation INTEGER NOT NULL,data BLOB NOT NULL);
@@ -123,7 +128,9 @@ class InventorySession:
         return json.loads(row[0]) if row else None
 
     def rows(self, kind, *, path=None, offset=0, limit=40):
-        sql, args = "SELECT key,data FROM records WHERE session=? AND kind=?", [self.id, kind]
+        sql = "SELECT key,data FROM records" + (" INDEXED BY record_path_key" if path is not None else "")
+        sql += " WHERE session=? AND kind=?"
+        args = [self.id, kind]
         if path is not None:
             sql += " AND path=?"
             args.append(path)
@@ -312,8 +319,8 @@ class InventorySession:
         with self.store.connection() as db:
             counts = dict(db.execute("SELECT kind,count(*) FROM records WHERE session=? GROUP BY kind", (self.id,)))
             pending = db.execute("SELECT count(*) FROM tasks WHERE session=?", (self.id,)).fetchone()[0]
-            occurrences = db.execute("SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records WHERE session=? AND kind='candidates'", (self.id,)).fetchone()[0]
-            inventoried = db.execute("SELECT count(*) FROM records WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1", (self.id,)).fetchone()[0]
+            occurrences = db.execute("SELECT coalesce(sum(json_extract(data,'$.occurrence_count')),0) FROM records INDEXED BY summary_candidate_occurrences WHERE session=? AND kind='candidates'", (self.id,)).fetchone()[0]
+            inventoried = db.execute("SELECT count(*) FROM records INDEXED BY summary_inventoried_files WHERE session=? AND kind='files' AND json_extract(data,'$.inventoried')=1", (self.id,)).fetchone()[0]
             unfinished_files = db.execute("SELECT count(DISTINCT group_key) FROM tasks WHERE session=? AND group_key LIKE 'file:%'", (self.id,)).fetchone()[0]
         work = self.meta().get("work", {})
         count = counts.get("files", 0)

@@ -141,7 +141,9 @@ class TimedResult(unittest.TextTestResult):
         identifier = test.id()
         self.started_ids.append(identifier)
         self._started[identifier] = _timer()
-        self._outcomes[identifier] = "passed"
+        # unittest still calls stopTest when KeyboardInterrupt propagates.
+        # Only its explicit success callback can certify a completed pass.
+        self._outcomes[identifier] = "incomplete"
         self.stream.write(f"START {identifier}\n")
         self.stream.flush()
         self._checkpoint(force=len(self.started_ids) == 1)
@@ -161,6 +163,8 @@ class TimedResult(unittest.TextTestResult):
             self._outcomes[test.id()] = outcome
 
     def addSuccess(self, test):
+        if self._outcomes.get(test.id()) == "incomplete":
+            self._mark(test, "passed")
         unittest.TestResult.addSuccess(self, test)
 
     def addFailure(self, test, err):

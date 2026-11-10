@@ -7839,6 +7839,93 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "仅纠正测试供证helper真实原文身份，未改runtime、原16项测试方法AST/断言、输入、gold或跳过项。保持实际来源哈希校验严格，LF/CRLF各自原bytes的SHA都有效，错SHA仍拒绝。新Windows全套与最终EXE仍须重新验证，不能用Mac回归替代。"
+    },
+    {
+      "id": "BUG-20261111-009",
+      "title": "在线单文件查询误走全kind排序索引导致二次扫描放大",
+      "symptom": "10001记录读取单路径一行实测50052条SQLite指令，1k到2k实际管线该查询耗时2.22到9.52秒，Windows万文件长测被步骤上限中断。",
+      "root_cause": "旧(session,kind,path)索引未覆盖ORDER BY key，SQLite选择(session,kind,key)主索引全kind扫描；逐文件反复调用导致二次放大。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_single_path_read_does_not_scan_thousands_of_unrelated_records"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_path_pages_preserve_order_and_filter_both_kind_and_session"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_legacy_index_upgrade_preserves_all_records_and_old_publication"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_rollback_keeps_summary_and_published_history_consistent"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-online-index-performance/README.md",
+        "docs/reports/2026-11-11-online-index-performance/path-index-before-after.json",
+        "docs/reports/2026-11-11-online-index-performance/current-10001-result.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "已保留修前证据并完成定向回归；完整本轮源码和新的Windows同包结果另行报告。原资料、范围、来源校验、预算、旧测试断言及成功白名单不削弱；只读索引优化不手工重算数据。Mac对照不代替Windows耗时，旧被中断项目不得算通过。"
+    },
+    {
+      "id": "BUG-20261111-010",
+      "title": "在线每次进度重复全库JSON聚合造成大库CPU二次放大",
+      "symptom": "真实有progress产品路径单动作调用summary九次，10001文件实测单动作0.2793秒其中统计0.1923秒；全库动作次数增长时反复解析全部记录。",
+      "root_cause": "occurrence及inventoried统计每次从全部JSON记录解析，缺少可直接读取索引值的查询路径。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_summary_matches_independent_full_scan_without_reparsing_record_json"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_rollback_keeps_summary_and_published_history_consistent"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_query_cost.OnlineInventoryQueryCostTests.test_legacy_index_upgrade_preserves_all_records_and_old_publication"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-online-index-performance/product-summary-counts.json",
+        "docs/reports/2026-11-11-online-index-performance/expression-index-explicit-query.json",
+        "docs/reports/2026-11-11-online-index-performance/README.md"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "已保留修前证据并完成定向回归；完整本轮源码和新的Windows同包结果另行报告。原资料、范围、来源校验、预算、旧测试断言及成功白名单不削弱；只读索引优化不手工重算数据。Mac对照不代替Windows耗时，旧被中断项目不得算通过。"
+    },
+    {
+      "id": "BUG-20261111-011",
+      "title": "回归runner把中断未完成测试误标为单项通过",
+      "symptom": "Windows45分钟步骤中断长测试时，原始报告全局runner_error但该项outcome及END仍写passed；独立KeyboardInterrupt最小场景也复现。",
+      "root_cause": "startTest预设成功，只有失败回调改状态，而KeyboardInterrupt不经过失败回调，stopTest错误沿用passed。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_keyboard_interrupt_records_incomplete_and_blocks_the_full_collector"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_only_completed_successful_cases_have_a_passed_outcome"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_failure_error_skip_expected_and_subtest_results_keep_their_precise_outcomes"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-runner-interruption/README.md",
+        "docs/reports/2026-11-11-runner-interruption/runner-interrupt-before.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "已保留修前证据并完成定向回归；完整本轮源码和新的Windows同包结果另行报告。原资料、范围、来源校验、预算、旧测试断言及成功白名单不削弱；只读索引优化不手工重算数据。Mac对照不代替Windows耗时，旧被中断项目不得算通过。"
     }
   ],
   "updated_at": "2026-11-10"

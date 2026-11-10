@@ -1,0 +1,20 @@
+{
+  "frozen": true,
+  "files_sha256": {
+    "tools/run_python_regressions.py": "e7e418351996f483ae51ad8f29ef127f97876260aa00682e63f368c857f2a31c",
+    "poc/tests/test_python_regression_interruptions.py": "d6059352959a45cbfd6824b16f0cacf54f93e39193490e2e7fdc229a1fd09bcf"
+  },
+  "new_test_ids": [
+    "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_keyboard_interrupt_records_incomplete_and_blocks_the_full_collector",
+    "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_only_completed_successful_cases_have_a_passed_outcome",
+    "test_python_regression_interruptions.PythonRegressionInterruptionTests.test_failure_error_skip_expected_and_subtest_results_keep_their_precise_outcomes"
+  ],
+  "targeted_results": {
+    "new": 3,
+    "old_runner": 14,
+    "old_collector": 17,
+    "old_bug_gate": 25
+  },
+  "old_tests_and_checker_success_whitelist_changed": false,
+  "limitation": "No app, timeout, threshold, skip policy or source review logic changed. Full mandatory source regression is still required."
+}
