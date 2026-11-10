@@ -34,11 +34,16 @@ jobs:
           architecture: x64
 
       - name: Diagnose four synthetic FULL-durability persistence cases
+        id: diagnostic
         timeout-minutes: 55
         env:
           DIAGNOSTIC_OUTPUT: ${{ runner.temp }}/online-snapshot-cost
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
+          $defaultTemp = python -c "import tempfile; print(tempfile.gettempdir())"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:DIAGNOSTIC_OUTPUT = Join-Path $defaultTemp 'online-snapshot-cost'
+          "diagnostic_output=$env:DIAGNOSTIC_OUTPUT" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           New-Item -ItemType Directory -Force -Path $env:DIAGNOSTIC_OUTPUT | Out-Null
           $record = [ordered]@{
             schema_version = 1
@@ -50,6 +55,9 @@ jobs:
             runtime_platform = $env:RUNNER_OS
             started_at = (Get-Date).ToUniversalTime().ToString('o')
             file_count = 200
+            diagnostic_output = $env:DIAGNOSTIC_OUTPUT
+            python_default_temp = $defaultTemp
+            runner_temp = $env:RUNNER_TEMP
             journal_mode_sequence = @('DELETE', 'PERSIST', 'TRUNCATE', 'DELETE')
             synchronous = 'FULL'
             source_regression_acceptance = $false
@@ -80,6 +88,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: online-snapshot-cost-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/online-snapshot-cost
+          path: ${{ steps.diagnostic.outputs.diagnostic_output }}
           if-no-files-found: error
           retention-days: 14
