@@ -1,0 +1,85 @@
+{
+  "tool_sha256": "0c793bf09138c4f8e78191303e99b1aedc9a90300437fe87fd6bb916a5eaa127",
+  "status": "completed_diagnostic",
+  "source_unchanged_in_declared_scope": true,
+  "mode_sequence": [
+    "DELETE",
+    "PERSIST",
+    "TRUNCATE",
+    "DELETE"
+  ],
+  "cases": [
+    {
+      "mode": "DELETE",
+      "seconds": 2.462007625028491,
+      "status": "passed",
+      "page_gold_complete": true,
+      "export_gold_complete": true,
+      "session_metadata_rollback": true,
+      "summary_rollback": true,
+      "source_reviews": 200,
+      "full_connections": 7531,
+      "connections": 7531,
+      "all_actual_journal_modes": [
+        "delete"
+      ],
+      "all_actual_synchronous": [
+        2
+      ]
+    },
+    {
+      "mode": "PERSIST",
+      "seconds": 2.5736230409820564,
+      "status": "passed",
+      "page_gold_complete": true,
+      "export_gold_complete": true,
+      "session_metadata_rollback": true,
+      "summary_rollback": true,
+      "source_reviews": 200,
+      "full_connections": 7531,
+      "connections": 7531,
+      "all_actual_journal_modes": [
+        "persist"
+      ],
+      "all_actual_synchronous": [
+        2
+      ]
+    },
+    {
+      "mode": "TRUNCATE",
+      "seconds": 2.40930733300047,
+      "status": "passed",
+      "page_gold_complete": true,
+      "export_gold_complete": true,
+      "session_metadata_rollback": true,
+      "summary_rollback": true,
+      "source_reviews": 200,
+      "full_connections": 7531,
+      "connections": 7531,
+      "all_actual_journal_modes": [
+        "truncate"
+      ],
+      "all_actual_synchronous": [
+        2
+      ]
+    },
+    {
+      "mode": "DELETE",
+      "seconds": 2.4256404580082744,
+      "status": "passed",
+      "page_gold_complete": true,
+      "export_gold_complete": true,
+      "session_metadata_rollback": true,
+      "summary_rollback": true,
+      "source_reviews": 200,
+      "full_connections": 7531,
+      "connections": 7531,
+      "all_actual_journal_modes": [
+        "delete"
+      ],
+      "all_actual_synchronous": [
+        2
+      ]
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "path": "diagnostic/DIAGNOSTIC-REPORT.json",
+    "size_bytes": 10256,
+    "sha256": "26473e289d667d1f5d3830c52f081e9f0e66b8d27c8f1c1f8f1dc3830838a362"
+  },
+  {
+    "path": "diagnostic/diagnostic.log",
+    "size_bytes": 1530,
+    "sha256": "8cafe28b8f0452ca99eb34ee3173ee0304d122dcbc6de6e969dac1669d7b6996"
+  },
+  {
+    "path": "diagnostic/WORKFLOW-EXECUTION.json",
+    "size_bytes": 747,
+    "sha256": "2dfbc48ec4d477870e60df3a63e9da14b6213e019f27d298b1004754d597fb06"
+  },
+  {
+    "path": "invocation.json",
+    "size_bytes": 1119,
+    "sha256": "d074821ab1ef263d2592891c96b92ee3b32f5867811ab8123f9ce0835749c34c"
+  },
+  {
+    "path": "diagnostic/case-01-delete/observations.json",
+    "size_bytes": 5779,
+    "sha256": "3a63020957846dfe30e2c8c113d57bcea6895e29ae84b3bf67812c8b8d64b4d6"
+  },
+  {
+    "path": "diagnostic/case-01-delete/result.json",
+    "size_bytes": 1428,
+    "sha256": "ec0971cd2ced10fd8f18e6043a2a2f63ce27308e9c4c043771ebc87a902857b8"
+  },
+  {
+    "path": "diagnostic/case-02-persist/observations.json",
+    "size_bytes": 5778,
+    "sha256": "686015b8e9380420c6c04995a7717c7b410103eea0afc6d5fcb9b4b15d1e6908"
+  },
+  {
+    "path": "diagnostic/case-02-persist/result.json",
+    "size_bytes": 1430,
+    "sha256": "264171e2c3e74d41c5e095d24d90f8837140b279505862b17c71dcaa1cff7cbe"
+  },
+  {
+    "path": "diagnostic/case-03-truncate/observations.json",
+    "size_bytes": 5782,
+    "sha256": "cf8b6be814bcb508ed12f8c103f521b467442cab186633e53018a32ab7f704be"
+  },
+  {
+    "path": "diagnostic/case-03-truncate/result.json",
+    "size_bytes": 1431,
+    "sha256": "f02e68d1e5e4417789c734cb2eecfae99b17f54cb9c3c9942061ae208a57e054"
+  },
+  {
+    "path": "diagnostic/case-04-delete/observations.json",
+    "size_bytes": 5791,
+    "sha256": "f3b06a8fc501f65f19ea7317c8584d84dadaffe668ffb69f6a5ed708eb6aead5"
+  },
+  {
+    "path": "diagnostic/case-04-delete/result.json",
+    "size_bytes": 1430,
+    "sha256": "0e5fb3e2c252fa2317e938860784183d814611512064041c6722daf8d15659b1"
+  },
+  {
+    "path": "summary.json",
+    "size_bytes": 3712,
+    "sha256": "0e8a75b4b57075307ace573186c66acf0e2ae309cdb678b7f3ad938641edf925"
+  }
+]

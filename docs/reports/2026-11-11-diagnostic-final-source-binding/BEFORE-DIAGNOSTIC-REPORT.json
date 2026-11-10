@@ -1,0 +1,269 @@
+{
+  "schema": "online-inventory-cost-diagnostic/v1",
+  "status": "completed_diagnostic",
+  "started_at": "2026-11-10T19:49:45.168104+00:00",
+  "files": 3,
+  "mode_sequence": [
+    "DELETE",
+    "PERSIST",
+    "TRUNCATE",
+    "DELETE"
+  ],
+  "synchronous": "FULL",
+  "production_defaults_changed": false,
+  "real_model_calls": false,
+  "real_source_access": false,
+  "source_regression_acceptance": false,
+  "executable_acceptance": false,
+  "source_binding_scope": [
+    "poc/online_inventory_store.py",
+    "poc/online_investigation.py",
+    "poc/online_material_reader.py",
+    "poc/online_material_query.py",
+    "poc/online_material_format.py",
+    "poc/online_material_export.py",
+    "poc/business_index.py",
+    "poc/tests/large_repository_fixture.py",
+    "poc/tests/large_repository_online_driver.py",
+    "poc/tests/test_large_repository_inventory_acceptance.py"
+  ],
+  "source_binding_before": {
+    "poc/online_inventory_store.py": "b3f12ac5b2efb229ab8666459e73cedea9d34873df30ae582774ad5ad6d9ae3d",
+    "poc/online_investigation.py": "6e32c41ee3d07f97cd43070768c4aafb9c47cbd72a26d74d020ede07ba095cab",
+    "poc/online_material_reader.py": "207915fc5ad159a696683481ea7ad8bb70578bce7f6c72f9774160fec9b43b22",
+    "poc/online_material_query.py": "0fe8b9b329096d6b3d90729c3fa343eb6d650be83e044cd652ae898994d82995",
+    "poc/online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/business_index.py": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03",
+    "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+    "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+    "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+  },
+  "observer_sha256": "0c793bf09138c4f8e78191303e99b1aedc9a90300437fe87fd6bb916a5eaa127",
+  "cases": [
+    {
+      "case": 1,
+      "mode": "DELETE",
+      "status": "passed",
+      "seconds": 0.079409416008275,
+      "verification": {
+        "page_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "export_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "pages": 1,
+        "source_reviews": 3,
+        "rollback_kept_publication": true,
+        "rollback_kept_session_metadata_bytes": true,
+        "rollback_kept_summary": true,
+        "statistics": {
+          "inventory_files": 3,
+          "reviewed_files": 3,
+          "source_reads_before_delivery": 3,
+          "durable_completed_actions": 14,
+          "initial_completed_action_retained": true,
+          "older_handle_unchanged": true,
+          "final_model_requests": 2,
+          "restores": 2
+        }
+      }
+    },
+    {
+      "case": 2,
+      "mode": "PERSIST",
+      "status": "passed",
+      "seconds": 0.08517912495881319,
+      "verification": {
+        "page_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "export_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "pages": 1,
+        "source_reviews": 3,
+        "rollback_kept_publication": true,
+        "rollback_kept_session_metadata_bytes": true,
+        "rollback_kept_summary": true,
+        "statistics": {
+          "inventory_files": 3,
+          "reviewed_files": 3,
+          "source_reads_before_delivery": 3,
+          "durable_completed_actions": 14,
+          "initial_completed_action_retained": true,
+          "older_handle_unchanged": true,
+          "final_model_requests": 2,
+          "restores": 2
+        }
+      }
+    },
+    {
+      "case": 3,
+      "mode": "TRUNCATE",
+      "status": "passed",
+      "seconds": 0.07341545802773908,
+      "verification": {
+        "page_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "export_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "pages": 1,
+        "source_reviews": 3,
+        "rollback_kept_publication": true,
+        "rollback_kept_session_metadata_bytes": true,
+        "rollback_kept_summary": true,
+        "statistics": {
+          "inventory_files": 3,
+          "reviewed_files": 3,
+          "source_reads_before_delivery": 3,
+          "durable_completed_actions": 14,
+          "initial_completed_action_retained": true,
+          "older_handle_unchanged": true,
+          "final_model_requests": 2,
+          "restores": 2
+        }
+      }
+    },
+    {
+      "case": 4,
+      "mode": "DELETE",
+      "status": "passed",
+      "seconds": 0.07498375000432134,
+      "verification": {
+        "page_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "export_delivery": {
+          "expected_positions": 3,
+          "unique_delivered_positions": 3,
+          "missing_count": 0,
+          "duplicate_count": 0,
+          "unexpected_count": 0,
+          "invalid_business_rows": 0,
+          "first_middle_last_preserved": true,
+          "missing_sample": [],
+          "duplicate_sample": [],
+          "invalid_sample": [],
+          "complete": true,
+          "real_model_semantics_verified": false
+        },
+        "pages": 1,
+        "source_reviews": 3,
+        "rollback_kept_publication": true,
+        "rollback_kept_session_metadata_bytes": true,
+        "rollback_kept_summary": true,
+        "statistics": {
+          "inventory_files": 3,
+          "reviewed_files": 3,
+          "source_reads_before_delivery": 3,
+          "durable_completed_actions": 14,
+          "initial_completed_action_retained": true,
+          "older_handle_unchanged": true,
+          "final_model_requests": 2,
+          "restores": 2
+        }
+      }
+    }
+  ],
+  "limits": [
+    "This diagnostic does not replace the original 10001-file test, complete regressions, final EXE or office acceptance.",
+    "Only the ten listed repository files are checked unchanged; this is not an assertion that the entire checkout is clean.",
+    "Row-changing commits are not direct VFS fsync counts.",
+    "No fastest journal mode is selected automatically."
+  ],
+  "source_binding_after": {
+    "poc/online_inventory_store.py": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "poc/online_investigation.py": "6e32c41ee3d07f97cd43070768c4aafb9c47cbd72a26d74d020ede07ba095cab",
+    "poc/online_material_reader.py": "207915fc5ad159a696683481ea7ad8bb70578bce7f6c72f9774160fec9b43b22",
+    "poc/online_material_query.py": "0fe8b9b329096d6b3d90729c3fa343eb6d650be83e044cd652ae898994d82995",
+    "poc/online_material_format.py": "1c1a717012067b2b744f9bc9dbd323ac1cad3979c2173a134bc8923fb1ddd649",
+    "poc/online_material_export.py": "7428b9d8a58cdbb5a081d414afe1830b1951681e1bb597c411428fca704b4cc8",
+    "poc/business_index.py": "db55df28b4109c03e511f2d5f6f46ace1c59d20927b1f0ab7159490ce3d3af03",
+    "poc/tests/large_repository_fixture.py": "73fd47f300d114e3212acd6b220ba5f494e7fdf91d9626aa8a285261133b4e4f",
+    "poc/tests/large_repository_online_driver.py": "bc3de0eb84a601622a73ea86c2f79b4b691536611967e5c23b174ef73da41d29",
+    "poc/tests/test_large_repository_inventory_acceptance.py": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4"
+  },
+  "source_unchanged_in_declared_scope": false,
+  "completed_at": "2026-11-10T19:49:45.526709+00:00"
+}

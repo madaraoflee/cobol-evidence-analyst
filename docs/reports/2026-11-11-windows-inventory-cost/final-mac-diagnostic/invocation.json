@@ -1,0 +1,34 @@
+{
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "/private/tmp/cobol-global-formula-audit-tree-20261110/tools/diagnose_online_inventory_cost.py",
+    "--repo-root",
+    "/private/tmp/cobol-global-formula-audit-tree-20261110",
+    "--output",
+    "/private/tmp/cobol-online-cost-final-200-20261111/diagnostic",
+    "--files",
+    "200"
+  ],
+  "kind": "offline_local_diagnostic_invocation",
+  "status": "completed_diagnostic",
+  "tool_sha256_before": "11f5e3494fd5f680c95623d7aa8f0d5b4dfafc4a276ec7908cd44dd0dc957eee",
+  "requested_files": 200,
+  "requested_modes": [
+    "DELETE",
+    "PERSIST",
+    "TRUNCATE",
+    "DELETE"
+  ],
+  "requested_synchronous": "FULL",
+  "source_regression_acceptance": false,
+  "executable_acceptance": false,
+  "real_model_acceptance": false,
+  "office_acceptance": false,
+  "started_at": "2026-11-10T19:59:52.730062+00:00",
+  "exit_code": 0,
+  "elapsed_seconds": 10.366988042020239,
+  "completed_at": "2026-11-10T20:00:03.097521+00:00",
+  "tool_sha256_after": "11f5e3494fd5f680c95623d7aa8f0d5b4dfafc4a276ec7908cd44dd0dc957eee",
+  "tool_unchanged": true
+}
