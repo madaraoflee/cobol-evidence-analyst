@@ -1,0 +1,21 @@
+test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable) ... ok
+test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight) ... FAIL
+test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request) ... ok
+
+======================================================================
+FAIL: test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-native-scope-regression-proposal-20261111/test_scoped_formula_frontier.py", line 156, in test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight
+    self.assertEqual(set(frontiers[-1]["completed_paths"]) | set(frontiers[-1]["active_paths"]), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'calc-03.cbl'
+'calc-07.cbl'
+'calc-08.cbl'
+'calc-04.cbl'
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.942s
+
+FAILED (failures=1)

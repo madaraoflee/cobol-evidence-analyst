@@ -1,0 +1,128 @@
+{
+  "source_commit": "7a7f8848d2b3320358bceae94c2fc32fd7e2b7d8",
+  "overlay_sha256": "1ee9330c5b24a49f2f87b3da8c458021a5d4c41485f9012880f7c4fdf949d668",
+  "replacement": "        accepted = (source_frontier_state or {}).get(\"read_candidate_paths\", [])\n        if exclusive_ranges:\n            accepted = [path for path in accepted if path in paths]\n            if investigation_frontier_state and not set(investigation_frontier_state.get(\"known_paths\", [])).issubset(paths):\n                investigation_frontier_state = None\n                base[\"investigation_frontier_reset_reason\"] = \"exclusive_occurrence_scope_restored\"\n        paths = list(dict.fromkeys([*paths, *accepted]))",
+  "runtime_mutated": false,
+  "existing_tests": {
+    "run": 0,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "output": "\n----------------------------------------------------------------------\nRan 0 tests in 0.000s\n\nNO TESTS RAN\n"
+  },
+  "ordinary_twelve_formula_paths": {
+    "question": "PREMIUM-AMT 如何计算？",
+    "turns": [
+      {
+        "status": "PARTIAL",
+        "active": [
+          "calc-00.cbl",
+          "calc-01.cbl",
+          "calc-05.cbl",
+          "calc-06.cbl",
+          "calc-09.cbl",
+          "calc-10.cbl",
+          "calc-11.cbl",
+          "calc-02.cbl"
+        ],
+        "completed": [],
+        "remaining": [
+          "calc-03.cbl",
+          "calc-04.cbl",
+          "calc-07.cbl",
+          "calc-08.cbl"
+        ],
+        "known": [
+          "calc-00.cbl",
+          "calc-01.cbl",
+          "calc-05.cbl",
+          "calc-06.cbl",
+          "calc-09.cbl",
+          "calc-10.cbl",
+          "calc-11.cbl",
+          "calc-02.cbl",
+          "calc-03.cbl",
+          "calc-04.cbl",
+          "calc-07.cbl",
+          "calc-08.cbl"
+        ],
+        "global_inventory": false
+      },
+      {
+        "status": "PARTIAL",
+        "active": [
+          "calc-03.cbl",
+          "calc-04.cbl",
+          "calc-07.cbl",
+          "calc-08.cbl"
+        ],
+        "completed": [
+          "calc-00.cbl",
+          "calc-01.cbl",
+          "calc-05.cbl",
+          "calc-06.cbl",
+          "calc-09.cbl",
+          "calc-10.cbl",
+          "calc-11.cbl",
+          "calc-02.cbl"
+        ],
+        "remaining": [],
+        "known": [
+          "calc-00.cbl",
+          "calc-01.cbl",
+          "calc-05.cbl",
+          "calc-06.cbl",
+          "calc-09.cbl",
+          "calc-10.cbl",
+          "calc-11.cbl",
+          "calc-02.cbl",
+          "calc-03.cbl",
+          "calc-04.cbl",
+          "calc-07.cbl",
+          "calc-08.cbl"
+        ],
+        "global_inventory": false
+      }
+    ],
+    "request_count": 2,
+    "request_candidate_paths": [
+      [
+        "calc-00.cbl",
+        "calc-01.cbl",
+        "calc-05.cbl",
+        "calc-06.cbl",
+        "calc-09.cbl",
+        "calc-10.cbl",
+        "calc-11.cbl",
+        "calc-02.cbl"
+      ],
+      [
+        "calc-03.cbl",
+        "calc-04.cbl",
+        "calc-07.cbl",
+        "calc-08.cbl"
+      ]
+    ],
+    "supplied_paths": [
+      "calc-00.cbl",
+      "calc-01.cbl",
+      "calc-02.cbl",
+      "calc-03.cbl",
+      "calc-04.cbl",
+      "calc-05.cbl",
+      "calc-06.cbl",
+      "calc-07.cbl",
+      "calc-08.cbl",
+      "calc-09.cbl",
+      "calc-10.cbl",
+      "calc-11.cbl"
+    ],
+    "pending": {
+      "rule_path_count": 0,
+      "primary_rule_batch_count": 0,
+      "source_window_count": 0,
+      "source_path_count": 0,
+      "source_expansion_count": 0
+    }
+  }
+}

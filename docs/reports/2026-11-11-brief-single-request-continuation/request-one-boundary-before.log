@@ -1,0 +1,46 @@
+test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable) ... ERROR
+test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight) ... FAIL
+test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request) ... FAIL
+
+======================================================================
+ERROR: test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-native-scope-regression-proposal-20261111/test_scoped_formula_frontier.py", line 101, in test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable
+    fixed = prepare_investigation_frontier(mapping, "first two IF", ["entry.cbl"], ["entry.cbl"], ranges,
+        saved=old, restricted_scope=True)
+TypeError: prepare_investigation_frontier() got an unexpected keyword argument 'restricted_scope'
+
+======================================================================
+FAIL: test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-native-scope-regression-proposal-20261111/test_scoped_formula_frontier.py", line 156, in test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight
+    self.assertEqual(set(frontiers[-1]["completed_paths"]) | set(frontiers[-1]["active_paths"]), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'calc-04.cbl'
+'calc-08.cbl'
+'calc-03.cbl'
+'calc-07.cbl'
+
+======================================================================
+FAIL: test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request (test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-native-scope-regression-proposal-20261111/test_scoped_formula_frontier.py", line 78, in test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request
+    self.assertEqual([items[k]["candidate_count"] for k in ("formula", "conditions", "declarations")], [2, 2, 3])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [22, 32, 23] != [2, 2, 3]
+
+First differing element 0:
+22
+2
+
+- [22, 32, 23]
++ [2, 2, 3]
+
+----------------------------------------------------------------------
+Ran 3 tests in 3.162s
+
+FAILED (failures=2, errors=1)

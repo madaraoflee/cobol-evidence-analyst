@@ -1,0 +1,18 @@
+{
+  "modules": {
+    "question_investigation": "/private/tmp/cobol-native-scope-regression-proposal-20261111/poc/question_investigation.py",
+    "source_frontier": "/private/tmp/cobol-native-scope-regression-proposal-20261111/poc/source_frontier.py"
+  },
+  "suites": [
+    "test_question_scope_regressions",
+    "test_question_boundary_scope",
+    "test_persistent_investigation_frontier",
+    "test_repository_formula_inventory",
+    "test_complete_working_set"
+  ],
+  "tests_run": 76,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "output": "............................................................................\n----------------------------------------------------------------------\nRan 76 tests in 12.053s\n\nOK\n"
+}

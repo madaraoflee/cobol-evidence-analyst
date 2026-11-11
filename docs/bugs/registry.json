@@ -8677,6 +8677,22 @@
       "status": "open",
       "verification_scope": "source_offline",
       "limitations": "现有小型用例能核对单程序范围，新复现含干扰程序、已读路径及重复动作。修复需要触及冻结的本地问答，待核对最小方案及用户决定范围。现有 EXE 候选门禁如实失败，原样保留，尚无可交付新候选。"
+    },
+    {
+      "id": "BUG-20261111-024",
+      "title": "简要回答每轮仅一次请求时显式续查无法推进普通公式后续批次",
+      "symptom": "12 个中性公式程序均已定位。简要模式每轮一次模型请求时，五次显式继续仍重复同一批源码，末四项未进入供证；路径记录仍保留。当前源码和 023 提案均复现。",
+      "root_cause": "唯一可用请求被判定为最后一次，简要回答的预取条件不执行待办读取。继续后重新进入同一请求预算阶段，没有完成并推进当前批。",
+      "regressions": [],
+      "evidence": [
+        "docs/reports/2026-11-11-brief-single-request-continuation/README.md",
+        "docs/reports/2026-11-11-brief-single-request-continuation/request-one-boundary-before.log",
+        "docs/reports/2026-11-11-brief-single-request-continuation/request-one-boundary-after.log",
+        "docs/reports/2026-11-11-brief-single-request-continuation/detailed-one-control.json"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "边界是普通公式、简要回答且每轮仅一次请求的组合。正常两请求简要模式和一次请求详细模式有通过对照。未改本地预算与续查行为，尚无入库的专项回归。"
     }
   ],
   "updated_at": "2026-11-11"
