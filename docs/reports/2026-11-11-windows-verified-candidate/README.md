@@ -9,3 +9,7 @@
 补充工具原先误把编译 Python 诊断字段当作操作系统启动路径。冻结的 Nuitka 4.2.2 在 standalone 模式保存编译解释器的名称，并在运行时加上产品目录。实测包只有一个 EXE。原 Windows 工具直接启动了按 ZIP 摘要校验后的 EXE，并从已加载模块核对同目录的实际 SQLite DLL。补充工具现核对限定版本下的同目录兼容字段，继续拒绝异目录、错误编译器及 ZIP 中另带解释器的情况。[Nuitka 4.2.2 原代码](https://github.com/Nuitka/Nuitka/blob/4.2.2/nuitka/code_generation/ConstantCodes.py#L110-L118)
 
 同一 ZIP 的 Windows 办公助手已在 GitHub runner 编译和启动，使用同一 SQLite 3.54.1，组装后用原 EXE 通过计划核对和 79 项原生离线样本。验收助手提供现场复测入口。公司现场六条仍保留为未验证。[办公助手运行记录](https://github.com/madaraoflee/cobol-evidence-analyst/actions/runs/42986439252)
+
+最终缺陷台账的 5,435 项 Python 和 338 项浏览器回归全部通过，零失败、零跳过。311 条缺陷中，305 条通过映射的回归；六条现场问题保留为待验证，台账整体因此仍为 blocked。逐条结果、源码快照和各分片原始日志同目录归档。SQLite 原始 CRLF 报告以 Actions ZIP 保存，便于按原始字节核验。
+
+办公助手的原始 Actions 附件独立复核通过，含 79 个新运行样本、同一应用 ZIP/EXE、相同官方 DLL 和完整无调用计划。补充工具最初将 Windows 实测返回的短路径拼写误判为目录外。保留该结果与定向复核。定向复核以同一附件、助手 EXE、构建信息和 Windows 原生目录验证为依据，未扩大允许任意短路径的规则。
