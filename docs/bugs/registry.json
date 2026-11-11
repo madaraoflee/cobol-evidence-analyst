@@ -8096,11 +8096,12 @@
         "docs/reports/2026-11-11-windows-inventory-cost/failed-windows-regression-evidence.zip",
         "docs/reports/2026-11-11-online-managed-storage/README.md",
         "docs/reports/2026-11-11-online-managed-storage/windows-rollback-default-temp/README.md",
-        "docs/reports/2026-11-11-online-managed-storage/windows-active-keeper/README.md"
+        "docs/reports/2026-11-11-online-managed-storage/windows-active-keeper/README.md",
+        "docs/reports/2026-11-11-windows-native-scope-regression/source-verification-summary.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "在线专属源补丁已准备并有定向验证，保留FULL及原资料/历史/旧断言；Windows共享SQLite仍未升级，目标万文件长测、最终EXE和公司设备没有因Mac或200文件实验而结案，此条继续open。用户共享组件冻结例外尚未回复，不能用旧有缺陷engine直接启用新WAL。"
+      "limitations": "真实 Windows run 42952543318 的 10,001 文件在线完整清单在 1350.012 秒完成，所在分片 2629.884 秒完成 1351 项并正常清理。此条是原源码分片超时，最终 EXE 的另一组范围回归另记 023，公司仓库耗时待现场复测。"
     },
     {
       "id": "BUG-20261111-013",
@@ -8348,11 +8349,12 @@
         "docs/reports/2026-11-11-sqlite-runtime-decision/PROPOSAL.md",
         "docs/reports/2026-11-11-sqlite-runtime-decision/archive-static-verification.json",
         "docs/reports/2026-11-11-sqlite-runtime-decision/windows-experiment/summary.json",
-        "docs/reports/2026-11-11-approved-private-sqlite-runtime/README.md"
+        "docs/reports/2026-11-11-approved-private-sqlite-runtime/README.md",
+        "docs/reports/2026-11-11-windows-native-scope-regression/sdk-verification-summary.json"
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "用户已明确批准本次私有共享组件升级及完整回归。工具、固定官方pin、同组件工作流及成品实际加载校验已接线，原本地业务/资料格式/断言保持；源码定向验证不等于真实Windows兼容性，最终Windows回归、EXE与验收助手实际加载证明尚未完成，因此仍open。没有实际复现项目数据损坏，不据此解释用户公司500。"
+      "limitations": "四个真实 Windows 私有 SDK 已验证，编译与构建时自检已过。最终 ZIP 的独立 SQLite 实际加载检查因 BUG-20261111-023 阻断而未执行，办公助手尚未验证。本项目未复现实际数据损坏，现场 HTTP 500 单独跟踪。"
     },
     {
       "id": "BUG-20261111-015",
@@ -8511,11 +8513,12 @@
       "evidence": [
         "docs/reports/2026-11-11-private-sdk-path-compatibility/summary.json",
         "docs/reports/2026-11-11-private-sdk-path-compatibility/outer-path-trace/SDK-PATH-TRACE.json",
-        "docs/reports/2026-11-11-private-sdk-path-compatibility/internal-sdk-trace/SDK-PATH-TRACE.json"
+        "docs/reports/2026-11-11-private-sdk-path-compatibility/internal-sdk-trace/SDK-PATH-TRACE.json",
+        "docs/reports/2026-11-11-windows-native-scope-regression/sdk-verification-summary.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "已依据真实SDK5856条metadata-only诊断实现仅python3.exe标准别名的显式窄物化，默认/显式任意source路径及其他links仍拒；原24与新增10回归通过，019收紧另有5例。目标真实Windows SDK复制/加载尚未完成，仍open，不把中性PE/进程模拟当成目标验收；完整旧回归随后执行。"
+      "limitations": "真实 Windows run 42952543318 四个源码分片均完成私有 SDK 复制并加载组件。各宿主 SDK 的 5856 条逻辑记录与标准启动器别名前后相同；早期失败证据保留。"
     },
     {
       "id": "BUG-20261111-019",
@@ -8578,11 +8581,12 @@
       ],
       "evidence": [
         "docs/reports/2026-11-11-windows-cached-guard-contract/README.md",
-        "docs/reports/2026-11-11-windows-cached-guard-contract/proposal/assertion-preservation.json"
+        "docs/reports/2026-11-11-windows-cached-guard-contract/proposal/assertion-preservation.json",
+        "docs/reports/2026-11-11-windows-native-scope-regression/source-verification-summary.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "用户已批准最小测试夹具迁移。可真实替换时维持原有测试；Windows 实际拒绝重命名时验证物理文件及数据，再用同一活跃连接验证路径保护。新增 SQL 删除、版本更新和关闭后的实文件改名回归。完整 Windows 回归及最终 EXE 尚待验证，历史失败报告继续保留。"
+      "limitations": "用户批准的测试迁移已在真实 Windows run 42952543318 验证，两项缓存守卫和新增 SQL 生命周期检查均通过。Windows 先检查真实文件占用，再在同一缓存连接上验证保护。126 项原有断言均保留。"
     },
     {
       "id": "BUG-20261111-021",
@@ -8596,11 +8600,12 @@
         }
       ],
       "evidence": [
-        "docs/reports/2026-11-11-windows-large-index-cleanup/connection-owner-evidence.json"
+        "docs/reports/2026-11-11-windows-large-index-cleanup/connection-owner-evidence.json",
+        "docs/reports/2026-11-11-windows-native-scope-regression/source-verification-summary.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "用户已批准测试改用 closing 显式关闭只读查询连接。原 SQL、10001 文件输入和全部旧断言已保留，历史失败报告继续保留。Windows 整组完成后的目录清理尚待实跑确认。"
+      "limitations": "用户批准显式关闭测试自身查询连接。真实 Windows run 42952543318 原索引与导出检查通过，10,001 文件分片正常完成，清理 index.sqlite 无 WinError32。"
     },
     {
       "id": "BUG-20261111-022",
@@ -8646,7 +8651,33 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "本次修复办公包组装入口。任一包声明私有 SQLite 时，两边都必须匹配固定官方 pin、通过已编译探针并附带同一 DLL；双方均未声明私有组件的历史包按原合同校验。源码夹具不启动 EXE 或调用模型。实际新办公包的双运行时和目标设备结果另行验证。"
+    },
+    {
+      "id": "BUG-20261111-023",
+      "title": "本地定向公式问答被宽范围待查路径覆盖，最终 Windows EXE 联合验收失败",
+      "symptom": "真实 Windows run 42952543318 的 79 个冻结样本完成 74 项通过、5 项失败。五次 large_repository 精确问前两条 IF 的检查均未通过；首个主问加补问 74.523 秒超过 60 秒。",
+      "root_cause": "全库公式功能引入后，普通计算问题也启用了跨路径调查进度。路径合并将已识别的定向程序和段落之外的候选加入义务，前两条 IF 的公式、声明及条件计数变为 22、23、32，未知输入从 2 个扩成 22 个，并增加重复组装。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_question_scope_regressions.QuestionScopeRegressions.test_two_occurrences_are_selected_before_budget_and_pic_reads_are_real"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_question_scope_regressions.QuestionScopeRegressions.test_occurrence_window_and_pic_fit_three_actual_source_reads"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-native-scope-regression/NATIVE-SCOPE-FAILURE-SUMMARY.json",
+        "docs/reports/2026-11-11-windows-native-scope-regression/failure-evidence-13829076369.original.zip",
+        "docs/reports/2026-11-11-windows-native-scope-regression/README.md",
+        "docs/reports/2026-11-11-windows-native-scope-regression/native-before-vs-earlier-passing.json",
+        "docs/reports/2026-11-11-windows-native-scope-regression/causal-source-reproduction.json"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "现有小型用例能核对单程序范围，新复现含干扰程序、已读路径及重复动作。修复需要触及冻结的本地问答，待核对最小方案及用户决定范围。现有 EXE 候选门禁如实失败，原样保留，尚无可交付新候选。"
     }
   ],
-  "updated_at": "2026-11-10"
+  "updated_at": "2026-11-11"
 }

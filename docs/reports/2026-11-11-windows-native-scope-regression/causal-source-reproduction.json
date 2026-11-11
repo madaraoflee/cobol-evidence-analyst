@@ -1,0 +1,368 @@
+{
+  "current": {
+    "module_sha256": "9fe704a18dadee3f8c03ef2e82bd98ef9f44acfe4f14c4c607d60f98c6ba7b0d",
+    "request_count": 3,
+    "status": "PARTIAL",
+    "stop_reason": "answer_incomplete",
+    "formula": {
+      "id": "calculation_formula",
+      "kind": "formula",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_378537266487aa07b6c1f4a8"
+      ],
+      "candidate_count": 22,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "conditions": {
+      "id": "calculation_conditions",
+      "kind": "conditions",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_378537266487aa07b6c1f4a8"
+      ],
+      "candidate_count": 32,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "declarations": {
+      "id": "calculation_declarations",
+      "kind": "declarations",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_378537266487aa07b6c1f4a8"
+      ],
+      "candidate_count": 23,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "inputs": {
+      "id": "calculation_inputs",
+      "kind": "inputs",
+      "status": "UNRESOLVED",
+      "evidence_ids": [],
+      "candidate_count": 0,
+      "missing_count": 0,
+      "reason": "input_source_not_located",
+      "fields": [
+        "INPUT-000",
+        "INPUT-001",
+        "INPUT-002",
+        "INPUT-003",
+        "INPUT-004",
+        "INPUT-005",
+        "INPUT-006",
+        "INPUT-007",
+        "INPUT-008",
+        "INPUT-009",
+        "INPUT-010",
+        "INPUT-011",
+        "INPUT-012",
+        "INPUT-013",
+        "INPUT-014",
+        "INPUT-015",
+        "INPUT-018",
+        "INPUT-019",
+        "INPUT-020",
+        "INPUT-021",
+        "INPUT-022",
+        "INPUT-023"
+      ]
+    },
+    "scope": {
+      "ranges": [
+        {
+          "relative_path": "member-00002.cbl",
+          "source_sha256": "93bb4fb7ec63f164523c3acba5257d5fd534126ad4a033130bbc5e4879d7cc33",
+          "procedure_name": "RULE-000",
+          "procedure_kind": "Paragraph",
+          "source_format": "free",
+          "start_line": 48,
+          "end_line": 55,
+          "range_basis": "first_if_occurrences",
+          "complete_value_flow": false,
+          "occurrence_count": 2,
+          "control_scope_status": "source_scope_closed"
+        }
+      ],
+      "interpretation": "source_occurrences_not_runtime_execution"
+    },
+    "gap_reasons": [
+      "input_source_not_located",
+      "field_candidate_budget",
+      "condition_candidate_budget",
+      "same_symbol_candidates_limited",
+      "callee_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "input_source_not_located",
+      "field_candidate_budget",
+      "condition_candidate_budget",
+      "same_symbol_candidates_limited",
+      "callee_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "input_source_not_located",
+      "field_candidate_budget",
+      "field_candidate_budget",
+      "condition_candidate_budget",
+      "same_symbol_candidates_limited",
+      "callee_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited"
+    ],
+    "candidate_paths": [
+      "member-00002.cbl",
+      "shared-002.cpy",
+      "shared-003.cpy",
+      "shared-000.cpy",
+      "shared-001.cpy",
+      "member-00000.cbl",
+      "member-00001.cbl"
+    ],
+    "per_round": [
+      {
+        "formula": 32,
+        "conditions": 34,
+        "declarations": 28
+      },
+      {
+        "formula": 32,
+        "conditions": 61,
+        "declarations": 32
+      },
+      {
+        "formula": 22,
+        "conditions": 32,
+        "declarations": 23
+      }
+    ]
+  },
+  "previous_question_investigation_only": {
+    "module_sha256": "0b82e1473f62cd50633e09dc14740886456a2ff5903bf2689982d8b20bb9b4a5",
+    "request_count": 1,
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "formula": {
+      "id": "calculation_formula",
+      "kind": "formula",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 2,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "conditions": {
+      "id": "calculation_conditions",
+      "kind": "conditions",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 2,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "declarations": {
+      "id": "calculation_declarations",
+      "kind": "declarations",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 3,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "inputs": {
+      "id": "calculation_inputs",
+      "kind": "inputs",
+      "status": "UNRESOLVED",
+      "evidence_ids": [],
+      "candidate_count": 0,
+      "missing_count": 0,
+      "reason": "input_source_not_located",
+      "fields": [
+        "INPUT-000",
+        "INPUT-001"
+      ]
+    },
+    "scope": {
+      "ranges": [
+        {
+          "relative_path": "member-00002.cbl",
+          "source_sha256": "93bb4fb7ec63f164523c3acba5257d5fd534126ad4a033130bbc5e4879d7cc33",
+          "procedure_name": "RULE-000",
+          "procedure_kind": "Paragraph",
+          "source_format": "free",
+          "start_line": 48,
+          "end_line": 55,
+          "range_basis": "first_if_occurrences",
+          "complete_value_flow": false,
+          "occurrence_count": 2,
+          "control_scope_status": "source_scope_closed"
+        }
+      ],
+      "interpretation": "source_occurrences_not_runtime_execution"
+    },
+    "gap_reasons": [
+      "input_source_not_located",
+      "same_symbol_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "same_symbol_candidates_limited",
+      "caller_nearby_candidates_limited"
+    ],
+    "candidate_paths": [
+      "member-00002.cbl",
+      "shared-002.cpy",
+      "shared-003.cpy",
+      "shared-000.cpy",
+      "shared-001.cpy"
+    ],
+    "per_round": [
+      {
+        "formula": 2,
+        "conditions": 2,
+        "declarations": 3
+      }
+    ]
+  },
+  "scoped_read_candidates_filter": {
+    "module_sha256": "a2afdfe47af27d698ff85652e6cddf05d9a9020f1869d4fe937d2904b371c00f",
+    "request_count": 1,
+    "status": "PARTIAL",
+    "stop_reason": "question_evidence_incomplete",
+    "formula": {
+      "id": "calculation_formula",
+      "kind": "formula",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 2,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "conditions": {
+      "id": "calculation_conditions",
+      "kind": "conditions",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 2,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "declarations": {
+      "id": "calculation_declarations",
+      "kind": "declarations",
+      "status": "SATISFIED",
+      "evidence_ids": [
+        "ev_page_d47e7c30651ee36f19e6a1ac"
+      ],
+      "candidate_count": 3,
+      "missing_count": 0,
+      "reason": "source_candidates_supplied"
+    },
+    "inputs": {
+      "id": "calculation_inputs",
+      "kind": "inputs",
+      "status": "UNRESOLVED",
+      "evidence_ids": [],
+      "candidate_count": 0,
+      "missing_count": 0,
+      "reason": "input_source_not_located",
+      "fields": [
+        "INPUT-000",
+        "INPUT-001"
+      ]
+    },
+    "scope": {
+      "ranges": [
+        {
+          "relative_path": "member-00002.cbl",
+          "source_sha256": "93bb4fb7ec63f164523c3acba5257d5fd534126ad4a033130bbc5e4879d7cc33",
+          "procedure_name": "RULE-000",
+          "procedure_kind": "Paragraph",
+          "source_format": "free",
+          "start_line": 48,
+          "end_line": 55,
+          "range_basis": "first_if_occurrences",
+          "complete_value_flow": false,
+          "occurrence_count": 2,
+          "control_scope_status": "source_scope_closed"
+        }
+      ],
+      "interpretation": "source_occurrences_not_runtime_execution"
+    },
+    "gap_reasons": [
+      "input_source_not_located",
+      "same_symbol_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "caller_nearby_candidates_limited",
+      "same_symbol_candidates_limited",
+      "caller_nearby_candidates_limited"
+    ],
+    "candidate_paths": [
+      "member-00002.cbl",
+      "shared-002.cpy",
+      "shared-003.cpy",
+      "shared-000.cpy",
+      "shared-001.cpy"
+    ],
+    "per_round": [
+      {
+        "formula": 2,
+        "conditions": 2,
+        "declarations": 3
+      }
+    ]
+  }
+}
