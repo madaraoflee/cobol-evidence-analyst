@@ -1,0 +1,131 @@
+{
+  "kind": "read_only_private_SQLite_build_integration_review",
+  "completed_at": "2026-11-10T23:59:24.740539+00:00",
+  "status": "no_definite_blocking_issue_found",
+  "checks": [
+    {
+      "check": "source_and_build_jobs_prepare_then_verify_active_runtime",
+      "passed": true,
+      "basis": "Read both source/build job step ordering; each setup precedes active verification and assigned work."
+    },
+    {
+      "check": "source_and_compile_are_explicit_private_optin",
+      "passed": true,
+      "basis": "Desktop workflow calls private-enabled prepare_environment and build invocation explicitly."
+    },
+    {
+      "check": "ordinary_builder_does_not_consume_ambient_runtime_env",
+      "passed": true,
+      "basis": "prepare_environment/build/finish_delivery only request current_identity after explicit flag."
+    },
+    {
+      "check": "fresh_runtime_marker_and_cache_fingerprint",
+      "passed": true,
+      "basis": "New runtime inputs select separate venv and Nuitka cache; marked reuse requires exact input dictionary."
+    },
+    {
+      "check": "base_and_venv_identity_bound_to_loaded_component",
+      "passed": true,
+      "basis": "Active interpreter must share receipt private base; key original binaries and actual loaded extension/DLL paths verified."
+    },
+    {
+      "check": "product_uses_actual_compiled_probe_and_one_pinned_DLL",
+      "passed": true,
+      "basis": "validate_product reuses strict common validator then checks exact sole packaged sqlite3.dll bytes and path."
+    },
+    {
+      "check": "desktop_probe_is_optin_selftest_only",
+      "passed": true,
+      "basis": "Ordinary main/self-test without flag retain previous behavior; pin self-test runs shared source/compiled probe."
+    },
+    {
+      "check": "office_probe_is_optin_selftest_only",
+      "passed": true,
+      "basis": "Office helper accepts pin only with self-test and resolves compiled/source allowed root separately."
+    },
+    {
+      "check": "office_build_uses_private_runtime_and_product_validation",
+      "passed": true,
+      "basis": "Office manual build uses private prepare, flag, fingerprint cache and actual native self-test product verification."
+    },
+    {
+      "check": "application_input_binding_includes_new_component_tools",
+      "passed": true,
+      "basis": "The existing poc tree binding also covers shared runtime probe and self-test source."
+    },
+    {
+      "check": "old_runtime_contract_and_candidate_gate_not_relaxed",
+      "passed": true,
+      "basis": "Source and compiled old time gates persist; extra packaged-runtime check blocks accepted-candidate upload."
+    },
+    {
+      "check": "copied_script_launchers_not_added_to_PATH",
+      "passed": true,
+      "basis": "Setup activates only private python.exe root; package installs use interpreter module entry points."
+    },
+    {
+      "check": "two_workflows_actionlint",
+      "passed": true,
+      "basis": "Official checksum-verified actionlint v1.7.7; shellcheck/pyflakes disabled as in repository workflow lint."
+    }
+  ],
+  "definite_blocking_findings": [],
+  "files": [
+    {
+      "path": "tools/private_sqlite_build.py",
+      "sha256": "13ee2134220227f2e095721f9911c6be4b36c52530b08de45f9b74478e81ae3e"
+    },
+    {
+      "path": "build_app.py",
+      "sha256": "f3e651cde2703f47b6411a94bf82409cda11cad3c3e8f612bb1023991d4fccf2"
+    },
+    {
+      "path": "poc/desktop_app.py",
+      "sha256": "daf7964c47151bc6d646017485c004367de9794a48fe5c28a8699e8135d39d7d"
+    },
+    {
+      "path": "tools/build_office_acceptance.py",
+      "sha256": "2f1a8e916e3c8b68a085f360491512820b0682738020325492640d07cd54a815"
+    },
+    {
+      "path": "tools/office_acceptance_app.py",
+      "sha256": "46407219818cfeb1629f212ca5e303c39ab96f97d75555e9eab17722fda24912"
+    },
+    {
+      "path": "tools/resolve_office_candidate.py",
+      "sha256": "8e6e163e0cc3d6fccd8f00f67945f6d29ba2d25852f74e0c334e474c006da2ff"
+    },
+    {
+      "path": ".github/workflows/windows-desktop.yml",
+      "sha256": "e1750d50b606a60e78e758f7927fb9ff083bd79b4e00da14d9a30881a87c0c93"
+    },
+    {
+      "path": ".github/workflows/windows-office-acceptance.yml",
+      "sha256": "23a0b2ddcd968d95f1b14027232ac17d870221d7b0717c3e6a8336e0a6add662"
+    },
+    {
+      "path": "tools/setup_private_sqlite_workflow.py",
+      "sha256": "31d25c3a706d110f563cb8e11e115cb0202002f3efbf2612b1141da6ba45fb24"
+    },
+    {
+      "path": "tools/prepare_private_sqlite_runtime.py",
+      "sha256": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a"
+    },
+    {
+      "path": "poc/sqlite_runtime_probe.py",
+      "sha256": "96f9b8eb1a04d09f0fa274337db97c6eb0cf438f33b598582831002bb0c75fd0"
+    },
+    {
+      "path": "tools/sqlite-runtime-pin.json",
+      "sha256": "03b06daa98e92a2c2d88791d02ee577419282af7b7cedd7200b185e5ccb2113f"
+    }
+  ],
+  "native_or_real_Windows_execution_performed": false,
+  "unit_suites_rerun": false,
+  "repo_files_modified": false,
+  "approval_scope": "user has approved minimum shared component upgrade; formal same-package real-model/office release gate unchanged",
+  "limits": [
+    "This is static integration review and workflow expression lint, not actual Windows DLL loading, full regression or EXE acceptance.",
+    "Root reported targeted suites passing; this reviewer did not rerun those suites."
+  ]
+}

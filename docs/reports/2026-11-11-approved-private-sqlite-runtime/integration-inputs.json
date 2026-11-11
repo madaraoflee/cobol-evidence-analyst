@@ -1,0 +1,10 @@
+{
+  ".github/workflows/windows-desktop.yml": "e1750d50b606a60e78e758f7927fb9ff083bd79b4e00da14d9a30881a87c0c93",
+  ".github/workflows/windows-office-acceptance.yml": "23a0b2ddcd968d95f1b14027232ac17d870221d7b0717c3e6a8336e0a6add662",
+  "build_app.py": "f3e651cde2703f47b6411a94bf82409cda11cad3c3e8f612bb1023991d4fccf2",
+  "tools/private_sqlite_build.py": "13ee2134220227f2e095721f9911c6be4b36c52530b08de45f9b74478e81ae3e",
+  "tools/build_office_acceptance.py": "2f1a8e916e3c8b68a085f360491512820b0682738020325492640d07cd54a815",
+  "tools/office_acceptance_app.py": "46407219818cfeb1629f212ca5e303c39ab96f97d75555e9eab17722fda24912",
+  "tools/resolve_office_candidate.py": "8e6e163e0cc3d6fccd8f00f67945f6d29ba2d25852f74e0c334e474c006da2ff",
+  "poc/desktop_app.py": "daf7964c47151bc6d646017485c004367de9794a48fe5c28a8699e8135d39d7d"
+}

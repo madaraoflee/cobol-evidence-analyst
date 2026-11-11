@@ -751,6 +751,7 @@ def main(argv=None):
     modes.add_argument("--self-test", action="store_true")
     modes.add_argument("--offline", action="store_true")
     parser.add_argument("--self-test-result", type=Path)
+    parser.add_argument("--sqlite-runtime-pin", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--source", type=Path)
     parser.add_argument("--profile-config", type=Path)
@@ -759,9 +760,17 @@ def main(argv=None):
     parser.add_argument("--authorize-model-and-source", action="store_true")
     parser.add_argument("--request-budget", type=int)
     args = parser.parse_args(argv)
+    if args.sqlite_runtime_pin and not args.self_test:
+        parser.error("--sqlite-runtime-pin requires --self-test")
     try:
         if args.self_test:
             result = self_test()
+            if args.sqlite_runtime_pin:
+                from sqlite_runtime_probe import run_probe
+                pin = read_object(args.sqlite_runtime_pin)
+                compiled = getattr(sys, "frozen", False) or "__compiled__" in globals()
+                allowed = Path(sys.executable).parent if compiled else Path(sys.base_prefix)
+                result["sqlite_runtime"] = run_probe(pin, allowed)
             if args.self_test_result:
                 _safe_write(args.self_test_result.resolve(), result)
             print(json.dumps(result))

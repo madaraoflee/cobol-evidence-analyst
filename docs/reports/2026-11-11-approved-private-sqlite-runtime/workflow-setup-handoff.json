@@ -1,0 +1,53 @@
+{
+  "frozen": true,
+  "own_files_sha256": {
+    "tools/setup_private_sqlite_workflow.py": "31d25c3a706d110f563cb8e11e115cb0202002f3efbf2612b1141da6ba45fb24",
+    "poc/tests/test_private_sqlite_workflow_setup.py": "a1b00829bbb31df20ac06e21e7d50dd4ca6a7858af31a3ff501f2d5449b5a365"
+  },
+  "dependency_hashes_observed": {
+    "tools/prepare_private_sqlite_runtime.py": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a",
+    "poc/sqlite_runtime_probe.py": "96f9b8eb1a04d09f0fa274337db97c6eb0cf438f33b598582831002bb0c75fd0",
+    "tools/sqlite-runtime-pin.json": "03b06daa98e92a2c2d88791d02ee577419282af7b7cedd7200b185e5ccb2113f"
+  },
+  "test_ids": [
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_verified_fresh_private_interpreter_is_probed_before_actions_environment_activation",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_private_fingerprint_changes_with_the_pinned_engine_even_for_the_same_source_base",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_reused_output_and_non_windows_host_are_rejected_before_network_or_activation",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_bad_archive_digest_keeps_download_and_failure_receipt_without_activating_python",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_source_guard_identity_and_private_interpreter_must_all_be_verified",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_probe_validation_failure_retains_diagnostics_and_never_appends_actions_paths",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_child_prepare_failure_is_not_hidden_or_followed_by_a_private_probe",
+    "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_download_rejects_redirect_http_untrusted_hosts_and_excessive_bytes"
+  ],
+  "targeted_tests": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "targeted-setup-tests.log"
+  },
+  "cli": "python tools/setup_private_sqlite_workflow.py --output FRESH_DIRECTORY [--pin-manifest tools/sqlite-runtime-pin.json]",
+  "output_files": [
+    "WORKFLOW-SQLITE-SETUP.json",
+    "PRIVATE-SQLITE-PREPARATION.json",
+    "PRIVATE-SQLITE-PROBE.json",
+    "official-sqlite.zip",
+    "prepare-stdout.txt",
+    "prepare-stderr.txt",
+    "probe-stderr.txt"
+  ],
+  "environment_fields": [
+    "PYTHONDONTWRITEBYTECODE",
+    "WORKBENCH_PRIVATE_SQLITE_RECEIPT",
+    "WORKBENCH_SQLITE_RUNTIME_PIN",
+    "WORKBENCH_PRIVATE_SQLITE_SETUP_RECEIPT",
+    "WORKBENCH_PRIVATE_SQLITE_BASE",
+    "WORKBENCH_PRIVATE_SQLITE_SOURCE_FINGERPRINT",
+    "WORKBENCH_PRIVATE_SQLITE_FINGERPRINT"
+  ],
+  "path_policy": "Append only private base root/python.exe to GITHUB_PATH; copied Scripts/pip.exe launchers may still embed original host paths, so use explicit python -m tools.",
+  "source_manifest_sha256": "sha256(json.dumps(source_before,sort_keys=True).encode()) supplied by preparation receipt",
+  "setup_private_fingerprint": "sha256(json.dumps({source_manifest_sha256:fingerprint,pin:pin},sort_keys=True,separators=(comma,colon)).encode()) informational; builder independently validates active runtime and calculates its own stronger build fingerprint",
+  "validation_boundary": "Eight deterministic bootstrap unit tests use a synthetic download and child process seam; no Windows SDK, model, company source, app compilation or EXE execution was performed by this task. Actual private runtime and same-package native checks remain mandatory in Actions.",
+  "existing_tests_modified": false
+}

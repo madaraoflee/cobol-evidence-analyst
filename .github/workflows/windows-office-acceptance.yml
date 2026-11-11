@@ -55,6 +55,22 @@ jobs:
         with:
           python-version: '3.13'
           architecture: x64
+      - name: Prepare the same verified private SQLite runtime for the helper
+        run: |
+          python tools/setup_private_sqlite_workflow.py --output "$env:RUNNER_TEMP\private-sqlite-setup"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify the helper build interpreter's actual SQLite component
+        run: |
+          python tools/private_sqlite_build.py --verify-active --output "$env:RUNNER_TEMP\private-sqlite-setup\active-runtime.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve the helper private runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: office-private-sqlite-runtime-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/private-sqlite-setup/*.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Resolve one successful main run and its exact candidate artifact
         id: candidate
         env:
@@ -153,7 +169,7 @@ jobs:
           import sys
           sys.path.insert(0, str(Path.cwd()))
           from build_app import prepare_environment
-          interpreter = prepare_environment(Namespace(skip_install=False))
+          interpreter = prepare_environment(Namespace(skip_install=False, private_sqlite_runtime=True))
           with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
               handle.write(f'interpreter={interpreter}\n')
 
@@ -161,7 +177,7 @@ jobs:
         env:
           BUILD_PYTHON: ${{ steps.prepare.outputs.interpreter }}
         run: |
-          & $env:BUILD_PYTHON tools/build_office_acceptance.py --output "$env:RUNNER_TEMP\office-helper" --jobs 4
+          & $env:BUILD_PYTHON tools/build_office_acceptance.py --output "$env:RUNNER_TEMP\office-helper" --jobs 4 --private-sqlite-runtime
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Assemble portable kit with the original EXE and frozen cases

@@ -8146,16 +8146,213 @@
         {
           "kind": "python",
           "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_missing_configuration_api_refuses_wal_without_a_silent_api_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_archive_member_PE_identity_and_export_failures_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_or_unsafe_receipt_is_never_overwritten"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_output_and_path_overlap_and_traversal_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_final_empty_directory_change_blocks_success"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_change_blocks_success_after_good_probe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_guard_read_error_or_interrupt_never_report_success"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_missing_required_export_fails_even_when_PE_and_DEF_match"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_namespace_or_traversal_input_is_rejected_before_path_resolution"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_output_parent_symlink_and_simulated_windows_reparse_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_failure_and_interrupt_keep_receipt_and_nonzero_exit"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_mismatched_loaded_path_and_missing_check_never_pass"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_source_venv_and_nested_symlink_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_success_copies_fixture_only_and_preserves_every_source_byte"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unapproved_pin_and_archive_hash_mismatch_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unreadable_tree_scan_cannot_be_silently_accepted"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_windows_device_UNC_ADS_and_trailing_aliases_are_refused_offline"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_CLI_reports_failed_JSON_and_nonzero_on_invalid_pin"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_changed_DLL_bytes_or_outside_loaded_path_cannot_pass"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_compiled_builtin_extension_requires_real_pinned_DLL_and_source_cannot_claim_builtin"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_neutral_memory_features_complete_without_opening_any_business_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_partial_checks_wrong_platform_version_source_and_kind_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_run_probe_uses_shared_validator_for_collected_identity_and_features"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_source_identity_accepts_external_venv_executable_only_when_DLL_and_extension_are_contained"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_unreviewed_pin_is_rejected_before_collecting_runtime_identity"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_bad_archive_digest_keeps_download_and_failure_receipt_without_activating_python"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_child_prepare_failure_is_not_hidden_or_followed_by_a_private_probe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_download_rejects_redirect_http_untrusted_hosts_and_excessive_bytes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_private_fingerprint_changes_with_the_pinned_engine_even_for_the_same_source_base"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_probe_validation_failure_retains_diagnostics_and_never_appends_actions_paths"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_reused_output_and_non_windows_host_are_rejected_before_network_or_activation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_source_guard_identity_and_private_interpreter_must_all_be_verified"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_verified_fresh_private_interpreter_is_probed_before_actions_environment_activation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_build_info_source_version_and_hash_must_match_the_new_native_observation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_exactly_one_matching_dll_must_exist_inside_the_extracted_application_before_execution"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_executable_or_archive_mutation_during_native_execution_cannot_pass_final_binding"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_native_exe_identity_is_bound_to_one_zip_and_actual_packaged_dll_without_changing_joint_contract"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_non_windows_and_reused_output_never_execute_or_overwrite_existing_evidence"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_real_probe_validation_rejects_outside_dll_wrong_identity_or_incomplete_checks_without_sdk_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_source_mismatch_and_unsafe_zip_fail_before_execution_or_extraction_escape"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_timeout_and_failed_native_self_test_are_failed_reports_without_an_interpreter_retry"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_failed_or_inconsistent_source_guard_receipts_are_rejected_before_probing"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_loaded_extension_and_dll_must_be_the_prepared_sdk_files"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_new_runtime_uses_a_distinct_environment_and_rejects_unmarked_reuse"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_opt_in_is_required_and_half_configured_runtime_cannot_silently_fall_back"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_ordinary_build_fixture_does_not_consume_ambient_private_release_settings"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_product_requires_one_pinned_dll_and_actual_loaded_path_inside_that_product"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_verified_identity_stays_stable_across_base_and_venv_interpreters"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_workflows_verify_active_private_interpreter_and_final_exe_before_candidate_upload"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_wrong_base_or_changed_original_extension_cannot_reuse_a_successful_receipt"
         }
       ],
       "evidence": [
         "docs/reports/2026-11-11-sqlite-runtime-decision/PROPOSAL.md",
         "docs/reports/2026-11-11-sqlite-runtime-decision/archive-static-verification.json",
-        "docs/reports/2026-11-11-sqlite-runtime-decision/windows-experiment/summary.json"
+        "docs/reports/2026-11-11-sqlite-runtime-decision/windows-experiment/summary.json",
+        "docs/reports/2026-11-11-approved-private-sqlite-runtime/README.md"
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "已新增并定向验证在线版本/能力门禁，旧引擎不启用新在线WAL；共享组件本身仍未替换，仍open，不算修复。Windows兼容性、最终EXE及公司实机未验。共享本地链路例外正待用户决定，不将临时singleactor实验当成生产安全证明。"
+      "limitations": "用户已明确批准本次私有共享组件升级及完整回归。工具、固定官方pin、同组件工作流及成品实际加载校验已接线，原本地业务/资料格式/断言保持；源码定向验证不等于真实Windows兼容性，最终Windows回归、EXE与验收助手实际加载证明尚未完成，因此仍open。没有实际复现项目数据损坏，不据此解释用户公司500。"
     },
     {
       "id": "BUG-20261111-015",
