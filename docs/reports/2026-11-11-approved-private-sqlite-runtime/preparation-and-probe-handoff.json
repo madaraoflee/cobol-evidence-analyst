@@ -1,0 +1,88 @@
+{
+  "status": "targeted_source_checks_passed",
+  "new_test_ids": [
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_archive_member_PE_identity_and_export_failures_are_refused",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_or_unsafe_receipt_is_never_overwritten",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_output_and_path_overlap_and_traversal_are_refused",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_final_empty_directory_change_blocks_success",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_change_blocks_success_after_good_probe",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_guard_read_error_or_interrupt_never_report_success",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_missing_required_export_fails_even_when_PE_and_DEF_match",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_namespace_or_traversal_input_is_rejected_before_path_resolution",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_output_parent_symlink_and_simulated_windows_reparse_are_refused",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_failure_and_interrupt_keep_receipt_and_nonzero_exit",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_mismatched_loaded_path_and_missing_check_never_pass",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_source_venv_and_nested_symlink_are_refused",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_success_copies_fixture_only_and_preserves_every_source_byte",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unapproved_pin_and_archive_hash_mismatch_are_refused",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unreadable_tree_scan_cannot_be_silently_accepted",
+    "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_windows_device_UNC_ADS_and_trailing_aliases_are_refused_offline",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_CLI_reports_failed_JSON_and_nonzero_on_invalid_pin",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_changed_DLL_bytes_or_outside_loaded_path_cannot_pass",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_compiled_builtin_extension_requires_real_pinned_DLL_and_source_cannot_claim_builtin",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_neutral_memory_features_complete_without_opening_any_business_file",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_partial_checks_wrong_platform_version_source_and_kind_are_rejected",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_run_probe_uses_shared_validator_for_collected_identity_and_features",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_source_identity_accepts_external_venv_executable_only_when_DLL_and_extension_are_contained",
+    "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_unreviewed_pin_is_rejected_before_collecting_runtime_identity"
+  ],
+  "test_count": 24,
+  "targeted_results": [
+    {
+      "file": "test_prepare_private_sqlite_runtime.py",
+      "tests": 16,
+      "elapsed_seconds": 0.161,
+      "status": "passed"
+    },
+    {
+      "file": "test_sqlite_runtime_probe.py",
+      "tests": 8,
+      "elapsed_seconds": 0.014,
+      "status": "passed"
+    }
+  ],
+  "official_archive_static_verified": true,
+  "official_PE_DEF_export_count": 379,
+  "official_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+  "files": [
+    {
+      "path": "tools/prepare_private_sqlite_runtime.py",
+      "sha256": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a"
+    },
+    {
+      "path": "tools/sqlite-runtime-pin.json",
+      "sha256": "03b06daa98e92a2c2d88791d02ee577419282af7b7cedd7200b185e5ccb2113f"
+    },
+    {
+      "path": "poc/sqlite_runtime_probe.py",
+      "sha256": "96f9b8eb1a04d09f0fa274337db97c6eb0cf438f33b598582831002bb0c75fd0"
+    },
+    {
+      "path": "poc/tests/test_prepare_private_sqlite_runtime.py",
+      "sha256": "4fed14f4c0ec650981f05ce55871922b9f51cb0887b81c9879c1ab39f3a3bffa"
+    },
+    {
+      "path": "poc/tests/test_sqlite_runtime_probe.py",
+      "sha256": "01e67fbbda75ab22b69d7eeaa4213fffbba814d982e85a31d195ab261360e40a"
+    }
+  ],
+  "real_Windows_runtime_loaded": false,
+  "real_host_SDK_copied": false,
+  "application_built": false,
+  "real_model_or_company_source_accessed": false,
+  "limits": [
+    "The preparation tests use synthetic SDK and PE fixtures with mocked Windows child execution.",
+    "The neutral memory feature test ran on the existing local SQLite engine; it is not a Windows3.54.1 load result.",
+    "All recorded defects and full Python/browser regressions still require root final full-gate execution after integration."
+  ],
+  "probe_API": {
+    "call": "run_probe(pin, allowed_root)",
+    "validation": "validate_report(value, pin, allowed_root, identity_kind=None)",
+    "schema_version": "sqlite-runtime-probe/v1",
+    "identity_kinds": [
+      "source",
+      "compiled"
+    ],
+    "success_status": "passed"
+  }
+}

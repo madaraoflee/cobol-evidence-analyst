@@ -1,0 +1,25 @@
+{
+  "artifact": {
+    "id": 13798173220,
+    "node_id": "MDg6QXJ0aWZhY3QxMzc5ODE3MzIyMA==",
+    "name": "online-snapshot-cost-9ad6a224049d7c4c5d392875e236a18825d6ea7e-42891291560-1",
+    "size_in_bytes": 2052733,
+    "url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13798173220",
+    "archive_download_url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13798173220/zip",
+    "expired": false,
+    "digest": "sha256:35d96ac5dffc0c20636936075ae7cb8f619cd66b2f8518c03415b3b67315c041",
+    "created_at": "2026-11-10T20:03:21Z",
+    "updated_at": "2026-11-10T20:03:21Z",
+    "expires_at": "2026-11-24T20:03:20Z",
+    "workflow_run": {
+      "id": 42891291560,
+      "repository_id": 1352481697,
+      "head_repository_id": 1352481697,
+      "head_branch": "main",
+      "head_sha": "9ad6a224049d7c4c5d392875e236a18825d6ea7e"
+    }
+  },
+  "download_sha256": "35d96ac5dffc0c20636936075ae7cb8f619cd66b2f8518c03415b3b67315c041",
+  "digest_verified": true,
+  "archive_bytes": 2052733
+}

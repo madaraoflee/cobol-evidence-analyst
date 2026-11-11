@@ -1,0 +1,12 @@
+[
+  {
+    "path": "poc/tests/test_online_inventory_store.py",
+    "assertions_identical": true,
+    "changes": "Online resource close/addCleanup only; query instrumentation closes existing cache before installing the original SQLite hooks."
+  },
+  {
+    "path": "poc/tests/test_online_inventory_query_cost.py",
+    "assertions_identical": true,
+    "changes": "Online resource close/addCleanup only; query instrumentation closes existing cache before installing the original SQLite hooks."
+  }
+]

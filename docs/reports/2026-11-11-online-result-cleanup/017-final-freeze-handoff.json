@@ -1,0 +1,62 @@
+{
+  "own_files_frozen": true,
+  "files_sha256": {
+    "poc/online_workspace.py": "89fe6ae2bcd5e86145952897cbe61016bb06b1ad5e39b3eb234e2ea04ccb7ac9",
+    "poc/web/online.js": "60b333d1913de511ec08946569de34fcac4a1b27f2f38f3decf2bc0c2b71704a",
+    "poc/tests/test_online_lease_result_recovery.py": "e30021f1d91b5e1bb306b38e27d81059f47b4ee4ee95c4b7c46fc2f4fccbc308",
+    "poc/tests/web_online_storage_cleanup.test.cjs": "26e4999aa1e3e707d15b35675c6f131b14d1e6129be13375d0e61193e0a80545"
+  },
+  "dependency_hashes_unchanged": {
+    "poc/online_state.py": "549c765ac0e1d1cfa7b469ea115701a0c47c2add542cb89ceeb48af52de7b378",
+    "poc/online_sqlite_store.py": "31b8d8867aa6286ef035cc8ac001ad4905852bfdec317858c1c726c8aee84d52",
+    "poc/online_inventory_store.py": "5b2e753feea977702d525aaa33bc8b9b0e29c76ae64f79f9dc7ce57655f54ff1"
+  },
+  "python_test_ids": [
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_http_500_keeps_new_checkpoint_partial_evidence_and_diagnostic_after_cleanup_failure_and_restart",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_answered_is_saved_as_failed_when_cleanup_did_not_finish_normally",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_unknown_request_keeps_retry_confirmation_and_never_repeats_the_runner",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_cancelled_stays_cancelled_with_its_latest_work",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_runner_exception_keeps_original_failure_path_and_persisted_unknown_request",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_cleanup_failure_does_not_bypass_credential_guard_or_result_validation",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_normal_cleanup_after_a_failed_lease_clears_secondary_error_without_repeating_source_request_implicitly",
+    "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_failed_result_persistence_is_not_reported_as_success_and_keeps_cleanup_as_cause"
+  ],
+  "browser_test_ids": [
+    "online scoped cleanup displays the original API 500 and separate safe storage error in each locale",
+    "online scoped cleanup ignores arbitrary secondary values without exposing raw exception text",
+    "a later normal completion removes the prior storage cleanup message and diagnostic",
+    "storage cleanup warning preserves explicit retry confirmation without resending an unknown model request"
+  ],
+  "new_test_counts": {
+    "python": 8,
+    "browser": 4
+  },
+  "existing_test_files_changed_this_017": false,
+  "previous_online_fixture_hashes_unchanged": {
+    "poc/tests/test_online_inventory_store.py": true,
+    "poc/tests/test_online_inventory_query_cost.py": true,
+    "poc/tests/online_sqlite_crash_writer.py": true,
+    "poc/tests/online_state_crash_writer.py": true,
+    "poc/tests/test_online_inventory_journal_safety.py": true,
+    "poc/tests/test_online_sqlite_safety.py": true,
+    "poc/tests/test_online_state_managed_writes.py": true
+  },
+  "targeted_python": {
+    "tests": 380,
+    "seconds": 28.115,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "online-suite-after-017-final.log"
+  },
+  "targeted_browser": {
+    "tests": 27,
+    "failures": 0,
+    "skips": 0,
+    "log": "browser-storage-cleanup.log"
+  },
+  "before_manifest_sha256": "4f39619cc7d59688507317c4add53600199d8edc9b38478e3a4b4bef9e7dc7df",
+  "before_new_reproduction": "before-result-cleanup-v2.json",
+  "after_new_reproduction": "after-result-cleanup.json",
+  "scope": "Online-only returned-runner-result retention across subsequent scoped cleanup errors; no local/runtime/workflow/model/company-source/build changes; full project gate and target EXE acceptance remain with root."
+}

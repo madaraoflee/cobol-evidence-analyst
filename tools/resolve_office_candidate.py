@@ -19,7 +19,9 @@ WORKFLOW_PATH = ".github/workflows/" + WORKFLOW_FILE
 WORKFLOW_NAME = "Windows desktop x64"
 TRUSTED_BRANCH = "main"
 TRUSTED_EVENTS = frozenset({"push", "workflow_dispatch"})
-APPLICATION_INPUTS = ("poc", "build_app.py", "desktop-requirements.txt", "assets", ".gitattributes")
+APPLICATION_INPUTS = ("poc", "build_app.py", "desktop-requirements.txt", "assets", ".gitattributes",
+                      "tools/sqlite-runtime-pin.json", "tools/prepare_private_sqlite_runtime.py",
+                      "tools/setup_private_sqlite_workflow.py", "tools/private_sqlite_build.py")
 
 
 def require(condition, code):

@@ -1,0 +1,12 @@
+{
+  "supported_runtime": true,
+  "sqlite": "3.53.2",
+  "fault_lock_call": 2,
+  "exit_error": "MaterialError:ONLINE_STATE_UNAVAILABLE",
+  "remaining_depth": 0,
+  "later_close_error": null,
+  "files": [
+    "online-state.sqlite"
+  ],
+  "source_sha256": "549c765ac0e1d1cfa7b469ea115701a0c47c2add542cb89ceeb48af52de7b378"
+}

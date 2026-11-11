@@ -47,12 +47,15 @@ def compiler_command(stage, output, *, executable=None, jobs=4):
         str(stage / "tools" / "office_acceptance_app.py")]
 
 
-def build(*, output, jobs=4):
+def build(*, output, jobs=4, private_sqlite_runtime=False):
+    from tools.private_sqlite_build import current_identity, validate_product
+
     if sys.platform != "win32" or platform.machine().lower() not in {"amd64", "x86_64"}:
         raise ValueError("OFFICE_HELPER_WINDOWS_X64_BUILD_REQUIRED")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     identity = source_identity()
+    runtime = current_identity(required=True) if private_sqlite_runtime else None
     if identity["source_dirty"] or not identity["source_commit"]:
         raise ValueError("OFFICE_HELPER_FROZEN_SOURCE_REQUIRED")
     with tempfile.TemporaryDirectory(prefix="office-acceptance-build-") as temporary:
@@ -60,6 +63,9 @@ def build(*, output, jobs=4):
         fingerprint = stage_sources(stage)
         compilation = Path(temporary) / "compile"
         environment = dict(os.environ)
+        if runtime:
+            environment["NUITKA_CACHE_DIR"] = str(ROOT / ".build/desktop" / (
+                "cache-" + runtime["fingerprint"][:20]))
         environment["PYTHONPATH"] = os.pathsep.join(str(item) for item in (stage, stage / "tools", stage / "poc"))
         subprocess.run(compiler_command(stage, compilation, jobs=jobs), check=True, cwd=stage, env=environment)
         distributions = list(compilation.glob("*.dist"))
@@ -69,11 +75,16 @@ def build(*, output, jobs=4):
         shutil.copytree(distributions[0], delivery)
         collect_licenses(delivery / "licenses")
         self_test = Path(temporary) / "helper-self-test.json"
-        subprocess.run([delivery / "OfficeAcceptance.exe", "--self-test", "--self-test-result", self_test],
+        command = [delivery / "OfficeAcceptance.exe", "--self-test", "--self-test-result", self_test]
+        if runtime:
+            command += ["--sqlite-runtime-pin", runtime["pin_path"]]
+        subprocess.run(command,
                        check=True, timeout=60)
         tested = json.loads(self_test.read_text(encoding="utf-8"))
         if tested.get("ok") is not True or tested.get("gui_started") is not True or tested.get("model_calls") != 0:
             raise ValueError("OFFICE_HELPER_NATIVE_SMOKE_FAILED")
+        if runtime:
+            validate_product(tested, delivery, runtime)
         if source_identity() != identity:
             raise ValueError("OFFICE_HELPER_SOURCE_CHANGED_DURING_BUILD")
         metadata = {"schema_version": "office-helper-build/v1", **identity, "helper_source_sha256": fingerprint,
@@ -81,6 +92,9 @@ def build(*, output, jobs=4):
             "entry_point": "OfficeAcceptance/OfficeAcceptance.exe", "self_test": tested,
             "python": platform.python_version(), "nuitka": importlib.metadata.version("Nuitka"),
             "workbench_rebuilt": False, "model_calls": 0}
+        if runtime:
+            metadata["private_sqlite_runtime"] = {key: runtime[key] for key in (
+                "schema_version", "fingerprint", "inputs", "receipt_sha256")}
         (delivery / "HELPER-BUILD-INFO.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
         (delivery / "START-HERE.txt").write_text(
             "解压并保留全部 DLL 与 Tcl/Tk 文件。双击 OfficeAcceptance.exe，选择验收包的 OFFICE-KIT.json。\n"
@@ -103,8 +117,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--jobs", type=int, default=4)
+    parser.add_argument("--private-sqlite-runtime", action="store_true")
     args = parser.parse_args(argv)
-    print(build(output=args.output, jobs=args.jobs))
+    print(build(output=args.output, jobs=args.jobs, private_sqlite_runtime=args.private_sqlite_runtime))
     return 0
 
 

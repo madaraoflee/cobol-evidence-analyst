@@ -7931,7 +7931,7 @@
       "id": "BUG-20261111-012",
       "title": "Windows在线万文件持久化仍超时，旧索引修复不足以完成整轮回归",
       "symptom": "main a46bff1320b41226d15be72ba28e5aa77e29bfb4 的Windows run42877684403分组2在原45分钟上限中断；在线10001文件用例实际执行1871.306555秒仍incomplete，614项未开始，EXE构建被阻断。",
-      "root_cause": "尚未完全确认。真实周期栈多数位于capture后的db.commit，其他落在连接与读取；Mac中性1k测到5027笔有行变化事务，但不能拿Mac统计或每笔写入假设替代Windows根因测量。需要同版本、同中性流程的Windows事务和连接分阶段诊断。",
+      "root_cause": "旧路径在调查过程中频繁重开SQLite连接，并以FULL同步提交大量细粒度进度。原45分钟失败栈多数位于capture后的db.commit；后续真实Windows默认临时目录200文件诊断中，有行变化提交占76%–81%墙钟。同机保持FULL/完整交付的受管理WAL对照减少66.1%墙钟及78.9%提交时间。证据确认这是重要瓶颈，但原失败run未记录实际临时目录，不能断言唯一根因或把不同runner速度拼接；最终Windows万文件及EXE仍须重测。",
       "regressions": [
         {
           "kind": "python",
@@ -7952,16 +7952,155 @@
         {
           "kind": "python",
           "test_id": "test_online_inventory_cost_diagnostic.OnlineInventoryCostDiagnosticTests.test_keyboard_interrupt_keeps_report_and_case_explicitly_interrupted"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_abrupt_exit_after_production_commit_preserves_record_and_meta_together"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_abrupt_uncommitted_legacy_delete_hot_journal_recovers_original_transaction"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_actual_database_and_all_sidecar_symlinks_fail_before_sqlite_open_without_external_changes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_capture_exception_rolls_back_original_meta_records_versions_actions_and_tasks"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_concurrent_reader_and_writer_keep_original_snapshot_and_old_publication"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_real_legacy_delete_database_reopens_without_losing_records_or_old_publication"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_cleanup_notes_cannot_hide_the_original_exception_when_note_api_is_missing_or_broken"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_default_runtime_policy_applies_full_and_supported_configuration_then_lazily_reopens"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_documented_fixed_versions_are_required_and_stock_windows_version_is_not_safe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_full_is_applied_and_read_back_before_any_journal_mode_switch"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_invalid_lock_timeouts_cannot_create_an_unbounded_wait"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_missing_configuration_api_refuses_wal_without_a_silent_api_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_real_rollback_failure_does_not_replace_the_primary_error_or_leave_a_poisoned_connection"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_preserves_nested_outer_rollback_or_refuses_unsupported_wal"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_preserves_trigger_rollback_error_and_makes_outer_rollback_only"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rejects_active_managed_close_and_bounds_contending_lock_waits"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_unsafe_engine_refuses_explicit_wal_before_open_and_default_retains_per_operation_delete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_abrupt_process_exit_recovers_uncommitted_hot_journal_and_committed_state"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_active_transaction_cannot_be_closed_or_switched_to_an_analysis_lease"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_concurrent_job_leases_keep_other_jobs_active_and_end_with_single_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_keeps_original_job_error_and_later_close_recovers_idle_layout"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_release_is_drained_by_next_transaction_lease_or_close"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_idle_single_file_layout_survives_real_progress_writes_and_final_lease_cleanup"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_nested_leases_keep_wal_until_the_last_lease_without_changing_idle_layout"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_nested_state_transaction_rolls_back_only_inner_work_under_safe_lease"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_released_lease_waits_until_sql_transaction_commits_before_checkpointing"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_state_database_and_every_sidecar_are_rejected_before_open_without_touching_external_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_transaction_failure_during_analysis_keeps_original_record_and_restores_idle_layout"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_unsafe_stock_engine_and_explicit_override_do_not_enter_managed_wal"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_actual_progress_callbacks_use_lease_and_done_is_published_after_idle_layout_returns"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_close_cancels_without_joining_remote_work_then_releases_both_stores_after_cleanup"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_online_cleanup_error_still_releases_http_socket"
         }
       ],
       "evidence": [
         "docs/reports/2026-11-11-windows-inventory-cost/README.md",
         "docs/reports/2026-11-11-windows-inventory-cost/WINDOWS-REGRESSION-SUMMARY.json",
-        "docs/reports/2026-11-11-windows-inventory-cost/failed-windows-regression-evidence.zip"
+        "docs/reports/2026-11-11-windows-inventory-cost/failed-windows-regression-evidence.zip",
+        "docs/reports/2026-11-11-online-managed-storage/README.md",
+        "docs/reports/2026-11-11-online-managed-storage/windows-rollback-default-temp/README.md",
+        "docs/reports/2026-11-11-online-managed-storage/windows-active-keeper/README.md"
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "Windows实际未通过，不计入全部通过；原45分钟门槛、全部旧断言、输入、金标和跳过规则保持不变。此条记录新增未闭环的Windows持久化耗时，不将之前两项索引修复误称为整体问题已解决。诊断不替代全部源码、最终EXE、真实模型或目标设备验收。"
+      "limitations": "在线专属源补丁已准备并有定向验证，保留FULL及原资料/历史/旧断言；Windows共享SQLite仍未升级，目标万文件长测、最终EXE和公司设备没有因Mac或200文件实验而结案，此条继续open。用户共享组件冻结例外尚未回复，不能用旧有缺陷engine直接启用新WAL。"
     },
     {
       "id": "BUG-20261111-013",
@@ -7989,6 +8128,338 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "仅维护诊断工具，在首次上传前发现并修复，不修改应用生产默认或原测试。三文件及源码观测注入只验证状态判定；新完整回归和Windows实测另行报告，不能替代公司真实模型/源码/设备验收。"
+    },
+    {
+      "id": "BUG-20261111-014",
+      "title": "Windows构建SQLite3.50.4处于官方WAL-reset缺陷范围，阻止安全启用新保存方案",
+      "symptom": "真实Windows中性诊断报告确认SQLite3.50.4；官方明确该版本在WAL-reset影响范围。项目本地结构索引/目录已有WAL，新的在线WAL方案不能据此直接投产。",
+      "root_cause": "构建解释器所带共享SQLite DLL未包含官方WAL-reset修补；该缺陷涉及并发写入与检查点竞态，项目没有实际复现数据损坏，不能归因为用户现场故障。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_documented_fixed_versions_are_required_and_stock_windows_version_is_not_safe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_unsafe_engine_refuses_explicit_wal_before_open_and_default_retains_per_operation_delete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_missing_configuration_api_refuses_wal_without_a_silent_api_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_archive_member_PE_identity_and_export_failures_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_or_unsafe_receipt_is_never_overwritten"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_existing_output_and_path_overlap_and_traversal_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_final_empty_directory_change_blocks_success"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_change_blocks_success_after_good_probe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_last_source_guard_read_error_or_interrupt_never_report_success"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_missing_required_export_fails_even_when_PE_and_DEF_match"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_namespace_or_traversal_input_is_rejected_before_path_resolution"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_output_parent_symlink_and_simulated_windows_reparse_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_failure_and_interrupt_keep_receipt_and_nonzero_exit"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_probe_mismatched_loaded_path_and_missing_check_never_pass"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_source_venv_and_nested_symlink_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_success_copies_fixture_only_and_preserves_every_source_byte"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unapproved_pin_and_archive_hash_mismatch_are_refused"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_unreadable_tree_scan_cannot_be_silently_accepted"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_prepare_private_sqlite_runtime.PrivateRuntimeDraftTests.test_windows_device_UNC_ADS_and_trailing_aliases_are_refused_offline"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_CLI_reports_failed_JSON_and_nonzero_on_invalid_pin"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_changed_DLL_bytes_or_outside_loaded_path_cannot_pass"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_compiled_builtin_extension_requires_real_pinned_DLL_and_source_cannot_claim_builtin"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_neutral_memory_features_complete_without_opening_any_business_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_partial_checks_wrong_platform_version_source_and_kind_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_run_probe_uses_shared_validator_for_collected_identity_and_features"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_source_identity_accepts_external_venv_executable_only_when_DLL_and_extension_are_contained"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_sqlite_runtime_probe.SQLiteRuntimeProbeTests.test_unreviewed_pin_is_rejected_before_collecting_runtime_identity"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_bad_archive_digest_keeps_download_and_failure_receipt_without_activating_python"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_child_prepare_failure_is_not_hidden_or_followed_by_a_private_probe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_download_rejects_redirect_http_untrusted_hosts_and_excessive_bytes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_private_fingerprint_changes_with_the_pinned_engine_even_for_the_same_source_base"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_probe_validation_failure_retains_diagnostics_and_never_appends_actions_paths"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_reused_output_and_non_windows_host_are_rejected_before_network_or_activation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_source_guard_identity_and_private_interpreter_must_all_be_verified"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_workflow_setup.PrivateSQLiteWorkflowSetupTests.test_verified_fresh_private_interpreter_is_probed_before_actions_environment_activation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_build_info_source_version_and_hash_must_match_the_new_native_observation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_exactly_one_matching_dll_must_exist_inside_the_extracted_application_before_execution"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_executable_or_archive_mutation_during_native_execution_cannot_pass_final_binding"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_native_exe_identity_is_bound_to_one_zip_and_actual_packaged_dll_without_changing_joint_contract"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_non_windows_and_reused_output_never_execute_or_overwrite_existing_evidence"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_real_probe_validation_rejects_outside_dll_wrong_identity_or_incomplete_checks_without_sdk_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_source_mismatch_and_unsafe_zip_fail_before_execution_or_extraction_escape"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_timeout_and_failed_native_self_test_are_failed_reports_without_an_interpreter_retry"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_failed_or_inconsistent_source_guard_receipts_are_rejected_before_probing"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_loaded_extension_and_dll_must_be_the_prepared_sdk_files"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_new_runtime_uses_a_distinct_environment_and_rejects_unmarked_reuse"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_opt_in_is_required_and_half_configured_runtime_cannot_silently_fall_back"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_ordinary_build_fixture_does_not_consume_ambient_private_release_settings"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_product_requires_one_pinned_dll_and_actual_loaded_path_inside_that_product"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_verified_identity_stays_stable_across_base_and_venv_interpreters"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_workflows_verify_active_private_interpreter_and_final_exe_before_candidate_upload"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sqlite_build.PrivateSQLiteBuildTests.test_wrong_base_or_changed_original_extension_cannot_reuse_a_successful_receipt"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-sqlite-runtime-decision/PROPOSAL.md",
+        "docs/reports/2026-11-11-sqlite-runtime-decision/archive-static-verification.json",
+        "docs/reports/2026-11-11-sqlite-runtime-decision/windows-experiment/summary.json",
+        "docs/reports/2026-11-11-approved-private-sqlite-runtime/README.md"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "用户已明确批准本次私有共享组件升级及完整回归。工具、固定官方pin、同组件工作流及成品实际加载校验已接线，原本地业务/资料格式/断言保持；源码定向验证不等于真实Windows兼容性，最终Windows回归、EXE与验收助手实际加载证明尚未完成，因此仍open。没有实际复现项目数据损坏，不据此解释用户公司500。"
+    },
+    {
+      "id": "BUG-20261111-015",
+      "title": "新在线缓存嵌套事务被SQLite整体回滚后掩盖原错且外层仍可能提交",
+      "symptom": "入库前真实触发器RAISE(ROLLBACK)复现：原IntegrityError被不存在savepoint的OperationalError覆盖，外层catch后继续插入竟能提交。",
+      "root_cause": "新缓存连接的嵌套清理默认savepoint仍存在；SQLite主动撤销整笔事务后未标记外层rollback-only，导致错误被覆盖并允许新事务成功提交。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_preserves_trigger_rollback_error_and_makes_outer_rollback_only"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_real_rollback_failure_does_not_replace_the_primary_error_or_leave_a_poisoned_connection"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_cleanup_notes_cannot_hide_the_original_exception_when_note_api_is_missing_or_broken"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-online-nested-rollback/README.md",
+        "docs/reports/2026-11-11-online-nested-rollback/before.log"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "新在线代码入库前修复，真实trigger/实际rollback故障及注解API故障均已定向通过；统一完整源码门禁另行报告。未改本地核心或共享运行时；Windows新组件及最终EXE仍待批准和验证，不宣称当前公司现场已结案。"
+    },
+    {
+      "id": "BUG-20261111-016",
+      "title": "新在线analysis lease退出等锁失败后遗留活跃计数导致后续永不清理",
+      "symptom": "入库前退出锁失败注入复现：analysis_depth留1，后续close持续ProgrammingError，WAL/SHM滞留；恢复后的操作也不能回到原idle单文件布局。",
+      "root_cause": "释放计数只在成功获取mode锁后递减；锁超时路径没有保存释放请求，丢失lease释放。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_release_is_drained_by_next_transaction_lease_or_close"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_keeps_original_job_error_and_later_close_recovers_idle_layout"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_released_lease_waits_until_sql_transaction_commits_before_checkpointing"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-online-lease-release/README.md",
+        "docs/reports/2026-11-11-online-lease-release/lease-exit-lock-before-new-reproduction.json",
+        "docs/reports/2026-11-11-online-lease-release/lease-exit-lock-after-new-reproduction.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "新代码入库前已修复并定向验证，统一完整门禁另报；原临时before JSON误覆盖缺口已明记，重放精确原源码SHA的new reproduction不冒充原始JSON恢复。不改旧断言、不手删sidecar、不引入无限等锁；共享运行时和最终EXE未验证。"
+    },
+    {
+      "id": "BUG-20261111-017",
+      "title": "新在线分析lease收尾失败会丢弃已返回的新检查点及上游安全诊断",
+      "symptom": "新在线补丁入库前，真实fixture及真实lease复现：runner已返回HTTP500安全诊断、step2新检查点和部分回答；随后managed.close完成后抛一次OperationalError，_complete未调用，pending退回step1，诊断变null，部分回答消失。",
+      "root_cause": "analysis_writes上下文退出位于runner返回和_complete之间；退出异常沿通用_fail_job路径只保留收尾错误，未保存已完成的结构化调查结果。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_http_500_keeps_new_checkpoint_partial_evidence_and_diagnostic_after_cleanup_failure_and_restart"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_answered_is_saved_as_failed_when_cleanup_did_not_finish_normally"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_unknown_request_keeps_retry_confirmation_and_never_repeats_the_runner"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_returned_cancelled_stays_cancelled_with_its_latest_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_runner_exception_keeps_original_failure_path_and_persisted_unknown_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_cleanup_failure_does_not_bypass_credential_guard_or_result_validation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_normal_cleanup_after_a_failed_lease_clears_secondary_error_without_repeating_source_request_implicitly"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_lease_result_recovery.OnlineLeaseResultRecoveryTests.test_failed_result_persistence_is_not_reported_as_success_and_keeps_cleanup_as_cause"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online_storage_cleanup.test.cjs"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-online-result-cleanup/before-result-cleanup.json",
+        "docs/reports/2026-11-11-online-result-cleanup/README.md",
+        "docs/reports/2026-11-11-online-result-cleanup/after-result-cleanup.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "新在线补丁入库前修复，真实lease单次收尾异常注入及8项专属源码/4项浏览器回归通过；完整项目门禁另行报告。只保存已经返回且通过原安全/结果校验的内容；底层仍无法持久化则继续报失败，不假成功、不自动重发未知请求。未改冻结本地核心、共享组件或旧断言，未据此推断公司现场500根因；最终Windows EXE与公司设备未验。"
     }
   ],
   "updated_at": "2026-11-10"

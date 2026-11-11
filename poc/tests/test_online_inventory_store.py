@@ -22,6 +22,7 @@ class OnlineInventoryStoreTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.store = OnlineInventoryStore(Path(self.temp.name))
+        self.addCleanup(self.store.close)
         self.options = dict(workspace_id="w", conversation_id="c", user_message_id="u",
                             manifest=self.fixture.fixture.manifest, question=fixture_module.QUESTION)
         self.session = self.store.session(**self.options)

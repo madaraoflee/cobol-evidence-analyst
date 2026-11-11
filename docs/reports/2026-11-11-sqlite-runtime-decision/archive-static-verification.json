@@ -1,0 +1,32 @@
+{
+  "version": "3.54.1",
+  "official_archive_sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4",
+  "downloaded_archive_sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4",
+  "official_sha3_match": true,
+  "archive_bytes": 1450919,
+  "archive_sha256": "f436f53ad8f965af43f3817b42c99c0689e6787f6b7ace208fe38dab7ffc4971",
+  "archive_members": [
+    "sqlite3.dll",
+    "sqlite3.def"
+  ],
+  "dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+  "dll_sha3_256": "da8b0b354727878daed2a5184554f67fab66fc90eec50e2846d791ee57d5c885",
+  "dll_pe_machine": "0x8664",
+  "dll_architecture": "Windows x64",
+  "official_source_id_present_in_binary": true,
+  "official_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+  "selected_required_C_exports_present": [
+    "sqlite3_libversion",
+    "sqlite3_sourceid",
+    "sqlite3_db_config",
+    "sqlite3_backup_init",
+    "sqlite3_serialize",
+    "sqlite3_deserialize",
+    "sqlite3_wal_checkpoint_v2"
+  ],
+  "all_CPython_imports_verified": false,
+  "CPython_3_13_runtime_load_tested": false,
+  "compile_options_runtime_tested": false,
+  "runtime_replaced": false,
+  "binary_executed_or_loaded": false
+}

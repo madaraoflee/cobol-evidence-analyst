@@ -1,0 +1,7 @@
+{
+  "cached_symlink_main": true,
+  "cached_symlink_-journal": true,
+  "cached_symlink_-wal": true,
+  "cached_symlink_-shm": true,
+  "cached_regular_replacement_refused_without_external_write": true
+}

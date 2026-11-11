@@ -14,6 +14,7 @@ import sqlite3
 import time
 
 from online_material_format import MaterialError, canonical_json, decode_json, digest
+from online_sqlite_store import OnlineSQLiteStore
 
 _ID = re.compile(r"[0-9a-f]{32}\Z")
 _MAX_RECORD = 4 * 1024 * 1024
@@ -22,54 +23,53 @@ _VERIFICATION_SECONDS_PER_RUN = 30.0
 
 
 class OnlineInventoryStore:
-    def __init__(self, root):
+    def __init__(self, root, *, journal_mode=None):
         self.root = Path(root)
         if self.root.is_symlink():
             raise MaterialError("ONLINE_STATE_INVALID")
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.path = self.root / "online-inventories.sqlite"
-        with self.connection() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, owner BLOB NOT NULL, meta BLOB NOT NULL);
-                CREATE TABLE IF NOT EXISTS versions(seq INTEGER PRIMARY KEY AUTOINCREMENT, session TEXT NOT NULL,
-                    kind TEXT NOT NULL, key TEXT NOT NULL, path TEXT NOT NULL, data BLOB NOT NULL);
-                CREATE INDEX IF NOT EXISTS version_lookup ON versions(session,kind,key,seq);
-                CREATE TABLE IF NOT EXISTS records(session TEXT NOT NULL,kind TEXT NOT NULL,key TEXT NOT NULL,
-                    path TEXT NOT NULL,seq INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(session,kind,key));
-                CREATE INDEX IF NOT EXISTS record_path_key ON records(session,kind,path,key);
-                CREATE INDEX IF NOT EXISTS summary_candidate_occurrences
-                    ON records(session,json_extract(data,'$.occurrence_count')) WHERE kind='candidates';
-                CREATE INDEX IF NOT EXISTS summary_inventoried_files
-                    ON records(session) WHERE kind='files' AND json_extract(data,'$.inventoried')=1;
-                DROP INDEX IF EXISTS record_path;
-                CREATE TABLE IF NOT EXISTS tasks(session TEXT NOT NULL,group_key TEXT NOT NULL,ordinal INTEGER NOT NULL,
-                    data BLOB NOT NULL,PRIMARY KEY(session,group_key,ordinal));
-                CREATE TABLE IF NOT EXISTS publications(id TEXT PRIMARY KEY,session TEXT NOT NULL,generation INTEGER NOT NULL,data BLOB NOT NULL);
-                CREATE TABLE IF NOT EXISTS actions(session TEXT NOT NULL,key TEXT NOT NULL,PRIMARY KEY(session,key));
-            """)
+        try:
+            self._sqlite = OnlineSQLiteStore(self.path, journal_mode=journal_mode, timeout=30)
+        except sqlite3.Error:
+            raise MaterialError("ONLINE_INVENTORY_STORAGE_UNAVAILABLE") from None
+        try:
+            with self.connection() as db:
+                db.executescript("""
+                    CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, owner BLOB NOT NULL, meta BLOB NOT NULL);
+                    CREATE TABLE IF NOT EXISTS versions(seq INTEGER PRIMARY KEY AUTOINCREMENT, session TEXT NOT NULL,
+                        kind TEXT NOT NULL, key TEXT NOT NULL, path TEXT NOT NULL, data BLOB NOT NULL);
+                    CREATE INDEX IF NOT EXISTS version_lookup ON versions(session,kind,key,seq);
+                    CREATE TABLE IF NOT EXISTS records(session TEXT NOT NULL,kind TEXT NOT NULL,key TEXT NOT NULL,
+                        path TEXT NOT NULL,seq INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(session,kind,key));
+                    CREATE INDEX IF NOT EXISTS record_path_key ON records(session,kind,path,key);
+                    CREATE INDEX IF NOT EXISTS summary_candidate_occurrences
+                        ON records(session,json_extract(data,'$.occurrence_count')) WHERE kind='candidates';
+                    CREATE INDEX IF NOT EXISTS summary_inventoried_files
+                        ON records(session) WHERE kind='files' AND json_extract(data,'$.inventoried')=1;
+                    DROP INDEX IF EXISTS record_path;
+                    CREATE TABLE IF NOT EXISTS tasks(session TEXT NOT NULL,group_key TEXT NOT NULL,ordinal INTEGER NOT NULL,
+                        data BLOB NOT NULL,PRIMARY KEY(session,group_key,ordinal));
+                    CREATE TABLE IF NOT EXISTS publications(id TEXT PRIMARY KEY,session TEXT NOT NULL,generation INTEGER NOT NULL,data BLOB NOT NULL);
+                    CREATE TABLE IF NOT EXISTS actions(session TEXT NOT NULL,key TEXT NOT NULL,PRIMARY KEY(session,key));
+                """)
+        except BaseException:
+            try:
+                self.close()
+            except sqlite3.Error:
+                pass
+            raise
 
     @contextmanager
     def connection(self):
-        if any(Path(str(self.path) + suffix).is_symlink() for suffix in ("", "-wal", "-shm", "-journal")):
-            raise MaterialError("ONLINE_STATE_INVALID")
-        db = None
         try:
-            db = sqlite3.connect(self.path, timeout=30)
-            self.path.chmod(0o600)
-            db.execute("PRAGMA synchronous=FULL")
-            yield db
-            db.commit()
+            with self._sqlite.connection() as db:
+                yield db
         except sqlite3.Error:
-            if db is not None:
-                db.rollback()
             raise MaterialError("ONLINE_INVENTORY_STORAGE_UNAVAILABLE") from None
-        except BaseException:
-            if db is not None:
-                db.rollback()
-            raise
-        finally:
-            if db is not None:
-                db.close()
+
+    def close(self, *, checkpoint=False):
+        self._sqlite.close(checkpoint=checkpoint)
 
     def session(self, *, workspace_id, conversation_id, user_message_id, manifest, question, identifier=None, guard=None):
         owner = {"workspace_id": workspace_id, "conversation_id": conversation_id, "user_message_id": user_message_id,

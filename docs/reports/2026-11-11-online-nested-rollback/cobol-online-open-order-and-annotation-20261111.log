@@ -1,0 +1,6 @@
+journal_change_precondition PRAGMA journal_mode=WAL synchronous 2
+journal_change_precondition PRAGMA journal_mode=DELETE synchronous 2
+journal_change_precondition PRAGMA journal_mode=PERSIST synchronous 2
+journal_change_precondition PRAGMA journal_mode=TRUNCATE synchronous 2
+annotation_compatibility MissingNoteError preserved True
+annotation_compatibility BrokenNoteError preserved True

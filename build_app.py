@@ -182,11 +182,21 @@ def run_checked(command, **kwargs):
 
 
 def prepare_environment(args):
-    environment = BUILD_ROOT / "venv"
+    from tools.private_sqlite_build import current_identity
+
+    runtime = current_identity(required=True) if getattr(args, "private_sqlite_runtime", False) else None
+    environment = BUILD_ROOT / ("venv-" + runtime["fingerprint"][:20] if runtime else "venv")
     interpreter = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    marker = environment / "private-runtime.json"
+    if runtime and interpreter.exists():
+        if (marker.is_symlink() or not marker.is_file()
+                or json.loads(marker.read_text(encoding="utf-8")) != runtime["inputs"]):
+            raise ValueError("PRIVATE_SQLITE_BUILD_ENVIRONMENT_MISMATCH")
     if not interpreter.exists():
         print("首次构建：创建独立打包环境。", flush=True)
         venv.EnvBuilder(with_pip=True).create(environment)
+        if runtime:
+            marker.write_text(json.dumps(runtime["inputs"], sort_keys=True), encoding="utf-8")
     if not args.skip_install:
         print("检查并安装固定版本的打包依赖……", flush=True)
         run_checked([interpreter, "-m", "pip", "--disable-pip-version-check", "install",
@@ -226,6 +236,9 @@ def write_start_here(path, target, minimum_macos=None):
 
 
 def build(args):
+    from tools.private_sqlite_build import current_identity
+
+    runtime = current_identity(required=True) if getattr(args, "private_sqlite_runtime", False) else None
     target = target_label()
     if not (3, 10) <= sys.version_info[:2] <= (3, 14):
         raise ValueError("请使用 Python 3.10–3.14，推荐 Python 3.12。")
@@ -238,7 +251,8 @@ def build(args):
     collect_licenses(source / "licenses")
     output = run / "compiled"
     environment = os.environ.copy()
-    environment["NUITKA_CACHE_DIR"] = str(BUILD_ROOT / "cache")
+    environment["NUITKA_CACHE_DIR"] = str(BUILD_ROOT / (
+        "cache-" + runtime["fingerprint"][:20] if runtime else "cache"))
     print(f"编译 {target} 桌面应用，首次可能需要较长时间……", flush=True)
     run_checked(compiler_command(source, output, jobs=args.jobs), env=environment, cwd=source)
     return finish_delivery(args, source, output, run, target)
@@ -247,6 +261,9 @@ def build(args):
 def finish_delivery(args, source, output, run, target):
     """Verify an already compiled product before assembling its delivery."""
     import certifi
+    from tools.private_sqlite_build import current_identity, validate_product
+
+    runtime = current_identity(required=True) if getattr(args, "private_sqlite_runtime", False) else None
 
     candidates = list(output.glob("*.app" if sys.platform == "darwin" else "*.dist"))
     if len(candidates) != 1:
@@ -263,11 +280,16 @@ def finish_delivery(args, source, output, run, target):
                  if not key.startswith(("COMPANY_", "PYTHON", "WORKBENCH_"))
                  and key not in {"FRAMEWORK_REFERENCE_PATH", "AGENT_SETTINGS_PATH"}}
     report = run / "self-test.json"
-    run_checked([binary, "--self-test", "--self-test-result", report, "--data-dir", run / "test-profile"],
+    check_command = [binary, "--self-test", "--self-test-result", report, "--data-dir", run / "test-profile"]
+    if runtime:
+        check_command += ["--sqlite-runtime-pin", runtime["pin_path"]]
+    run_checked(check_command,
                 cwd=run, env=check_env, timeout=120)
     result = json.loads(report.read_text(encoding="utf-8"))
     if result.get("ok") is not True:
         raise ValueError("应用自检未通过，未生成交付包。")
+    if runtime:
+        validate_product(result, product, runtime)
     label = datetime.now().strftime("%Y%m%d-%H%M%S")
     parent = args.output_dir.expanduser().resolve() / target
     parent.mkdir(parents=True, exist_ok=True)
@@ -300,6 +322,9 @@ def finish_delivery(args, source, output, run, target):
                 "source_fingerprint": hashlib.sha256(b"".join(
                     str(p.relative_to(source)).encode() + p.read_bytes()
                     for p in sorted(source.rglob("*")) if p.is_file())).hexdigest()}
+    if runtime:
+        metadata["private_sqlite_runtime"] = {key: runtime[key] for key in (
+            "schema_version", "fingerprint", "inputs", "receipt_sha256")}
     (package / "BUILD-INFO.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     audit_delivery(package, public_ca_sha256=public_ca_sha256)
     archive = delivery / f"{APP_NAME}-{target}.zip"
@@ -324,6 +349,8 @@ def main(argv=None):
     parser.add_argument("--skip-install", action="store_true", help="Use the existing isolated build dependencies offline")
     parser.add_argument("--check", action="store_true", help="Print build prerequisites without installing or compiling")
     parser.add_argument("--prepared", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--private-sqlite-runtime", action="store_true",
+                        help="Require the verified private runtime throughout compilation and native self-test")
     args = parser.parse_args(argv)
     try:
         target = target_label()

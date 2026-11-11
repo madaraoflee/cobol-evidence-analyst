@@ -61,6 +61,25 @@ jobs:
           python-version: '3.13'
           architecture: x64
 
+      - name: Prepare the verified private SQLite runtime
+        run: |
+          python tools/setup_private_sqlite_workflow.py --output "$env:RUNNER_TEMP\private-sqlite-setup"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify the active interpreter uses the prepared private component
+        run: |
+          python tools/private_sqlite_build.py --verify-active --output "$env:RUNNER_TEMP\private-sqlite-setup\active-runtime.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve private runtime preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: private-sqlite-runtime-${{ github.sha }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/private-sqlite-setup/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Fetch and verify the mandatory frozen public corpus
         shell: python
         run: |
@@ -149,6 +168,25 @@ jobs:
           python-version: '3.13'
           architecture: x64
 
+      - name: Prepare the verified private SQLite runtime
+        run: |
+          python tools/setup_private_sqlite_workflow.py --output "$env:RUNNER_TEMP\private-sqlite-setup"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify the active interpreter uses the prepared private component
+        run: |
+          python tools/private_sqlite_build.py --verify-active --output "$env:RUNNER_TEMP\private-sqlite-setup\active-runtime.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve private runtime preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: private-sqlite-runtime-${{ github.sha }}-${{ github.run_attempt }}-build
+          path: ${{ runner.temp }}/private-sqlite-setup/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Download all regression reports for this revision and attempt
         uses: actions/download-artifact@v7
         with:
@@ -216,7 +254,7 @@ jobs:
           sys.path.insert(0, str(Path.cwd()))
           from build_app import prepare_environment
 
-          interpreter = prepare_environment(Namespace(skip_install=False))
+          interpreter = prepare_environment(Namespace(skip_install=False, private_sqlite_runtime=True))
           with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
               handle.write(f'interpreter={interpreter}\n')
 
@@ -224,7 +262,7 @@ jobs:
         env:
           BUILD_PYTHON: ${{ steps.prepare.outputs.interpreter }}
         run: |
-          & $env:BUILD_PYTHON poc/desktop_app.py --browser --self-test --data-dir "$env:RUNNER_TEMP\source-self-test-profile" --self-test-result "$env:RUNNER_TEMP\source-self-test.json"
+          & $env:BUILD_PYTHON poc/desktop_app.py --browser --self-test --data-dir "$env:RUNNER_TEMP\source-self-test-profile" --self-test-result "$env:RUNNER_TEMP\source-self-test.json" --sqlite-runtime-pin $env:WORKBENCH_SQLITE_RUNTIME_PIN
           $selfTestCode = $LASTEXITCODE
           if ($selfTestCode -ne 0) {
             $diagnostic = Join-Path $env:RUNNER_TEMP 'source-self-test-profile\desktop.log'
@@ -244,7 +282,7 @@ jobs:
           subprocess.run(['node', '--test', *tests], check=True)
 
       - name: Compile with MSVC and verify the compiled runtime
-        run: python build_app.py --skip-install --jobs 4 --output-dir release
+        run: python build_app.py --skip-install --jobs 4 --output-dir release --private-sqlite-runtime
 
       - name: Exercise final EXE through the default workbench and enforce joint acceptance
         timeout-minutes: 45
@@ -335,6 +373,21 @@ jobs:
           subprocess.run([sys.executable, 'tools/check_global_inventory_continuity.py',
               '--archive', 'windows-delivery/COBOLWorkbench-windows-x64.zip',
               '--source-commit', os.environ['GITHUB_SHA'], '--output', str(output)], check=True)
+
+      - name: Verify the actual SQLite DLL in the delivered final EXE
+        timeout-minutes: 5
+        run: |
+          python tools/check_packaged_sqlite_runtime.py --archive windows-delivery/COBOLWorkbench-windows-x64.zip --source-commit $env:GITHUB_SHA --pin tools/sqlite-runtime-pin.json --output "$env:RUNNER_TEMP\compiled-sqlite-runtime"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Preserve the separately bound final SQLite runtime report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlite-runtime-acceptance-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/compiled-sqlite-runtime/SQLITE-RUNTIME-ACCEPTANCE.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Preserve the separately bound whole-library inventory report
         if: always()

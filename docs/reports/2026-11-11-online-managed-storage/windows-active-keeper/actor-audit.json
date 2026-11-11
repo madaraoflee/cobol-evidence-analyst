@@ -1,0 +1,8 @@
+{
+  "basis": "static read-only review of frozen diagnostic tool and synchronous driver; no per-database operation thread-ID telemetry exists in this Windows artifact",
+  "dynamic_Windows_thread_ID_audit_recorded": false,
+  "only_explicit_background_thread": "Observer.heartbeat; it snapshots counters and writes JSON and does not call SQLite",
+  "keeper_creation_use_and_final_close": "inside synchronous connect/instrument context on driver caller thread",
+  "SQLite_check_same_thread": "production online store uses default true; diagnostic does not pass false",
+  "limits": "This is not a captured Windows trace proving the thread ID of every SQL call; do not label it a dynamic thread audit."
+}

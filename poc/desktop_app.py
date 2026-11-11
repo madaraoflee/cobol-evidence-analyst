@@ -421,10 +421,13 @@ def main(argv=None) -> int:
     parser.add_argument("--self-test-result", "--self-test-report", dest="self_test_result", type=Path,
                         help="Write the headless check result to this JSON file.")
     parser.add_argument("--acceptance-server-info", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--sqlite-runtime-pin", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--acceptance-capture-context", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.self_test_result and not args.self_test:
         parser.error("--self-test-result requires --self-test")
+    if args.sqlite_runtime_pin and not args.self_test:
+        parser.error("--sqlite-runtime-pin requires --self-test")
     if args.acceptance_server_info and (not args.data_dir or args.self_test or args.open_config or args.browser):
         parser.error("--acceptance-server-info requires explicit --data-dir and excludes other launch modes")
     if args.acceptance_capture_context and not args.acceptance_server_info:
@@ -450,6 +453,12 @@ def main(argv=None) -> int:
 
             ssl.create_default_context()
             result = self_test()
+            if args.sqlite_runtime_pin:
+                from sqlite_runtime_probe import run_probe
+                pin = json.loads(args.sqlite_runtime_pin.read_text(encoding="utf-8"))
+                compiled = getattr(sys, "frozen", False) or "__compiled__" in globals()
+                allowed = Path(sys.executable).parent if compiled else Path(sys.base_prefix)
+                result["sqlite_runtime"] = run_probe(pin, allowed)
             result["desktop_dependencies"] = not args.browser
             result["browser_mode"] = args.browser
             result["tls_context"] = True

@@ -1,0 +1,35 @@
+✔ repository identity accepts exact Cloud repository and rejects credentials, alternate hosts and paths (2.530125ms)
+✔ page uses guarded online endpoints and no model request before explicit source consent (15.499042ms)
+✔ source switching clears prior answers and fixed citation keys are escaped (2.003708ms)
+✔ unknown outcome is an explicit retry action and uses saved investigation (1.297875ms)
+✔ connection payload keeps separate credentials in request only and clears form (1.159959ms)
+✔ oversized UTF-8 questions fail before posting and retain the editable question (1.106834ms)
+✔ partial input coverage remains visible even when details were omitted (0.701667ms)
+✔ snapshot, HTTPS and old workspace views keep weekly sync completion unknown (2.335625ms)
+✔ release preview and selected view distinguish synchronizer attestation from snapshot (1.478542ms)
+✔ online status polling recovers from a transient failure without repeating a question (1.038292ms)
+✔ online status retry delay is bounded and invalid sessions stop polling (1.373917ms)
+✔ late online status responses cannot overwrite cancellation or workspace selection (1.886541ms)
+✔ online failed actions refresh status without retrying the mutation (0.897458ms)
+✔ the Bitbucket entry label follows all three existing workbench locales (20.490834ms)
+✔ online inherits the saved locale for authored static and dynamic interface text (17.729458ms)
+✔ changing online language preserves model prose titles filenames and evidence bytes (2.300583ms)
+✔ question and explicit continuation send the selected locale with consent preserved (1.614875ms)
+✔ visible errors progress and later refreshes use the newly selected locale (1.562291ms)
+✔ online safe diagnostic is visible for synchronous failures and retranslated without exposing provider text (3.489667ms)
+✔ online jobs and reopened pending investigations retain distinct timeout rate limit and unknown 500 explanations (5.23775ms)
+✔ online rejects malformed diagnostic fields and never renders unsafe upstream identifiers or instructions (3.622375ms)
+✔ online release selection and accessible labels change language without changing version labels or credentials (1.728459ms)
+✔ online failures belong to the selected conversation and workspace while unrelated running jobs keep polling (9.49675ms)
+✔ online scoped cleanup displays the original API 500 and separate safe storage error in each locale (20.114542ms)
+✔ online scoped cleanup ignores arbitrary secondary values without exposing raw exception text (2.77575ms)
+✔ a later normal completion removes the prior storage cleanup message and diagnostic (0.96675ms)
+✔ storage cleanup warning preserves explicit retry confirmation without resending an unknown model request (0.823208ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153.78475

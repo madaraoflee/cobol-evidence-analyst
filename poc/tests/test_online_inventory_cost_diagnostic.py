@@ -136,6 +136,26 @@ class OnlineInventoryCostDiagnosticTests(unittest.TestCase):
                 if expected_code:
                     self.assertEqual("SourceBindingChanged", report["error_type"])
 
+    def test_cleanup_error_fails_a_successful_body_and_keeps_an_original_failure(self):
+        for primary_failure in (False, True):
+            with self.subTest(primary_failure=primary_failure):
+                output = self.root / ("primary" if primary_failure else "cleanup")
+                output.mkdir()
+                observer = diagnostic.Observer(output, "cleanup-boundary", journal_mode="DELETE")
+                expected = ValueError if primary_failure else RuntimeError
+                with mock.patch.object(inventory.OnlineInventoryStore, "close", create=True,
+                                       side_effect=RuntimeError("injected cleanup failure")), \
+                     redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    with self.assertRaises(expected) as caught:
+                        with diagnostic.instrument(observer, driver, inventory, investigation):
+                            inventory.OnlineInventoryStore(output / "inventory")
+                            if primary_failure:
+                                raise ValueError("preserve the original failure")
+                self.assertIn("resource_cleanup", observer.tests)
+                self.assertTrue(observer.tests["resource_cleanup"].startswith("failed:"))
+                if primary_failure:
+                    self.assertEqual("preserve the original failure", str(caught.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

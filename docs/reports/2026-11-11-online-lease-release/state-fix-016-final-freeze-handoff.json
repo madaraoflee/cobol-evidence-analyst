@@ -1,0 +1,94 @@
+{
+  "own_files_frozen": true,
+  "files_sha256": {
+    "poc/online_state.py": "549c765ac0e1d1cfa7b469ea115701a0c47c2add542cb89ceeb48af52de7b378",
+    "poc/online_workspace.py": "f6994d0958be4ffe6f46a7ce0fbefe1e768a3685000d957454fda96cf18d3d0b",
+    "poc/web_app.py": "3a909de333adb9e749ea9ed5b8386e1949890eb03ee1540f9d54cf9a1a4bd3e5",
+    "poc/tests/test_online_inventory_store.py": "6d1e908ffb8856ecda9dc25460e99f723b55f1e89ada130573f8b3871331d092",
+    "poc/tests/test_online_inventory_query_cost.py": "835e359d8ebeec75f5b9aa80ca943f5f4e440ff6ede125e8cadd8b90cd3ace48",
+    "poc/tests/online_sqlite_crash_writer.py": "e79af9720dd62dcd99497e2eaa9aa65d84ef958fdceb1b81ecccddbf4d6618da",
+    "poc/tests/online_state_crash_writer.py": "d99732ae399ca0a17fb836b51006271317ea1721944bcb9dd9e7ade604c4a1c0",
+    "poc/tests/test_online_inventory_journal_safety.py": "1993abe2949efe43317f58acb5d3441fdc6c6a537e89904da6a8a57fcfe3e9bc",
+    "poc/tests/test_online_sqlite_safety.py": "9b94b8ddbdc9e9d4ed925850034d8ea4da02be16fa7d40ca36f7333ba058a2d3",
+    "poc/tests/test_online_state_managed_writes.py": "3d3f11877e28fff79482642735006bb3e94b9a12ba6da1bada5418b5dbe78d89"
+  },
+  "dependency_hashes_observed": {
+    "poc/online_sqlite_store.py": "31b8d8867aa6286ef035cc8ac001ad4905852bfdec317858c1c726c8aee84d52",
+    "poc/online_inventory_store.py": "5b2e753feea977702d525aaa33bc8b9b0e29c76ae64f79f9dc7ce57655f54ff1"
+  },
+  "runtime_sqlite": "3.53.2",
+  "new_test_ids": [
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_abrupt_exit_after_production_commit_preserves_record_and_meta_together",
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_abrupt_uncommitted_legacy_delete_hot_journal_recovers_original_transaction",
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_actual_database_and_all_sidecar_symlinks_fail_before_sqlite_open_without_external_changes",
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_capture_exception_rolls_back_original_meta_records_versions_actions_and_tasks",
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_concurrent_reader_and_writer_keep_original_snapshot_and_old_publication",
+    "test_online_inventory_journal_safety.OnlineInventoryJournalSafetyTests.test_real_legacy_delete_database_reopens_without_losing_records_or_old_publication",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_cleanup_notes_cannot_hide_the_original_exception_when_note_api_is_missing_or_broken",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_default_runtime_policy_applies_full_and_supported_configuration_then_lazily_reopens",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_documented_fixed_versions_are_required_and_stock_windows_version_is_not_safe",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_full_is_applied_and_read_back_before_any_journal_mode_switch",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_invalid_lock_timeouts_cannot_create_an_unbounded_wait",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_missing_configuration_api_refuses_wal_without_a_silent_api_fallback",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_real_rollback_failure_does_not_replace_the_primary_error_or_leave_a_poisoned_connection",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_preserves_nested_outer_rollback_or_refuses_unsupported_wal",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_preserves_trigger_rollback_error_and_makes_outer_rollback_only",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rejects_active_managed_close_and_bounds_contending_lock_waits",
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_unsafe_engine_refuses_explicit_wal_before_open_and_default_retains_per_operation_delete",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_abrupt_process_exit_recovers_uncommitted_hot_journal_and_committed_state",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_active_transaction_cannot_be_closed_or_switched_to_an_analysis_lease",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_concurrent_job_leases_keep_other_jobs_active_and_end_with_single_file",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_keeps_original_job_error_and_later_close_recovers_idle_layout",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_exit_lock_timeout_release_is_drained_by_next_transaction_lease_or_close",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_idle_single_file_layout_survives_real_progress_writes_and_final_lease_cleanup",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_nested_leases_keep_wal_until_the_last_lease_without_changing_idle_layout",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_nested_state_transaction_rolls_back_only_inner_work_under_safe_lease",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_released_lease_waits_until_sql_transaction_commits_before_checkpointing",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_state_database_and_every_sidecar_are_rejected_before_open_without_touching_external_file",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_transaction_failure_during_analysis_keeps_original_record_and_restores_idle_layout",
+    "test_online_state_managed_writes.OnlineStateManagedWritesTests.test_unsafe_stock_engine_and_explicit_override_do_not_enter_managed_wal",
+    "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_actual_progress_callbacks_use_lease_and_done_is_published_after_idle_layout_returns",
+    "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_close_cancels_without_joining_remote_work_then_releases_both_stores_after_cleanup",
+    "test_online_state_managed_writes.OnlineWorkspaceManagedWritesTests.test_online_cleanup_error_still_releases_http_socket"
+  ],
+  "new_tests": 34,
+  "targeted_online_suite": {
+    "tests_run": 372,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "seconds": 27.556,
+    "log": "targeted-online-suite-016-authorized.log"
+  },
+  "latest_state_lease_group_after_added_unsafe_constructor_assertion": {
+    "tests_run": 15,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "old_fixture_resource_changes": [
+    {
+      "path": "poc/tests/test_online_inventory_store.py",
+      "all_assertion_asts_identical": true,
+      "all_literal_input_and_gold_asts_identical": true,
+      "purpose": "Only close/addCleanup of owned online stores; query-cost instrumentation closes the existing cache before installing the unchanged SQLite hooks."
+    },
+    {
+      "path": "poc/tests/test_online_inventory_query_cost.py",
+      "all_assertion_asts_identical": true,
+      "all_literal_input_and_gold_asts_identical": true,
+      "purpose": "Only close/addCleanup of owned online stores; query-cost instrumentation closes the existing cache before installing the unchanged SQLite hooks."
+    }
+  ],
+  "local_test_files_modified": false,
+  "state_contract": "Idle original per-operation DELETE and exactly one state file; safe-engine active analysis lease uses cached WAL/FULL/no-checkpoint/auto1000, SQLite owns final checkpoint-on-close; unsafe engine or diagnostic override retains the old mode.",
+  "scope": "Online state/workspace lifecycle and new online-only tests. No SDK/runtime replacement, app build, real model, company source, old test assertion/input/gold changes, or full-project pass claim. BUG016 queues release before bounded exit lock wait and drains it at next safe SQL/lease/close boundary.",
+  "016_ticket_recovery": {
+    "source_before_sha256": "9b1354875a89ee7829379452e47d721b04b089ac72b5a4e562f94a679520e644",
+    "before_new_reproduction": "lease-exit-lock-before-new-reproduction.json",
+    "after_new_reproduction": "lease-exit-lock-after-new-reproduction.json",
+    "provenance_readme": "BUG-20261111-016-README.md"
+  }
+}

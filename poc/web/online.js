@@ -222,6 +222,7 @@
     ["请求处理发生系统错误，具体原因尚未确认。", "請求處理發生系統錯誤，具體原因尚未確認。", "A system error occurred while processing the request; the specific cause is unconfirmed."],
     ["凭关联编号检查应用和服务端日志。", "憑關聯編號檢查應用和服務端日誌。", "Use the correlation ID to check application and server logs."],
     ["本机存储空间不足。", "本機儲存空間不足。", "Local storage is full."],
+    ["在线分析的存储收尾出现错误；请核对已保存结果后再继续。", "在線分析的儲存收尾出現錯誤；請核對已儲存結果後再繼續。", "Online analysis storage cleanup failed. Review the saved results before continuing."],
     ["释放结果目录与临时目录磁盘空间后重试。", "釋放結果目錄與暫存目錄磁碟空間後重試。", "Free disk space in the results and temporary directories, then try again."],
     ["无法写入本机分析文件。", "無法寫入本機分析文件。", "Local analysis files could not be written."],
     ["检查结果目录和工作台配置目录的写权限。", "檢查結果目錄和工作台設定目錄的寫入權限。", "Check write permissions for the results and workbench configuration directories."],
@@ -536,7 +537,10 @@
       $('progress-detail').textContent = typeof progress === 'string' ? t(progress) : [t(progress.message || phaseNames[progress.phase] || progress.phase || '正在读取资料'), progress.completed != null ? `${progress.completed}${progress.total != null ? '/' + progress.total : ''}` : ''].filter(Boolean).join(' · ');
       $('cancel').disabled = state.submitting;
     }
-    $('model-diagnostic').textContent = diagnosticText(selectedJob()?.diagnostic) || diagnosticText(selected?.pending?.diagnostic);
+    const selectedDiagnosticJob = selectedJob();
+    const storageError = selectedDiagnosticJob?.storage_error === 'ONLINE_STATE_UNAVAILABLE'
+      || selected?.pending?.storage_error === 'ONLINE_STATE_UNAVAILABLE' ? t('在线分析的存储收尾出现错误；请核对已保存结果后再继续。') : '';
+    $('model-diagnostic').textContent = [diagnosticText(selectedDiagnosticJob?.diagnostic) || diagnosticText(selected?.pending?.diagnostic), storageError].filter(Boolean).join(' · ');
     $('model-diagnostic').hidden = !$('model-diagnostic').textContent;
     const list = selected?.messages || [];
     if (list.length) {

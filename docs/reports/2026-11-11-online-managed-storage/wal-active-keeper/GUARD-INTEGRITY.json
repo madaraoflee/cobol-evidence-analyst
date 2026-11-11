@@ -1,0 +1,7 @@
+{
+  "original_sha256": "11f5e3494fd5f680c95623d7aa8f0d5b4dfafc4a276ec7908cd44dd0dc957eee",
+  "variant_sha256": "a582f0e752e4f619858c123f91d11c92e655ff461437c67d2e6604fb927642a8",
+  "terminal_failure_source_binding_guards_byte_identical": true,
+  "complete_delivery_pagination_export_rollback_verifier_byte_identical": true,
+  "cli_arguments_ast_identical": true
+}

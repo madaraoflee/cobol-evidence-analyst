@@ -1,0 +1,20 @@
+{
+  "classification": "new_managed_cleanup_boundary_not_old_product_defect",
+  "old_workbench_close_had_sqlite_close": false,
+  "original_web_module_sha256": "16b83bf74d58b574fe8323670dff195453b24b4bb3a3de1e50373139076dc9f0",
+  "observations": [
+    {
+      "case": "original_9ad_function_with_new_cleanup_failure",
+      "primary_error": "OperationalError",
+      "http_socket_close_calls": 0,
+      "stop_event": true
+    },
+    {
+      "case": "new_online_cleanup_finally",
+      "primary_error": "OperationalError",
+      "http_socket_close_calls": 1,
+      "stop_event": true
+    }
+  ],
+  "limitation": "The old HTTP close function was replayed with a new managed-store cleanup exception injected. This does not claim the original 9ad application actually raised this failure."
+}

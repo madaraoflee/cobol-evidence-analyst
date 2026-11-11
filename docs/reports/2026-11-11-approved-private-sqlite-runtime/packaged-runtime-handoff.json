@@ -1,0 +1,32 @@
+{
+  "own_files_frozen": true,
+  "files_sha256": {
+    "tools/check_packaged_sqlite_runtime.py": "013647056b4aa42e21c17aa7551ed2e285db3f17b58d3171d81f04992f091d66",
+    "poc/tests/test_packaged_sqlite_runtime.py": "fae2a4f8ba783d771f867234873b885537cad334e006446deb382515b0b46b1e"
+  },
+  "dependency_hashes_observed": {
+    "tools/desktop_acceptance.py": "9bc06844f44eb255eb7aac02ef65ad5c08cfe42bbb0dd0b2fad3cf4c00a80150",
+    "poc/sqlite_runtime_probe.py": "96f9b8eb1a04d09f0fa274337db97c6eb0cf438f33b598582831002bb0c75fd0",
+    "tools/sqlite-runtime-pin.json": "03b06daa98e92a2c2d88791d02ee577419282af7b7cedd7200b185e5ccb2113f"
+  },
+  "new_test_ids": [
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_native_exe_identity_is_bound_to_one_zip_and_actual_packaged_dll_without_changing_joint_contract",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_source_mismatch_and_unsafe_zip_fail_before_execution_or_extraction_escape",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_exactly_one_matching_dll_must_exist_inside_the_extracted_application_before_execution",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_real_probe_validation_rejects_outside_dll_wrong_identity_or_incomplete_checks_without_sdk_fallback",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_build_info_source_version_and_hash_must_match_the_new_native_observation",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_timeout_and_failed_native_self_test_are_failed_reports_without_an_interpreter_retry",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_executable_or_archive_mutation_during_native_execution_cannot_pass_final_binding",
+    "test_packaged_sqlite_runtime.PackagedSQLiteRuntimeTests.test_non_windows_and_reused_output_never_execute_or_overwrite_existing_evidence"
+  ],
+  "mock_tests": {
+    "run": 8,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "mock-regressions.log"
+  },
+  "cli": "python tools/check_packaged_sqlite_runtime.py --archive PATH.zip --source-commit 40SHA --pin tools/sqlite-runtime-pin.json --output FRESH_DIR",
+  "independent_report": "FRESH_DIR/SQLITE-RUNTIME-ACCEPTANCE.json",
+  "scope": "Native execution mocked; actual ZIP extraction, package identity, byte hashes and sqlite_runtime_probe.validate_report exercised. Fixture patches reviewed-pin constant only to neutral fake DLL hash; it does not claim the official component executed. No package build, workflow/model call, old assertion change, or full gate result."
+}

@@ -1,0 +1,22 @@
+{
+  "label": "after-ticket-release-fix",
+  "kind": "new_reproduction",
+  "fresh_directory": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/online-lease-exit-replay-9fu1ton5",
+  "supported_runtime": true,
+  "sqlite": "3.53.2",
+  "fault_lock_call": 2,
+  "exit_error": "MaterialError:ONLINE_STATE_UNAVAILABLE",
+  "depth_before_recovery": 1,
+  "files_before_recovery": [
+    "online-state.sqlite",
+    "online-state.sqlite-shm",
+    "online-state.sqlite-wal"
+  ],
+  "later_close_error": null,
+  "remaining_depth": 0,
+  "files_after_recovery": [
+    "online-state.sqlite"
+  ],
+  "source_path": "/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_state.py",
+  "source_sha256": "549c765ac0e1d1cfa7b469ea115701a0c47c2add542cb89ceeb48af52de7b378"
+}
