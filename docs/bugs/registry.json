@@ -8552,6 +8552,46 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "新018补丁入库前修复；中性真实文件/链接和注入窗口回归已验证，大小写源排除与目标独占创建防止沿existing/late link写外部文件，不再对目标做路径metadata操作。原49和前10方法/断言保持。并未伤及真实SDK；完整旧回归和真实Windows/EXE仍按后续门禁验证。"
+    },
+    {
+      "id": "BUG-20261111-020",
+      "title": "在线缓存路径保护回归未处理Windows禁止重命名已打开SQLite文件的先决条件",
+      "symptom": "真实run42934769797的Windows分片3执行1350项，四个error均在两项缓存防替换测试的Path.rename处抛WinError32；DB及WAL/SHM文件被活跃SQLite连接锁定，测试尚未执行guard断言。其余完成项不因此变为应用回退；EXE构建仍须阻断。",
+      "root_cause": "原测试在可重命名已打开文件的平台上构造路径替换，未适配Windows VFS打开文件不允许重命名的原生约束。新SDK3.54.1启用真实managed WAL后首次在Windows执行这一分支。静态审查未发现同因库存删除/版本更新问题：删除为SQL DELETE，更新另建workspace，关闭有资源回收。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-cached-guard-contract/README.md"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "确认的是测试先决条件，不声称生产缓存保护断言失败；原完整Windows报告继续保留失败，不skip/xfail/忽略。必须先准备保留原断言且等价或更强的Windows夹具方案，经用户依缺陷合同明确决定后才能迁移；真实Windows完整回归及最终EXE尚未通过。"
+    },
+    {
+      "id": "BUG-20261111-021",
+      "title": "万文件索引验收测试只退出SQLite事务而未关闭自身查询连接，Windows清理失败",
+      "symptom": "真实Windows run42934769797分片0在原45分钟内完成1350项，在线10001实际passed1281.570秒、local10001passed229.191秒，但tearDownClass删除index.sqlite时WinError32，构建仍阻断。",
+      "root_cause": "GC禁用且只用弱引用追踪确认：setUpClass四个生产索引/导出连接均已显式close；real_index测试line172 with sqlite3.connect只context_exit不close，方法返回后唯一存活open归该fixture。相同10001fixture仅在内存用closing包该连接后open=0且原断言通过，无需GC。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-large-index-cleanup/connection-owner-evidence.json"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "已确认是测试自身连接管理问题，未归咎生产索引/导出，不用gc.collect掩盖句柄。最小提案仅显式close现有只读查询连接、SQL/输入/旧断言保持；尚待与020一起由用户批准测试合同迁移后应用，随后须完整旧回归和真实Windows验证。"
     }
   ],
   "updated_at": "2026-11-10"

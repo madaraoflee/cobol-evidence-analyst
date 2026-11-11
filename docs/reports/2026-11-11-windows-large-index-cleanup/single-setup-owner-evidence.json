@@ -1,0 +1,286 @@
+{
+  "scope": "Selected real 10001-file index/export method only; weak refs, GC disabled, no long online/local inventory methods",
+  "gc_enabled": false,
+  "reference_policy": "Records contain weakref.ref plus strings/integers only; no retained connection or live frame",
+  "sqlite": "3.53.2",
+  "runtime_platform": "darwin",
+  "repository_test_sha256": "4a5d6473a3736655bb0c6f6dbe6cd0e58773dd6848bdca30e55feea24cd515a4",
+  "after_production_setup": [
+    {
+      "database": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 160, in setUpClass\n    cls.report = build_business_index(cls.source, cls.database, source_format=\"free\", verify_content=True,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_index.py\", line 827, in build_business_index\n    connection = _connect(database.resolve())\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/structural_index.py\", line 1729, in _connect\n    connection = sqlite3.connect(database_path)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 2,
+      "key": 1,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=rw",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 162, in setUpClass\n    ensure_repository_search(cls.database, cls.source)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 311, in ensure_repository_search\n    connection = _connect(database_path, True)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 254, in _connect\n    connection = sqlite3.connect(database.resolve().as_uri() + (\"?mode=rw\" if writable else \"?mode=ro\"), uri=True)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 2,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=ro",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 372, in export_material\n    with closing(sqlite3.connect(database.as_uri() + \"?mode=ro\", uri=True)) as db:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 3,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/material/.spool-3vgfmv2v/postings.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 389, in export_material\n    with closing(sqlite3.connect(str(Path(temporary) / \"postings.sqlite\"))) as spool:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 4,
+      "weakref_alive": false,
+      "open": false
+    }
+  ],
+  "original_selected_method": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "after_original_method": [
+    {
+      "database": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 160, in setUpClass\n    cls.report = build_business_index(cls.source, cls.database, source_format=\"free\", verify_content=True,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_index.py\", line 827, in build_business_index\n    connection = _connect(database.resolve())\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/structural_index.py\", line 1729, in _connect\n    connection = sqlite3.connect(database_path)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 2,
+      "key": 1,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=rw",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 162, in setUpClass\n    ensure_repository_search(cls.database, cls.source)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 311, in ensure_repository_search\n    connection = _connect(database_path, True)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 254, in _connect\n    connection = sqlite3.connect(database.resolve().as_uri() + (\"?mode=rw\" if writable else \"?mode=ro\"), uri=True)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 2,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=ro",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 372, in export_material\n    with closing(sqlite3.connect(database.as_uri() + \"?mode=ro\", uri=True)) as db:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 3,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/material/.spool-3vgfmv2v/postings.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 389, in export_material\n    with closing(sqlite3.connect(str(Path(temporary) / \"postings.sqlite\"))) as spool:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 4,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 82, in <module>\n    result['original_selected_method']=run_one(cls(name),'original-selected-method.log')\n",
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 65, in run_one\n    result=unittest.TextTestRunner(stream=log,verbosity=2).run(case)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/runner.py\", line 257, in run\n    test(result)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 725, in __call__\n    return self.run(*args, **kwds)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 669, in run\n    self._callTestMethod(testMethod)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 615, in _callTestMethod\n    result = method()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 172, in test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once\n    with sqlite3.connect(self.database) as db:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 0,
+      "context_exit_calls": 1,
+      "key": 5,
+      "weakref_alive": true,
+      "open": true
+    }
+  ],
+  "diagnostic_old_owner_close_after_measurement": true,
+  "proposed_selected_method": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "after_proposed_method": [
+    {
+      "database": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 160, in setUpClass\n    cls.report = build_business_index(cls.source, cls.database, source_format=\"free\", verify_content=True,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/business_index.py\", line 827, in build_business_index\n    connection = _connect(database.resolve())\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/structural_index.py\", line 1729, in _connect\n    connection = sqlite3.connect(database_path)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 2,
+      "key": 1,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=rw",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 162, in setUpClass\n    ensure_repository_search(cls.database, cls.source)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 311, in ensure_repository_search\n    connection = _connect(database_path, True)\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/repository_discovery.py\", line 254, in _connect\n    connection = sqlite3.connect(database.resolve().as_uri() + (\"?mode=rw\" if writable else \"?mode=ro\"), uri=True)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 2,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "file:///private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite?mode=ro",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 372, in export_material\n    with closing(sqlite3.connect(database.as_uri() + \"?mode=ro\", uri=True)) as db:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 3,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/material/.spool-3vgfmv2v/postings.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 79, in <module>\n    cls.setUpClass()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 164, in setUpClass\n    cls.material_manifest = export_material(cls.database, cls.source, cls.material,\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/online_material_export.py\", line 389, in export_material\n    with closing(sqlite3.connect(str(Path(temporary) / \"postings.sqlite\"))) as spool:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 4,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 82, in <module>\n    result['original_selected_method']=run_one(cls(name),'original-selected-method.log')\n",
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 65, in run_one\n    result=unittest.TextTestRunner(stream=log,verbosity=2).run(case)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/runner.py\", line 257, in run\n    test(result)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 725, in __call__\n    return self.run(*args, **kwds)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 669, in run\n    self._callTestMethod(testMethod)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 615, in _callTestMethod\n    result = method()\n",
+        "  File \"/private/tmp/cobol-global-formula-audit-tree-20261110/poc/tests/test_large_repository_inventory_acceptance.py\", line 172, in test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once\n    with sqlite3.connect(self.database) as db:\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 1,
+      "key": 5,
+      "weakref_alive": false,
+      "open": false
+    },
+    {
+      "database": "/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/tmpz__8wtxg/index.sqlite",
+      "creation": [
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 105, in <module>\n    result['proposed_selected_method']=run_one(cls(name),'proposed-selected-method.log')\n",
+        "  File \"/private/tmp/cobol-large-index-cleanup-owner-20261111/trace_owner_single_setup.py\", line 65, in run_one\n    result=unittest.TextTestRunner(stream=log,verbosity=2).run(case)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/runner.py\", line 257, in run\n    test(result)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 725, in __call__\n    return self.run(*args, **kwds)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 669, in run\n    self._callTestMethod(testMethod)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/case.py\", line 615, in _callTestMethod\n    result = method()\n",
+        "  File \"<proposed-fixture-explicit-close>\", line 172, in test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1180, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n",
+        "  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1247, in _execute_mock_call\n    result = effect(*args, **kwargs)\n"
+      ],
+      "explicit_close_calls": 1,
+      "context_exit_calls": 0,
+      "key": 6,
+      "weakref_alive": false,
+      "open": false
+    }
+  ],
+  "repository_file_unchanged": true
+}

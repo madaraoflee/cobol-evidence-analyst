@@ -1,0 +1,23 @@
+[
+  {
+    "path": "poc/tests/test_online_sqlite_safety.py",
+    "new_sha256": "795562345aa4035261d9649dbcee8d53e1eaad39e211676db7e6799533f698bb",
+    "old_assertions": 60,
+    "new_assertions": 71,
+    "all_old_assertion_AST_and_counts_preserved": true
+  },
+  {
+    "path": "poc/tests/test_large_repository_inventory_acceptance.py",
+    "new_sha256": "8bec8347285ab5d776ee66c914abad19386397d327fb1d733787d5ed99541dc4",
+    "old_assertions": 66,
+    "new_assertions": 66,
+    "all_old_assertion_AST_and_counts_preserved": true
+  },
+  {
+    "path": "poc/tests/test_online_sqlite_windows_contract.py",
+    "new_sha256": "8f53c2b3eb81b244d3e4acf552f94c7a7592ae3d5ac8e96ad113fde1036e844f",
+    "old_assertions": 0,
+    "new_assertions": 50,
+    "all_old_assertion_AST_and_counts_preserved": true
+  }
+]

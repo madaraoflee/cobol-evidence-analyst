@@ -1,0 +1,310 @@
+--- a/poc/tests/test_online_sqlite_safety.py
++++ b/poc/tests/test_online_sqlite_safety.py
+@@ -1,5 +1,6 @@
+ """Online-only engine policy, transaction boundaries and owned resources."""
+ from pathlib import Path
++from contextlib import nullcontext
+ from types import SimpleNamespace
+ import sqlite3
+ import sys
+@@ -217,6 +218,20 @@
+         self.assertFalse(thread.is_alive())
+         store.close()
+ 
++    def _assert_windows_blocks_live_database_rename(self, path, backup, store, db):
++        self.assertIs(store._db, db)
++        self.assertFalse(db.in_transaction)
++        info = path.stat()
++        before = (path.read_bytes(), info.st_mtime_ns, info.st_dev, info.st_ino)
++        with self.assertRaises(PermissionError) as blocked:
++            path.rename(backup)
++        self.assertEqual(blocked.exception.winerror, 32)
++        after = path.stat()
++        self.assertEqual((path.read_bytes(), after.st_mtime_ns, after.st_dev, after.st_ino), before)
++        self.assertFalse(backup.exists())
++        self.assertEqual(db.execute('SELECT * FROM content').fetchall(), [(1,)])
++        self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
++
+     def test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection(self):
+         if not managed.supports_managed_wal():
+             self.assert_unsupported_wal()
+@@ -235,23 +250,37 @@
+                     sidecar = Path(str(path) + suffix)
+                     backup = sidecar.with_name(sidecar.name + '.original')
+                     existed = sidecar.exists()
+-                    if existed:
+-                        sidecar.rename(backup)
+-                    sidecar.symlink_to(target)
++                    windows_locked = sys.platform == 'win32' and existed and suffix in ('', '-wal', '-shm')
++                    if windows_locked:
++                        self._assert_windows_blocks_live_database_rename(sidecar, backup, store, db)
++                        original_is_symlink = Path.is_symlink
++                        def changed_path(candidate):
++                            return candidate == sidecar or original_is_symlink(candidate)
++                        observation = mock.patch.object(Path, 'is_symlink', new=changed_path)
++                    else:
++                        if existed:
++                            sidecar.rename(backup)
++                        sidecar.symlink_to(target)
++                        observation = nullcontext()
++                    issued_sql = []
++                    db.set_trace_callback(issued_sql.append)
+                     try:
+-                        with mock.patch.object(managed.sqlite3, 'connect', side_effect=AssertionError('Guard must reject before open')) as connect:
+-                            with self.assertRaises(MaterialError) as caught:
+-                                with store.connection():
+-                                    self.fail('Unsafe cached path was yielded')
+-                            self.assertEqual(caught.exception.code, 'ONLINE_STATE_INVALID')
+-                            connect.assert_not_called()
+-                        self.assertEqual((target.read_bytes(), target.stat().st_mtime_ns), original)
+-                        with self.assertRaises(sqlite3.ProgrammingError):
+-                            db.execute('SELECT 1')
++                        with observation:
++                            with mock.patch.object(managed.sqlite3, 'connect', side_effect=AssertionError('Guard must reject before open')) as connect:
++                                with self.assertRaises(MaterialError) as caught:
++                                    with store.connection():
++                                        self.fail('Unsafe cached path was yielded')
++                                self.assertEqual(caught.exception.code, 'ONLINE_STATE_INVALID')
++                                connect.assert_not_called()
++                            self.assertEqual((target.read_bytes(), target.stat().st_mtime_ns), original)
++                            with self.assertRaises(sqlite3.ProgrammingError):
++                                db.execute('SELECT 1')
++                        self.assertEqual(issued_sql, [])
+                     finally:
+-                        sidecar.unlink()
+-                        if existed:
+-                            backup.rename(sidecar)
++                        if not windows_locked:
++                            sidecar.unlink()
++                            if existed:
++                                backup.rename(sidecar)
+                     with self.assertRaises(MaterialError):
+                         with store.connection():
+                             pass
+@@ -265,15 +294,32 @@
+                 original.execute('CREATE TABLE content(value)')
+                 original.execute('INSERT INTO content VALUES(1)')
+             backup = self.path.with_name('original.sqlite')
+-            self.path.rename(backup)
+-            self.path.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
++            if sys.platform == 'win32':
++                self._assert_windows_blocks_live_database_rename(self.path, backup, store, original)
++                observed_replacement = self.path.with_name('observed-replacement.sqlite')
++                observed_replacement.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
++                virtual_original = observed_replacement.read_bytes(), observed_replacement.stat().st_mtime_ns
++                actual_identity = managed._identity
++                def changed_identity(candidate):
++                    return actual_identity(observed_replacement) if candidate == self.path else actual_identity(candidate)
++                observation = mock.patch.object(managed, '_identity', side_effect=changed_identity)
++            else:
++                self.path.rename(backup)
++                self.path.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
++                observation = nullcontext()
+             replacement = self.path.read_bytes(), self.path.stat().st_mtime_ns
+-            with self.assertRaises(MaterialError):
+-                with store.connection():
+-                    self.fail('A replaced database was yielded')
+-            self.assertEqual((self.path.read_bytes(), self.path.stat().st_mtime_ns), replacement)
+-            with self.assertRaises(sqlite3.ProgrammingError):
+-                original.execute('SELECT 1')
++            issued_sql = []
++            original.set_trace_callback(issued_sql.append)
++            with observation:
++                with self.assertRaises(MaterialError):
++                    with store.connection():
++                        self.fail('A replaced database was yielded')
++                self.assertEqual((self.path.read_bytes(), self.path.stat().st_mtime_ns), replacement)
++                with self.assertRaises(sqlite3.ProgrammingError):
++                    original.execute('SELECT 1')
++            self.assertEqual(issued_sql, [])
++            if sys.platform == 'win32':
++                self.assertEqual((observed_replacement.read_bytes(), observed_replacement.stat().st_mtime_ns), virtual_original)
+ 
+     def test_invalid_lock_timeouts_cannot_create_an_unbounded_wait(self):
+         for timeout in (-1, float('inf'), float('nan')):
+--- a/poc/tests/test_large_repository_inventory_acceptance.py
++++ b/poc/tests/test_large_repository_inventory_acceptance.py
+@@ -7,6 +7,7 @@
+ from __future__ import annotations
+ 
+ from copy import deepcopy
++from contextlib import closing
+ import hashlib
+ import json
+ from pathlib import Path
+@@ -169,7 +170,7 @@
+         from online_material_query import MaterialQuery
+         from online_material_reader import DirectoryObjectStore, MaterialReader
+         expected = {(row["path"], row["start_line"], row["end_line"], row["source_sha256"]) for row in self.gold}
+-        with sqlite3.connect(self.database) as db:
++        with closing(sqlite3.connect(self.database)) as db:
+             indexed = list(db.execute("SELECT o.relative_path,o.start_line,o.end_line,o.source_sha256 "
+                 "FROM business_rule_occurrences o JOIN business_rules b USING(rule_id) "
+                 "WHERE b.rule_kind='COMPUTE'"))
+--- /dev/null
++++ b/poc/tests/test_online_sqlite_windows_contract.py
+@@ -0,0 +1,164 @@
++"""Additional real store/lifecycle checks; proposed only, outside the repository.
++
++An open SQLite handle is not renamed to simulate a production delete/update.
++Both operations retain the database identity. Rename is exercised only after
++explicit closure, and the same file is restored before opening SQLite again.
++"""
++from pathlib import Path
++import sqlite3
++import sys
++import unittest
++
++REPO = Path(__file__).resolve().parents[2]
++sys.path[:0] = [str(REPO / 'poc'), str(REPO / 'poc/tests')]
++from online_inventory_store import OnlineInventoryStore
++from online_material_format import MaterialError
++from online_sqlite_store import supports_managed_wal
++import test_online_workspace as fixture_module
++
++
++class OnlineSQLiteWindowsContractTests(unittest.TestCase):
++    def setUp(self):
++        self.fixture = fixture_module.OnlineWorkspaceTests()
++        self.fixture.setUp()
++        self.addCleanup(self.fixture.doCleanups)
++
++    @staticmethod
++    def identity(path):
++        value = path.stat()
++        return value.st_dev, value.st_ino
++
++    def closed_rename_restore(self, path):
++        original = self.identity(path)
++        moved = path.with_name(path.name + '.closed-move')
++        self.assertFalse(moved.exists())
++        try:
++            path.rename(moved)
++            self.assertFalse(path.exists())
++            self.assertTrue(moved.is_file())
++            self.assertEqual(self.identity(moved), original)
++            moved.rename(path)
++        finally:
++            if moved.exists() and not path.exists():
++                moved.rename(path)
++        self.assertTrue(path.is_file())
++        self.assertEqual(self.identity(path), original)
++
++    def assert_connection_policy(self, store, db):
++        expected = 'wal' if supports_managed_wal() else 'delete'
++        self.assertEqual(db.execute('PRAGMA journal_mode').fetchone()[0], expected)
++        self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0], 2)
++        self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
++        if supports_managed_wal():
++            self.assertIs(store._sqlite._db, db)
++        else:
++            self.assertIsNone(store._sqlite._db)
++
++    def join_completed_workers(self, app):
++        with app.lock:
++            workers = list(app._threads.values())
++        for worker in workers:
++            worker.join(2)
++            self.assertFalse(worker.is_alive(), 'Completed job cleanup did not finish within the bound')
++        with app.lock:
++            self.assertEqual(app._threads, {})
++
++    def test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename(self):
++        store = OnlineInventoryStore(self.fixture.root / 'independent-inventory')
++        self.addCleanup(store.close)
++        manifest = self.fixture.manifests['first']
++        first_options = dict(workspace_id='workspace-first', conversation_id='conversation-first',
++            user_message_id='message-first', manifest=manifest, question='Review the first business result')
++        other_options = dict(workspace_id='workspace-first', conversation_id='conversation-other',
++            user_message_id='message-other', manifest=manifest, question='Review the other business result')
++        first, other = store.session(**first_options), store.session(**other_options)
++        retained = {'summary': 'Retained business result from the other session', 'path': 'main.cbl'}
++        with store.connection() as db:
++            first._put(db, 'findings', 'first-result', {'summary': 'First business result', 'path': 'main.cbl'}, 'main.cbl')
++            other._put(db, 'findings', 'retained-result', retained, 'main.cbl')
++            db.execute('INSERT INTO actions VALUES (?,?)', (first.id, 'first-action'))
++            db.execute('INSERT INTO actions VALUES (?,?)', (other.id, 'retained-action'))
++            self.assert_connection_policy(store, db)
++            old_db = db
++        before = self.identity(store.path)
++        store.delete_conversation(first_options['conversation_id'])
++        self.assertEqual(self.identity(store.path), before)
++        self.assertIsNone(first.get('findings', 'first-result'))
++        with self.assertRaises(MaterialError) as deleted:
++            store.session(**first_options, identifier=first.id)
++        self.assertEqual(deleted.exception.code, 'ONLINE_INVENTORY_NOT_FOUND')
++        self.assertEqual(other.get('findings', 'retained-result'), retained)
++        with store.connection() as db:
++            self.assertEqual(db.execute('SELECT count(*) FROM sessions WHERE id=?', (other.id,)).fetchone()[0], 1)
++            self.assertEqual(db.execute('SELECT count(*) FROM versions WHERE session=?', (other.id,)).fetchone()[0], 1)
++            self.assertEqual(db.execute('SELECT key FROM actions WHERE session=?', (other.id,)).fetchall(), [('retained-action',)])
++            self.assertEqual(db.execute('SELECT count(*) FROM actions WHERE session=?', (first.id,)).fetchone()[0], 0)
++        if supports_managed_wal():
++            self.assertIs(store._sqlite._db, old_db)
++            self.assertEqual(old_db.execute('SELECT count(*) FROM sessions').fetchone()[0], 1)
++        else:
++            with self.assertRaises(sqlite3.ProgrammingError):
++                old_db.execute('SELECT 1')
++        store.close()
++        self.assertIsNone(store._sqlite._db)
++        with self.assertRaises(sqlite3.ProgrammingError):
++            old_db.execute('SELECT 1')
++        self.closed_rename_restore(store.path)
++        reopened = OnlineInventoryStore(store.root)
++        self.addCleanup(reopened.close)
++        restored = reopened.session(**other_options, identifier=other.id)
++        self.assertEqual(restored.get('findings', 'retained-result'), retained)
++        with reopened.connection() as db:
++            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
++            self.assertEqual(db.execute('SELECT key FROM actions WHERE session=?', (other.id,)).fetchall(), [('retained-action',)])
++        self.assertEqual(self.fixture.runner_calls, [])
++        self.assertEqual(self.fixture.source_reads, [])
++
++    def test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename(self):
++        fixture = self.fixture
++        first = fixture.connect('first')
++        self.assertEqual(first['status'], 'completed')
++        self.join_completed_workers(fixture.app)
++        conversation = fixture.conversation(first['workspace_id'])
++        store = fixture.app.inventory_store
++        path = store.path
++        options = dict(workspace_id=first['workspace_id'], conversation_id=conversation['id'],
++            user_message_id='message-first', manifest=fixture.manifests['first'], question='Review the fixed first revision')
++        session = store.session(**options)
++        retained = {'summary': 'Business result owned by the first fixed revision', 'path': 'main.cbl'}
++        with store.connection() as db:
++            session._put(db, 'findings', 'retained-result', retained, 'main.cbl')
++            self.assert_connection_policy(store, db)
++            old_db = db
++        before = self.identity(path)
++        updated = fixture.connect('second', updating=first['workspace_id'])
++        self.assertEqual(updated['status'], 'completed')
++        self.assertNotEqual(updated['workspace_id'], first['workspace_id'])
++        self.join_completed_workers(fixture.app)
++        self.assertIs(fixture.app.inventory_store, store)
++        self.assertEqual(store.path, path)
++        self.assertEqual(self.identity(path), before)
++        self.assertEqual(session.get('findings', 'retained-result'), retained)
++        if supports_managed_wal():
++            self.assertIs(store._sqlite._db, old_db)
++            self.assertEqual(old_db.execute('SELECT count(*) FROM sessions').fetchone()[0], 1)
++        else:
++            with self.assertRaises(sqlite3.ProgrammingError):
++                old_db.execute('SELECT 1')
++        fixture.app.close()
++        self.assertIsNone(store._sqlite._db)
++        with self.assertRaises(sqlite3.ProgrammingError):
++            old_db.execute('SELECT 1')
++        self.closed_rename_restore(path)
++        reopened = OnlineInventoryStore(store.root)
++        self.addCleanup(reopened.close)
++        restored = reopened.session(**options, identifier=session.id)
++        self.assertEqual(restored.get('findings', 'retained-result'), retained)
++        with reopened.connection() as db:
++            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
++        self.assertEqual(fixture.runner_calls, [])
++        self.assertEqual(fixture.source_reads, [])
++
++
++if __name__ == '__main__':
++    unittest.main()
