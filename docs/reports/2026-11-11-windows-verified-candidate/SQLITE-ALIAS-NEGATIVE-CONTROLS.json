@@ -1,0 +1,37 @@
+{
+  "actual_original_passed": true,
+  "negative_controls": [
+    {
+      "test": "outside executable",
+      "rejected": true,
+      "message": "SQLite probe executable is outside the extracted product"
+    },
+    {
+      "test": "different executable name",
+      "rejected": true,
+      "message": "SQLite probe executable is outside the extracted product"
+    },
+    {
+      "test": "external interpreter prefix",
+      "rejected": true,
+      "message": "Unproven compiled standalone executable alias"
+    },
+    {
+      "test": "external SQLite module",
+      "rejected": true,
+      "message": "SQLite actually loaded DLL is outside/different from the extracted product"
+    },
+    {
+      "test": "unreviewed compiler version",
+      "rejected": true,
+      "message": "Unproven compiled standalone executable alias"
+    },
+    {
+      "test": "packaged Python interpreter",
+      "rejected": true,
+      "message": "Unproven compiled standalone executable alias"
+    }
+  ],
+  "native_report_sha256": "4f0ee3cbb035b283213fa0a56aff754d1c1cf570a4a88d6edc7ca3e84602839b",
+  "original_checker_sha256": "013647056b4aa42e21c17aa7551ed2e285db3f17b58d3171d81f04992f091d66"
+}

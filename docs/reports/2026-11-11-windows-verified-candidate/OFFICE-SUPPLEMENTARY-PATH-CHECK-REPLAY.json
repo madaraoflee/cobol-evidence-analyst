@@ -1,0 +1,20 @@
+{
+  "previous_external_helper_failure": "HELPER_PROBE_EXTENSION_PATH",
+  "same_short_metadata_without_exact_artifact_proof_rejected": "HELPER_PROBE_EXTENSION_PATH",
+  "exact_artifact_helper_pass": {
+    "exe_sha256": "1f55d211e2492a4a049e20188442ca3b966c172de29a84b8be1465bfa324fda1",
+    "version": "3.54.1",
+    "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+    "loaded_dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+    "packaged_dll": "sqlite3.dll",
+    "native_loaded_dll_path": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\OFFICE~1\\delivery\\OFFICE~1\\sqlite3.dll",
+    "feature_checks": 8,
+    "reported_sys_executable": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\OFFICE~1\\delivery\\OFFICE~1\\python.exe",
+    "reported_sys_executable_kind": "nuitka_4_2_2_standalone_metadata",
+    "reported_runtime_path_root": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\OFFICE~1\\delivery\\OFFICE~1",
+    "canonical_root_from_windows_self_test": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\office-acceptance-build-rcu5gnyt\\delivery\\OfficeAcceptance",
+    "short_path_containment_proof": "exact_successful_windows_runner_check"
+  },
+  "altered_metadata_rejected": "HELPER_SHORT_METADATA_UNRECOGNIZED_BYTES",
+  "altered_extension_rejected": "HELPER_SHORT_METADATA_EXTENSION_MISMATCH"
+}

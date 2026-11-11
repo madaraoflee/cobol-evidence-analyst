@@ -1,0 +1,90 @@
+{
+  "commit": "f6b45caff10a50700a361f7e7746aa80ddabb3f4",
+  "module_sha256": "2edf5579d5e6a9c4ca9fbf9d88e41c16ad88da9d1ad51c36168762090027d125",
+  "findings": [],
+  "checks": [
+    {
+      "name": "before_first_failure_without_success_anchor",
+      "actual": false,
+      "expected": false,
+      "pass": true
+    },
+    {
+      "name": "after_first_failure_owns_verified_generation_2",
+      "actual": 2,
+      "expected": 2,
+      "pass": true
+    },
+    {
+      "name": "matching_current_pending_question_allowed",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "newer_different_pending_question_blocks",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "newer_closed_turn_blocks",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "pending_cannot_reuse_donor_job",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "additional_diagnostic_turn_blocks_first_failure_fallback",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "foreign_conversation_source_owner_blocks",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "foreign_run_context_blocks",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "first_failure_cannot_borrow_other_memory_origin",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "actual_uncertain_saved_request_blocks",
+      "actual": true,
+      "expected": true,
+      "pass": true
+    },
+    {
+      "name": "review_does_not_send_new_provider_requests",
+      "actual": 7,
+      "expected": 7,
+      "pass": true
+    },
+    {
+      "name": "existing_success_seed_generation_preserved",
+      "actual": 2,
+      "expected": 2,
+      "pass": true
+    },
+    {
+      "name": "existing_success_seed_all_fields_identical",
+      "pass": true
+    }
+  ],
+  "scope": "Independent local scripted fixture; only scratch fixture databases mutated. No tracked changes or real model/network calls."
+}

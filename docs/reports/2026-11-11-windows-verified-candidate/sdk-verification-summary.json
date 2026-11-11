@@ -1,0 +1,217 @@
+{
+  "run_id": 42978782500,
+  "attempt": 1,
+  "source_commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+  "scope": "Actual Windows source SDK preparation and load",
+  "status": "passed",
+  "private_SDKs": [
+    {
+      "shard": 0,
+      "artifact_id": 13835824252,
+      "zip_sha256": "65f2f81e5efbd0b83ae859a53dc7412fd6c5b7cb41d6e585ec2bd8a9bdad5475",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 1,
+      "artifact_id": 13836955171,
+      "zip_sha256": "c2746a79bca083dd14340fd4f3a0fabed50a660b30607643f3b62ea451f33b5b",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 2,
+      "artifact_id": 13836571839,
+      "zip_sha256": "0a7270f54bc2aeea9d7ab5654bb78308acf3d451cddc9dbe7402a512d4ba0148",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 3,
+      "artifact_id": 13836343757,
+      "zip_sha256": "6aa78f3c78c9b305ae1314b63a39d13a0b550ec1b9341af7d83a442f05d45b35",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    }
+  ]
+}

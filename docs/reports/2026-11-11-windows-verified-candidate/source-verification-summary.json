@@ -1,0 +1,643 @@
+{
+  "run_id": 42978782500,
+  "attempt": 1,
+  "source_commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+  "status": "passed",
+  "scope": "Actual private SQLite SDK and Windows source regressions. Compiled application and office acceptance are separate.",
+  "coverage": {
+    "reports": 4,
+    "windows_expected": 5419,
+    "selected": 5419,
+    "started": 5419,
+    "recorded_results": 5419,
+    "outcomes": {
+      "passed": 5417,
+      "skipped": 2
+    },
+    "exact_discovery_selection_start_and_result": true
+  },
+  "private_SDKs": [
+    {
+      "shard": 0,
+      "artifact_id": 13835824252,
+      "zip_sha256": "65f2f81e5efbd0b83ae859a53dc7412fd6c5b7cb41d6e585ec2bd8a9bdad5475",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 1,
+      "artifact_id": 13836955171,
+      "zip_sha256": "c2746a79bca083dd14340fd4f3a0fabed50a660b30607643f3b62ea451f33b5b",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 2,
+      "artifact_id": 13836571839,
+      "zip_sha256": "0a7270f54bc2aeea9d7ab5654bb78308acf3d451cddc9dbe7402a512d4ba0148",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    },
+    {
+      "shard": 3,
+      "artifact_id": 13836343757,
+      "zip_sha256": "6aa78f3c78c9b305ae1314b63a39d13a0b550ec1b9341af7d83a442f05d45b35",
+      "setup_status": "completed_private_workflow",
+      "preparation_status": "completed_private_runtime",
+      "preparation_error": null,
+      "path_guard": null,
+      "status": "passed",
+      "host_unchanged": true,
+      "host_entries": 5856,
+      "launcher_alias_unchanged": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 2251799814572707,
+          "st_mode": 41471,
+          "st_size": 0,
+          "st_mtime_ns": 1793575168705384200,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "\\\\?\\C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64\\python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 333453060169384722,
+          "st_ino": 562949954315578,
+          "st_mode": 33279,
+          "st_size": 105696,
+          "st_mtime_ns": 1792595176000000000,
+          "st_file_attributes": 32,
+          "st_reparse_tag": 0
+        },
+        "target_sha256": "7c2fc2b303a4ee3cc14cc17b47bc6e8bca98c78792edd123b846a560da44b203"
+      },
+      "host_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+      "active_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+      "actual_SQLite_version": "3.54.1",
+      "actual_SQLite_source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_DLL_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "private_prefix": "D:\\a\\_temp\\private-sqlite-setup\\runtime\\python",
+      "runtime_feature_checks": {
+        "json": true,
+        "fts4": true,
+        "fts5": true,
+        "rtree": true,
+        "math": true,
+        "serialize": true,
+        "backup": true,
+        "config": true
+      }
+    }
+  ],
+  "source_artifacts": [
+    {
+      "shard": 0,
+      "id": 13837937144,
+      "sha256": "b85c052231c67f62e4da02a02b324750df8dc4ee0f037aac30f4d4468b260719"
+    },
+    {
+      "shard": 1,
+      "id": 13836549951,
+      "sha256": "c553051ce066aa2b82affb0e8684cd47916e0e41711a30238f6df9d49ea48db7"
+    },
+    {
+      "shard": 2,
+      "id": 13836934696,
+      "sha256": "8e7290aec068a21ce43a73331d47c993797a316b44f767a9790059c639bb490a"
+    },
+    {
+      "shard": 3,
+      "id": 13837249928,
+      "sha256": "90d62e9decabc717998f56d83d6d1bd8b56391ead92a567094abdcd19c8f396e"
+    }
+  ],
+  "source_jobs_pass": true,
+  "previous_discovery_comparison": {
+    "commit": "c9b56455b3879596f534fe9fb95356f04b72da27",
+    "report_sha256": "b7a05bdf311dc9bad1fa8e9b44a6a7d85e279bc0bf51a8004bf2ab5dab3051dd",
+    "old_count": 5419,
+    "new_count": 5419,
+    "added_ids": [],
+    "missing_old_ids": []
+  },
+  "exact_assignment": {
+    "commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+    "expected_manifest_path": "docs/reports/2026-11-11-windows-regression-isolation/exact-assignment.json",
+    "expected_manifest_sha256": "b090df7cac8a10d9069132d9817499b650db3ea3da604f31c08b1d59812a4f64",
+    "workflow_sha256": "043f9ab1cac63a2f0a0c839c00d9eaf221404a0253713cb39f199517baa22124",
+    "expected_workflow_sha256": "043f9ab1cac63a2f0a0c839c00d9eaf221404a0253713cb39f199517baa22124",
+    "original_step_timeout_minutes": 45,
+    "shards": [
+      {
+        "shard": 0,
+        "selected_count": 7,
+        "selected_ids_sha256": "da44b0bbc01b1e27829c28314639be9eba9f3f53599dc3c2595f8b8acb62907a",
+        "expected_count": 7,
+        "expected_ids_sha256": "da44b0bbc01b1e27829c28314639be9eba9f3f53599dc3c2595f8b8acb62907a",
+        "exact_match": true
+      },
+      {
+        "shard": 1,
+        "selected_count": 1804,
+        "selected_ids_sha256": "226142fa61c2c70db47691052d3a9bf4de1b491cf4f36236b9ccbef06b744a72",
+        "expected_count": 1804,
+        "expected_ids_sha256": "226142fa61c2c70db47691052d3a9bf4de1b491cf4f36236b9ccbef06b744a72",
+        "exact_match": true
+      },
+      {
+        "shard": 2,
+        "selected_count": 1804,
+        "selected_ids_sha256": "b80b9aa67972eddff79989c42cdbe7798d9ad34fd7a80484979ccb02fb7ba5ec",
+        "expected_count": 1804,
+        "expected_ids_sha256": "b80b9aa67972eddff79989c42cdbe7798d9ad34fd7a80484979ccb02fb7ba5ec",
+        "exact_match": true
+      },
+      {
+        "shard": 3,
+        "selected_count": 1804,
+        "selected_ids_sha256": "9f4f2a941878c26b389afdd7fc09fcafbcfffb334ecebdfa0e61dc8d07c21382",
+        "expected_count": 1804,
+        "expected_ids_sha256": "9f4f2a941878c26b389afdd7fc09fcafbcfffb334ecebdfa0e61dc8d07c21382",
+        "exact_match": true
+      }
+    ],
+    "all_exact": true
+  },
+  "raw_job_logs_present": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "four_source_jobs": [
+    {
+      "id": 130384190811,
+      "name": "Windows Python regressions 0",
+      "status": "completed",
+      "conclusion": "success",
+      "source_steps": [
+        {
+          "name": "Run all assigned offline Python regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-11T07:23:06Z",
+          "completed_at": "2026-11-11T07:47:46Z"
+        }
+      ]
+    },
+    {
+      "id": 130384190834,
+      "name": "Windows Python regressions 3",
+      "status": "completed",
+      "conclusion": "success",
+      "source_steps": [
+        {
+          "name": "Run all assigned offline Python regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-11T07:23:31Z",
+          "completed_at": "2026-11-11T07:49:12Z"
+        }
+      ]
+    },
+    {
+      "id": 130384190894,
+      "name": "Windows Python regressions 2",
+      "status": "completed",
+      "conclusion": "success",
+      "source_steps": [
+        {
+          "name": "Run all assigned offline Python regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-11T07:23:08Z",
+          "completed_at": "2026-11-11T07:42:31Z"
+        }
+      ]
+    },
+    {
+      "id": 130384190951,
+      "name": "Windows Python regressions 1",
+      "status": "completed",
+      "conclusion": "success",
+      "source_steps": [
+        {
+          "name": "Run all assigned offline Python regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-11T07:23:09Z",
+          "completed_at": "2026-11-11T07:42:14Z"
+        }
+      ]
+    }
+  ],
+  "shards": [
+    {
+      "shard_index": 0,
+      "status": "passed",
+      "tests_run": 7,
+      "elapsed_seconds": 1479.274904,
+      "failures": [],
+      "errors": [],
+      "runner_errors": []
+    },
+    {
+      "shard_index": 1,
+      "status": "passed",
+      "tests_run": 1804,
+      "elapsed_seconds": 1144.19535,
+      "failures": [],
+      "errors": [],
+      "runner_errors": []
+    },
+    {
+      "shard_index": 2,
+      "status": "passed",
+      "tests_run": 1804,
+      "elapsed_seconds": 1162.036318,
+      "failures": [],
+      "errors": [],
+      "runner_errors": []
+    },
+    {
+      "shard_index": 3,
+      "status": "passed",
+      "tests_run": 1804,
+      "elapsed_seconds": 1540.431008,
+      "failures": [],
+      "errors": [],
+      "runner_errors": []
+    }
+  ],
+  "existing_POSIX_skips_exact": true,
+  "skips": [
+    {
+      "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+      "reason": "Real source permissions require a non-root POSIX user.",
+      "shard": 2
+    },
+    {
+      "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+      "reason": "Real directory permission failures require a non-root POSIX user.",
+      "shard": 3
+    }
+  ],
+  "focus": {
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection": [
+      {
+        "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection",
+        "seconds": 0.322053,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode": [
+      {
+        "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode",
+        "seconds": 0.033757,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename": [
+      {
+        "id": "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename",
+        "seconds": 0.472701,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename": [
+      {
+        "id": "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename",
+        "seconds": 0.620314,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory": [
+      {
+        "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+        "seconds": 1194.263786,
+        "outcome": "passed",
+        "shard": 0
+      }
+    ],
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work": [
+      {
+        "id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work",
+        "seconds": 10.771934,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_continuation_with_disabled_local_tools_keeps_pending_work_and_request_limit": [
+      {
+        "id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_continuation_with_disabled_local_tools_keeps_pending_work_and_request_limit",
+        "seconds": 5.626665,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_single_pass_brief_continuation_keeps_existing_retrieval_behavior": [
+      {
+        "id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_single_pass_brief_continuation_keeps_existing_retrieval_behavior",
+        "seconds": 5.493377,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_answer_reserve_stops_continuation_reads_without_discarding_pending_paths": [
+      {
+        "id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_answer_reserve_stops_continuation_reads_without_discarding_pending_paths",
+        "seconds": 4.963847,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_reconnect_without_explicit_continuation_replays_without_new_requests": [
+      {
+        "id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_reconnect_without_explicit_continuation_replays_without_new_requests",
+        "seconds": 3.048708,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup": [
+      {
+        "id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup",
+        "seconds": 5.12574,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_a_different_original_question_cannot_supply_memory": [
+      {
+        "id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_a_different_original_question_cannot_supply_memory",
+        "seconds": 6.090265,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory": [
+      {
+        "id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory",
+        "seconds": 7.872028,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory": [
+      {
+        "id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory",
+        "seconds": 5.461643,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_changed_source_cannot_supply_memory": [
+      {
+        "id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_changed_source_cannot_supply_memory",
+        "seconds": 6.510084,
+        "outcome": "passed",
+        "shard": 3
+      }
+    ],
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary": [
+      {
+        "id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary",
+        "seconds": 0.116299,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection": [
+      {
+        "id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection",
+        "seconds": 0.045592,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source": [
+      {
+        "id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source",
+        "seconds": 0.126354,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_cancellation_keeps_committed_trim_receipts_and_original_archive": [
+      {
+        "id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_cancellation_keeps_committed_trim_receipts_and_original_archive",
+        "seconds": 0.092969,
+        "outcome": "passed",
+        "shard": 2
+      }
+    ],
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request": [
+      {
+        "id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request",
+        "seconds": 3.406888,
+        "outcome": "passed",
+        "shard": 1
+      }
+    ],
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable": [
+      {
+        "id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable",
+        "seconds": 0.000897,
+        "outcome": "passed",
+        "shard": 1
+      }
+    ],
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight": [
+      {
+        "id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight",
+        "seconds": 9.353046,
+        "outcome": "passed",
+        "shard": 1
+      }
+    ]
+  },
+  "all_10001_results": [
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_authored_10001_roots_and_positions_match_original_bytes",
+      "seconds": 0.614369,
+      "outcome": "passed",
+      "shard": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_explicit_single_file_question_does_not_expand_to_10001_roots",
+      "seconds": 0.167647,
+      "outcome": "passed",
+      "shard": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+      "seconds": 194.164951,
+      "outcome": "passed",
+      "shard": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+      "seconds": 1194.263786,
+      "outcome": "passed",
+      "shard": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once",
+      "seconds": 4.7146,
+      "outcome": "passed",
+      "shard": 0
+    }
+  ],
+  "original_checker": {
+    "exit_code": 0,
+    "status": "passed",
+    "checker_sha256": "8822e7aac9cc967e182b9c9b5a36c89f212a9dd1bf0528740fe1dc8b457ebb1b",
+    "aggregate_sha256": "1e71929b64fd7dbdf9b11bcec3f340b74e935b800c25134dbc41f8ee081a5c3c",
+    "validation_errors": []
+  }
+}

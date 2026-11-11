@@ -1,0 +1,89 @@
+{
+  "schema_version": "exact-office-kit-external-verification/v1",
+  "status": "failed",
+  "office_run": {
+    "id": 42986439252,
+    "run_attempt": 1,
+    "head_branch": "main",
+    "head_sha": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+    "status": "completed",
+    "conclusion": "success",
+    "path": ".github/workflows/windows-office-acceptance.yml",
+    "name": "Frozen Windows office acceptance kit",
+    "event": "workflow_dispatch",
+    "repository": {
+      "id": 1352481697,
+      "full_name": "madaraoflee/cobol-evidence-analyst"
+    },
+    "head_repository": {
+      "id": 1352481697,
+      "full_name": "madaraoflee/cobol-evidence-analyst"
+    }
+  },
+  "office_workflow_id": 384600752,
+  "office_job_id": 130408838519,
+  "plan_step": {
+    "name": "Run the delivered helper plan and every native sample without external models",
+    "status": "completed",
+    "conclusion": "success",
+    "number": 14,
+    "started_at": "2026-11-11T08:35:04Z",
+    "completed_at": "2026-11-11T08:44:25Z"
+  },
+  "app_run_id": 42978782500,
+  "app_run_attempt": 1,
+  "app_artifact_id": 13839516724,
+  "app_source_commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+  "app_sqlite_report_sha256": "4f0ee3cbb035b283213fa0a56aff754d1c1cf570a4a88d6edc7ca3e84602839b",
+  "artifacts": {
+    "kit": {
+      "id": 13841425947,
+      "name": "Windows-office-acceptance-kit-86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+      "sha256": "39b50f4904792a3a9790a1d5fe3024b3ab3516767ca6a9f2a8efdb42d1f63d88",
+      "metadata_sha256": "e1ac870409c02221f669749738b4c1de1e1f5455f4f869a35d419625b09dee02",
+      "member_sha256": {
+        "office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip": "d7f4d2efc9c518b7f4d883876bf777ee6720e0c122a549550cb941f0fc28d107",
+        "office-kit-delivery/COBOLWorkbench-office-acceptance-windows-x64.zip.sha256": "ce3075d53a0e4901de6ba0a54cc4aa0e653467d6a53b1473454e718e40a71727",
+        "office-kit-delivery/KIT-BUILD-RECEIPT.json": "a34020263e815b13999d273ce95ea4042c03fe653a00feac24399ca797fb83c7",
+        "office-native-check/COMPILED-ACCEPTANCE.json": "8b2a5c0a8c9ec9092ddb13f4708ae1b0e7298e3c332ee6073809b78373125653",
+        "office-native-check/OFFICE-ENVIRONMENT.json": "59dfb79187488396f0405dff6dd8d4b279e596097f8491cf4a74df908b00ed1e",
+        "OFFICE-CANDIDATE-BINDING.json": "5c7a71eeab7cd698f7b81c669cdcb392310f8a13f46bbdf61d7b3a84e12a8b83"
+      },
+      "created_at": "2026-11-11T08:44:28Z"
+    },
+    "sdk": {
+      "id": 13840450004,
+      "name": "office-private-sqlite-runtime-86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e-1",
+      "sha256": "d95f951dffb758a64b5e00102d6225f774675a4b5146418e3435d92f4207febb",
+      "metadata_sha256": "4c7b6c9c146a3740957fa32a4e836e9f6d586c8170ebdf6755e0af264a51eb59",
+      "member_sha256": {
+        "prepare-stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "prepare-stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "active-runtime.json": "cd6001154514262f3dcd92c683c0cda5256e6aa4ab6a8e754d5947aa16a5e6f5",
+        "PRIVATE-SQLITE-PREPARATION.json": "4c12ebe2fd439bf432ef74d709ba83db5a058c663127517a6c4152b8c865c6b9",
+        "PRIVATE-SQLITE-PROBE.json": "594d72056a153443cde7054d4530fad30f54c201e7d89e79dba38230aac4a89d",
+        "runtime/probe-process.json": "b2ffa5fea7686358eff5552a610b0dee28314c15b728b3591d09ef66574041b2",
+        "probe-stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "WORKFLOW-SQLITE-SETUP.json": "d8743a8b88c3bb1abbe0b8c10353519415a1357d5649b2f2160d62b5dd7660a2"
+      },
+      "created_at": "2026-11-11T08:23:11Z"
+    }
+  },
+  "formal_publish_allowed": false,
+  "actual_company_device_tested": false,
+  "executables_or_models_run_by_this_verifier": false,
+  "errors": [
+    {
+      "stage": "office_kit_same_package_and_79_samples",
+      "type": "ValueError",
+      "message": "HELPER_PROBE_EXTENSION_PATH"
+    }
+  ],
+  "sdk": {
+    "host_entries_unchanged": 5856,
+    "source_manifest_sha256": "81ac574603d46d677f066b995b642755c630877ad3074cb59dba9ec2a78f9768",
+    "preparation_sha256": "4c12ebe2fd439bf432ef74d709ba83db5a058c663127517a6c4152b8c865c6b9",
+    "build_fingerprint": "af4f24932165c857d6533134309d5fc6fdb597f89d50a7f187aa74322912f51b",
+    "host_launcher_alias_unchanged": true
+  }
+}

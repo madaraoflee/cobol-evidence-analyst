@@ -1,0 +1,118 @@
+{
+  "BUILD-INFO.original.json": {
+    "sha256": "5ac729520e340a079e20b72c67b49f5400e78b8a5682be9d4d9ffb26fab694c9",
+    "bytes": 5913
+  },
+  "CANDIDATE-GATE.original.json": {
+    "sha256": "ed50c33bfcdae72d76a4e5dfbc8f65fa1afdd499be32374201920fca9ca49728",
+    "bytes": 10700
+  },
+  "COMPILED-ACCEPTANCE.original.json": {
+    "sha256": "325beeb2c82264617a78e7d01efa2c3049c1623bf0e80b74a4fddc9fa3a89455",
+    "bytes": 15810266
+  },
+  "GLOBAL-INVENTORY-CONTINUITY.original.json": {
+    "sha256": "6b0e23c7a0c598e1f24a81786ac840cb100c8d9fc846f72eacffc2b07a0448bd",
+    "bytes": 32947
+  },
+  "INVESTIGATION-CONTINUITY.original.json": {
+    "sha256": "00e337db55f744e0dab485846fb14754fc30be217dd7e26913edeab659007c89",
+    "bytes": 16558
+  },
+  "SQLITE-RUNTIME-ACCEPTANCE.original.json": {
+    "sha256": "4f0ee3cbb035b283213fa0a56aff754d1c1cf570a4a88d6edc7ca3e84602839b",
+    "bytes": 11330
+  },
+  "artifacts-api-final.json": {
+    "sha256": "4f1a36bc07574a85238683291f6aae86c4de46e38cf06f106236873a79f77cc7",
+    "bytes": 9959
+  },
+  "build-job-api-final.json": {
+    "sha256": "34209155a6c0b5bd34dc21f70f64d56f20d3c130c0ad4026af3a801b5f4e98b8",
+    "bytes": 7934
+  },
+  "build-job-original.log": {
+    "sha256": "a7acdfd1b90213e8bb050cb257e5da856581676eadf95001416b2db62632d40f",
+    "bytes": 277129
+  },
+  "build-sdk-verification-summary.json": {
+    "sha256": "4f11fceab13fa71cd37cc9b755a8bdc0f9b5c7b0a7110281049f77e8f56ceb67",
+    "bytes": 1867
+  },
+  "build-verification-summary.json": {
+    "sha256": "2d194c8b918011b8d3264b25eb04052d988188ae31bec8ccc3008528818b4753",
+    "bytes": 963
+  },
+  "candidate-global-wrapper.original.metadata.json": {
+    "sha256": "e509c8308375379b776de07a87b79dfd7b18c00bd59868399081f313d31a75ce",
+    "bytes": 848
+  },
+  "candidate-global-wrapper.original.zip": {
+    "sha256": "8c13985cf4be07ce92066017ceefe95e301a39cb13ecc63f5719d5859f1324ac",
+    "bytes": 12655
+  },
+  "candidate-sqlite-wrapper.original.metadata.json": {
+    "sha256": "46b6fd6c438bdc47898c479be0da95b990cd4060ead1d51471097d3deae57595",
+    "bytes": 845
+  },
+  "candidate-sqlite-wrapper.original.zip": {
+    "sha256": "6ff6171f5a9bab07dc7a4d02ec86abd61d51d3fbaf228e05c5d2914e42420b98",
+    "bytes": 2308
+  },
+  "jobs-api-latest.json": {
+    "sha256": "ec695e220983ff3b2c393334a733fcc0280fcb9f8222532d1200b53c7dc31b50",
+    "bytes": 30680
+  },
+  "native-large-verification-summary.json": {
+    "sha256": "7ec28709a1fb126d012c3473fe4f429e2d9509917d3c784a8a05ff6383a344ef",
+    "bytes": 3834
+  },
+  "native-sqlite-launch-identity-audit.json": {
+    "sha256": "892efd826e83d63e36c4fe1a1e1bd90af6271839380fe8f8921b565df22307ab",
+    "bytes": 4023
+  },
+  "private-runtime-build/PRIVATE-SQLITE-PREPARATION.json": {
+    "sha256": "4c12ebe2fd439bf432ef74d709ba83db5a058c663127517a6c4152b8c865c6b9",
+    "bytes": 1268053
+  },
+  "private-runtime-build/PRIVATE-SQLITE-PROBE.json": {
+    "sha256": "594d72056a153443cde7054d4530fad30f54c201e7d89e79dba38230aac4a89d",
+    "bytes": 2322
+  },
+  "private-runtime-build/WORKFLOW-SQLITE-SETUP.json": {
+    "sha256": "d8743a8b88c3bb1abbe0b8c10353519415a1357d5649b2f2160d62b5dd7660a2",
+    "bytes": 7873
+  },
+  "private-runtime-build/active-runtime.json": {
+    "sha256": "cd6001154514262f3dcd92c683c0cda5256e6aa4ab6a8e754d5947aa16a5e6f5",
+    "bytes": 4598
+  },
+  "private-runtime-build/prepare-stderr.txt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "private-runtime-build/prepare-stdout.txt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "private-runtime-build/probe-stderr.txt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "private-runtime-build/runtime/probe-process.json": {
+    "sha256": "b2ffa5fea7686358eff5552a610b0dee28314c15b728b3591d09ef66574041b2",
+    "bytes": 2638
+  },
+  "private-runtime-build.artifact-api.json": {
+    "sha256": "4497a02a5cd71f62707bebbf5431b54c3f03d5467ba28d8c18f8d7a460c3841d",
+    "bytes": 850
+  },
+  "private-runtime-build.original.zip": {
+    "sha256": "2f87818b3f66a4cc69663ee1f5ce13667e498216e01d467488d748e26e520093",
+    "bytes": 492361
+  },
+  "run-api-final.json": {
+    "sha256": "0a254f3f4a21725673c32d3339460783aec915ad1be0d2e9d974a366436163ce",
+    "bytes": 15007
+  }
+}
