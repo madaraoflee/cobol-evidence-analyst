@@ -7,6 +7,7 @@ analyzed those files; application/store acceptance is checked separately.
 from __future__ import annotations
 
 from copy import deepcopy
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -169,7 +170,7 @@ class LargeRepositoryRuntimeTests(unittest.TestCase):
         from online_material_query import MaterialQuery
         from online_material_reader import DirectoryObjectStore, MaterialReader
         expected = {(row["path"], row["start_line"], row["end_line"], row["source_sha256"]) for row in self.gold}
-        with sqlite3.connect(self.database) as db:
+        with closing(sqlite3.connect(self.database)) as db:
             indexed = list(db.execute("SELECT o.relative_path,o.start_line,o.end_line,o.source_sha256 "
                 "FROM business_rule_occurrences o JOIN business_rules b USING(rule_id) "
                 "WHERE b.rule_kind='COMPUTE'"))

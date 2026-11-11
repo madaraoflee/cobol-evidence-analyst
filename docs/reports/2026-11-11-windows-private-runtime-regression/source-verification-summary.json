@@ -1,0 +1,222 @@
+{
+  "kind": "independent_actual_Windows_SDK_and_source_regression_audit",
+  "run_id": 42934769797,
+  "attempt": 1,
+  "source_commit": "11a6f9be93492b5050c6895ade8c49b0d1c80417",
+  "status": "source_gate_rejected",
+  "workflow_status": "completed",
+  "workflow_conclusion": "failure",
+  "actual_SDK_stage": "all_four_passed_actual_SQLite_3.54.1",
+  "SDK_summary": "sdk-verification-summary.json",
+  "artifact_count": 8,
+  "artifacts": [
+    {
+      "kind": "private-runtime",
+      "shard_index": 0,
+      "id": 13818266593,
+      "size": 492361,
+      "sha256": "8686c1cbbc5d2938d4bcc3da1338263caa4a6b3e9170e8abeedd08cefa6142f2",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "private-runtime",
+      "shard_index": 1,
+      "id": 13816429789,
+      "size": 492361,
+      "sha256": "6f55845ecd5e04b82b02d18fa22e9b3c11459a7e9fa9721c226a2cf6fcb182e9",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "private-runtime",
+      "shard_index": 2,
+      "id": 13817847521,
+      "size": 492361,
+      "sha256": "6f55845ecd5e04b82b02d18fa22e9b3c11459a7e9fa9721c226a2cf6fcb182e9",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "private-runtime",
+      "shard_index": 3,
+      "id": 13818106826,
+      "size": 492361,
+      "sha256": "987175249cc41b1a5a94a5aba4d9c9ae90e831b0cbae19bc6a8b15dc8e855e02",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "source-shard",
+      "shard_index": 0,
+      "id": 13820452087,
+      "size": 260637,
+      "sha256": "98943164c7be21e1fbff04b216007c428e52147a91d3fc51fc832d0ebe5ec1f7",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "source-shard",
+      "shard_index": 1,
+      "id": 13818329084,
+      "size": 261122,
+      "sha256": "9009af79379af4fa12fe28b5546497723f279df4d571a9ded1f7d77f2b7d58da",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "source-shard",
+      "shard_index": 2,
+      "id": 13818437819,
+      "size": 260461,
+      "sha256": "38717217de166db292175848e8ae8363e448bbcb8423fb1c719cc6d58d2d16d0",
+      "GitHub_digest_verified": true
+    },
+    {
+      "kind": "source-shard",
+      "shard_index": 3,
+      "id": 13819247460,
+      "size": 261001,
+      "sha256": "10f96aebe618f2da1c9637b864e9101990ef6a4341fcc8f3f2c32d3f424ed297",
+      "GitHub_digest_verified": true
+    }
+  ],
+  "coverage": {
+    "discovered": 5400,
+    "selected": 5400,
+    "unique_selected": 5400,
+    "started": 5400,
+    "recorded_results": 5400,
+    "all_discoveries_identical": true,
+    "selected_exactly_once": true,
+    "started_exactly_selected": true,
+    "results_exactly_selected": true,
+    "all_source_clean": true,
+    "all_runtime_Windows": true,
+    "outcomes": {
+      "passed": 5396,
+      "skipped": 2,
+      "error": 2
+    }
+  },
+  "shards": [
+    {
+      "index": 0,
+      "status": "failed",
+      "tests_run": 1350,
+      "seconds": 2665.266539,
+      "failures": [],
+      "errors": [
+        {
+          "id": "tearDownClass (test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests)",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\shutil.py\", line 625, in _rmtree_unsafe\n    os.unlink(fullname)\n    ~~~~~~~~~^^^^^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpngeij30b\\\\index.sqlite'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\tempfile.py\", line 956, in cleanup\n    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)\n    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\tempfile.py\", line 936, in _rmtree\n    _shutil.rmtree(name, onexc=onexc)\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\shutil.py\", line 790, in rmtree\n    return _rmtree_unsafe(path, onexc)\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\shutil.py\", line 629, in _rmtree_unsafe\n    onexc(os.unlink, fullname, err)\n    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\tempfile.py\", line 911, in onexc\n    _os.unlink(path)\n    ~~~~~~~~~~^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpngeij30b\\\\index.sqlite'\n"
+        }
+      ],
+      "runner_errors": [],
+      "skipped": [
+        {
+          "id": "test_business_input_skips.BusinessInputSkipTests.test_unreadable_input_is_skipped_and_its_path_is_reported",
+          "reason": "Real source permissions require a non-root POSIX user."
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "status": "passed",
+      "tests_run": 1350,
+      "seconds": 1254.382871,
+      "failures": [],
+      "errors": [],
+      "runner_errors": [],
+      "skipped": []
+    },
+    {
+      "index": 2,
+      "status": "passed",
+      "tests_run": 1350,
+      "seconds": 1050.504527,
+      "failures": [],
+      "errors": [],
+      "runner_errors": [],
+      "skipped": []
+    },
+    {
+      "index": 3,
+      "status": "failed",
+      "tests_run": 1350,
+      "seconds": 1299.52005,
+      "failures": [],
+      "errors": [
+        {
+          "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_online_sqlite_safety.py\", line 268, in test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode\n    self.path.rename(backup)\n    ~~~~~~~~~~~~~~~~^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\pathlib\\_local.py\", line 767, in rename\n    os.rename(self, target)\n    ~~~~~~~~~^^^^^^^^^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpq6hv3sgd\\\\online.sqlite' -> 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpq6hv3sgd\\\\original.sqlite'\n"
+        },
+        {
+          "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection (sidecar='')",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_online_sqlite_safety.py\", line 239, in test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection\n    sidecar.rename(backup)\n    ~~~~~~~~~~~~~~^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\pathlib\\_local.py\", line 767, in rename\n    os.rename(self, target)\n    ~~~~~~~~~^^^^^^^^^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-0.sqlite' -> 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-0.sqlite.original'\n"
+        },
+        {
+          "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection (sidecar='-wal')",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_online_sqlite_safety.py\", line 239, in test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection\n    sidecar.rename(backup)\n    ~~~~~~~~~~~~~~^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\pathlib\\_local.py\", line 767, in rename\n    os.rename(self, target)\n    ~~~~~~~~~^^^^^^^^^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-1.sqlite-wal' -> 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-1.sqlite-wal.original'\n"
+        },
+        {
+          "id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection (sidecar='-shm')",
+          "traceback": "Traceback (most recent call last):\n  File \"D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\poc\\tests\\test_online_sqlite_safety.py\", line 239, in test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection\n    sidecar.rename(backup)\n    ~~~~~~~~~~~~~~^^^^^^^^\n  File \"D:\\a\\_temp\\private-sqlite-setup\\runtime\\python\\Lib\\pathlib\\_local.py\", line 767, in rename\n    os.rename(self, target)\n    ~~~~~~~~~^^^^^^^^^^^^^^\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-2.sqlite-shm' -> 'C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\tmpon7_fh3w\\\\cached-2.sqlite-shm.original'\n"
+        }
+      ],
+      "runner_errors": [],
+      "skipped": [
+        {
+          "id": "test_sqlite_backup_compat.SQLiteBackupCompatibilityTests.test_real_permission_failure_keeps_marker_when_workspace_block_cannot_be_saved",
+          "reason": "Real directory permission failures require a non-root POSIX user."
+        }
+      ]
+    }
+  ],
+  "large_10001_results": [
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryOracleTests.test_authored_10001_roots_and_positions_match_original_bytes",
+      "seconds": 0.64152,
+      "outcome": "passed",
+      "shard_index": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_explicit_single_file_question_does_not_expand_to_10001_roots",
+      "seconds": 0.174526,
+      "outcome": "passed",
+      "shard_index": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_local_10001_file_batches_resume_and_publish_every_formula_without_large_checkpoints",
+      "seconds": 229.191086,
+      "outcome": "passed",
+      "shard_index": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_online_10001_file_reviews_restore_and_deliver_complete_paged_business_inventory",
+      "seconds": 1281.570179,
+      "outcome": "passed",
+      "shard_index": 0
+    },
+    {
+      "id": "test_large_repository_inventory_acceptance.LargeRepositoryRuntimeTests.test_real_index_and_exported_directory_cover_all_10001_roots_exactly_once",
+      "seconds": 4.814787,
+      "outcome": "passed",
+      "shard_index": 0
+    }
+  ],
+  "original_checker": {
+    "exit_code": 1,
+    "source_unchanged_vs_commit": true,
+    "sha256": "8822e7aac9cc967e182b9c9b5a36c89f212a9dd1bf0528740fe1dc8b457ebb1b",
+    "summary": "WINDOWS-REGRESSION-SUMMARY.json",
+    "summary_sha256": "bc453aeca5fab989c5cd0ba2b37b4cb3e87600123ab3ce28f961a1acd776d939",
+    "status": "failed",
+    "validation_errors": [
+      "python-regressions-0.json: runner status must be passed",
+      "python-regressions-0.json: errors must be an empty list",
+      "python-regressions-3.json: runner status must be passed",
+      "python-regressions-3.json: errors must be an empty list",
+      "python-regressions-3.json: unsuccessful outcome for test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode",
+      "python-regressions-3.json: unsuccessful outcome for test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection"
+    ]
+  },
+  "old_POSIX_skips_exactly_preserved": true,
+  "thresholds_changed": false,
+  "workflow_rerun_cancelled_or_triggered": false,
+  "scope": "Actual private SDK and neutral source tests only; no compiled EXE, real model/company source, office device, or release acceptance. Full source gate failed and is not eligible for candidate packaging."
+}
