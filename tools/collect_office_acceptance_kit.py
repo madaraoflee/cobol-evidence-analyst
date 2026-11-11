@@ -16,9 +16,10 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "poc"))
 from release_acceptance import evaluate_release, OFFICE_BASELINE_CHECKS
-from desktop_acceptance import digest, inspect_package, require
+from desktop_acceptance import BUILD_MEMBER, digest, inspect_package as inspect_desktop_package, require
 from office_acceptance_cases import generate_suite
 from office_acceptance_app import load_kit
+from sqlite_runtime_probe import APPROVED_PIN, REQUIRED_CHECKS, REQUIRED_OPTIONS, SCHEMA as SQLITE_PROBE_SCHEMA
 
 
 CANDIDATE_FILES = ("COBOLWorkbench-windows-x64.zip", "COBOLWorkbench-windows-x64.zip.sha256",
@@ -28,6 +29,60 @@ CANDIDATE_FILES = ("COBOLWorkbench-windows-x64.zip", "COBOLWorkbench-windows-x64
 
 def write_json(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def declares_private_runtime(metadata):
+    return "private_sqlite_runtime" in metadata or "sqlite_runtime" in metadata["self_test"]
+
+
+def require_private_runtime(metadata):
+    runtime = metadata.get("private_sqlite_runtime")
+    inputs = runtime.get("inputs") if isinstance(runtime, dict) else None
+    require(isinstance(inputs, dict) and runtime.get("schema_version") == "private-sqlite-build/v1"
+            and inputs.get("pin") == APPROVED_PIN and inputs.get("sqlite_sha256") == APPROVED_PIN["dll_sha256"],
+            "OFFICE_PRIVATE_SQLITE_PIN_INVALID")
+    probe = metadata["self_test"].get("sqlite_runtime")
+    require(isinstance(probe, dict) and probe.get("schema_version") == SQLITE_PROBE_SCHEMA
+            and probe.get("status") == "passed" and probe.get("identity_kind") == "compiled"
+            and probe.get("runtime_platform") == "Windows" and probe.get("pointer_bits") == 64
+            and probe.get("version") == APPROVED_PIN["version"] and probe.get("source_id") == APPROVED_PIN["source_id"]
+            and probe.get("loaded_dll_sha256") == APPROVED_PIN["dll_sha256"], "OFFICE_PRIVATE_SQLITE_PROBE_INVALID")
+    checks, options = probe.get("checks"), probe.get("compile_options")
+    require(isinstance(checks, dict) and set(checks) == REQUIRED_CHECKS
+            and all(value is True for value in checks.values())
+            and isinstance(options, list) and all(isinstance(option, str) for option in options)
+            and REQUIRED_OPTIONS.issubset(options), "OFFICE_PRIVATE_SQLITE_PROBE_INVALID")
+
+
+def inspect_package(archive, source_commit, *, helper=None, helper_metadata=None):
+    """Inspect app identity and, at assembly, compare the two shipped runtimes."""
+    artifact = inspect_desktop_package(archive, source_commit)
+    if helper is None:
+        return artifact
+    with zipfile.ZipFile(archive) as app:
+        app_metadata = json.loads(app.read(BUILD_MEMBER))
+        app_private = declares_private_runtime(app_metadata)
+        helper_private = declares_private_runtime(helper_metadata)
+        require(app_private == helper_private, "OFFICE_PRIVATE_SQLITE_PAIR_REQUIRED")
+        if not app_private:
+            return artifact
+        require_private_runtime(app_metadata)
+        require_private_runtime(helper_metadata)
+        app_root = PurePosixPath(artifact["binary_path"]).parent
+        app_dlls = [entry for entry in app.infolist()
+                    if PurePosixPath(entry.filename).name.casefold() == "sqlite3.dll"]
+        require(len(app_dlls) == 1 and not app_dlls[0].is_dir()
+                and PurePosixPath(app_dlls[0].filename).is_relative_to(app_root)
+                and stat.S_IFMT(app_dlls[0].external_attr >> 16) in (0, stat.S_IFREG),
+                "OFFICE_APP_SQLITE_DLL_INVALID")
+        with app.open(app_dlls[0]) as stream:
+            require(hashlib.file_digest(stream, "sha256").hexdigest() == APPROVED_PIN["dll_sha256"],
+                    "OFFICE_APP_SQLITE_DLL_INVALID")
+    helper_dlls = [path for path in helper.parent.parent.rglob("*") if path.name.casefold() == "sqlite3.dll"]
+    require(len(helper_dlls) == 1 and helper_dlls[0].is_relative_to(helper.parent)
+            and helper_dlls[0].is_file() and not helper_dlls[0].is_symlink()
+            and digest(helper_dlls[0]) == APPROVED_PIN["dll_sha256"], "OFFICE_HELPER_SQLITE_DLL_INVALID")
+    return artifact
 
 
 def assemble(*, candidate, helper_archive, public_source, destination, source_commit,
@@ -92,6 +147,9 @@ def assemble(*, candidate, helper_archive, public_source, destination, source_co
             and metadata.get("self_test", {}).get("gui_started") is True
             and metadata.get("self_test", {}).get("native_platform") == "Windows"
             and metadata.get("self_test", {}).get("model_calls") == 0, "OFFICE_HELPER_NOT_NATIVE_TESTED")
+        checked_app = inspect_package(stage / "candidate" / CANDIDATE_FILES[0], source_commit,
+                                      helper=helper, helper_metadata=metadata)
+        require(checked_app == artifact, "OFFICE_ASSEMBLED_ARTIFACT_CHANGED")
         policy = {"schema_version": "release-acceptance-policy/v1", "source_commit": source_commit,
             "manifest_sha256": digest(stage / "candidate/ACCEPTANCE-MANIFEST.json"),
             "live_cases_sha256": digest(stage / "cases/LIVE-CASES.json"),

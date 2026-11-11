@@ -1,0 +1,40 @@
+{
+  "source_commit": "6a32077fabab781bf545dd5647dbc2ebd7f63a94",
+  "scope": "Synthetic header-only archive fixtures. Actual collector, candidate gate and kit loader. Only the small source-generation fixture is mocked. Zero EXE or model execution.",
+  "candidate_declared_runtime": {
+    "version": "3.54.1",
+    "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+    "loaded_dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea"
+  },
+  "helper_declared_runtime": {
+    "version": "0.0.0",
+    "source_id": "neutral deliberately mismatched fixture",
+    "loaded_dll_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "office_kit_created": true,
+  "office_kit_application": {
+    "archive_sha256": "d74f5e5d85a14f99e5f03c42b47b95d1fd20cb47db576b2a06a17546d433c71c",
+    "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+    "binary_sha256": "c9508c42c2849074468678720e65c739c6fdcbb432a0ff067b6e36cc185f3fc0",
+    "application_sha256": "74a56e4bd46d8f040707f2b514b8b3d77a4b8b7ab6559c38eb3fbcecaec357e3",
+    "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows"
+  },
+  "fixture_ids": [
+    "test_office_kit_collection.OfficeKitCollectionTests.test_assembly_roundtrip_preserves_exact_application_and_is_no_model",
+    "test_release_acceptance.ReleaseAcceptanceTests.test_joint_contract_accepts_exact_native_artifact_and_reviews"
+  ],
+  "evidence_sha256": {
+    "candidate-fixture.zip": "d74f5e5d85a14f99e5f03c42b47b95d1fd20cb47db576b2a06a17546d433c71c",
+    "helper-fixture.zip": "56feba4d69a16b89fd3ef20e09d53737e48c81b64d8fbf2f0a61badfed25c51a",
+    "accepted-mismatched-kit-fixture.zip": "a00ad8ecf9a57b15eab8802c9179bebf47fbfd7c299c40f791b82716527f05ca",
+    "KIT-BUILD-RECEIPT.json": "2f13ca0547016b3fc523df414677f8774018626a9ba49350b479e4c4a3be1065"
+  },
+  "reviewed_source_sha256": {
+    "tools/collect_office_acceptance_kit.py": "0c32e03555940accfdd20f0c59bf0ad8c94b93097eee9340ff3df7b4565a6b06",
+    "poc/release_acceptance.py": "6ac5801ece150e096cd98cd506c33e981a94c0cde7a0b6f5c01df45b827abf87",
+    "tools/office_acceptance_app.py": "46407219818cfeb1629f212ca5e303c39ab96f97d75555e9eab17722fda24912"
+  }
+}
