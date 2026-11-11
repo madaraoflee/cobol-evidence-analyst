@@ -8566,14 +8566,23 @@
         {
           "kind": "python",
           "test_id": "test_online_sqlite_safety.OnlineSQLiteSafetyTests.test_runtime_policy_never_keeps_writing_a_replaced_regular_database_inode"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename"
         }
       ],
       "evidence": [
-        "docs/reports/2026-11-11-windows-cached-guard-contract/README.md"
+        "docs/reports/2026-11-11-windows-cached-guard-contract/README.md",
+        "docs/reports/2026-11-11-windows-cached-guard-contract/proposal/assertion-preservation.json"
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "确认的是测试先决条件，不声称生产缓存保护断言失败；原完整Windows报告继续保留失败，不skip/xfail/忽略。必须先准备保留原断言且等价或更强的Windows夹具方案，经用户依缺陷合同明确决定后才能迁移；真实Windows完整回归及最终EXE尚未通过。"
+      "limitations": "用户已批准最小测试夹具迁移。可真实替换时维持原有测试；Windows 实际拒绝重命名时验证物理文件及数据，再用同一活跃连接验证路径保护。新增 SQL 删除、版本更新和关闭后的实文件改名回归。完整 Windows 回归及最终 EXE 尚待验证，历史失败报告继续保留。"
     },
     {
       "id": "BUG-20261111-021",
@@ -8591,7 +8600,7 @@
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "已确认是测试自身连接管理问题，未归咎生产索引/导出，不用gc.collect掩盖句柄。最小提案仅显式close现有只读查询连接、SQL/输入/旧断言保持；尚待与020一起由用户批准测试合同迁移后应用，随后须完整旧回归和真实Windows验证。"
+      "limitations": "用户已批准测试改用 closing 显式关闭只读查询连接。原 SQL、10001 文件输入和全部旧断言已保留，历史失败报告继续保留。Windows 整组完成后的目录清理尚待实跑确认。"
     }
   ],
   "updated_at": "2026-11-10"

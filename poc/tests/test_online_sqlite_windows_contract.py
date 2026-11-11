@@ -1,0 +1,164 @@
+"""Exercise real SQLite store operations and connection closure.
+
+An open SQLite handle is not renamed to simulate a production delete/update.
+Both operations retain the database identity. Rename is exercised only after
+explicit closure, and the same file is restored before opening SQLite again.
+"""
+from pathlib import Path
+import sqlite3
+import sys
+import unittest
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path[:0] = [str(REPO / 'poc'), str(REPO / 'poc/tests')]
+from online_inventory_store import OnlineInventoryStore
+from online_material_format import MaterialError
+from online_sqlite_store import supports_managed_wal
+import test_online_workspace as fixture_module
+
+
+class OnlineSQLiteWindowsContractTests(unittest.TestCase):
+    def setUp(self):
+        self.fixture = fixture_module.OnlineWorkspaceTests()
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+
+    @staticmethod
+    def identity(path):
+        value = path.stat()
+        return value.st_dev, value.st_ino
+
+    def closed_rename_restore(self, path):
+        original = self.identity(path)
+        moved = path.with_name(path.name + '.closed-move')
+        self.assertFalse(moved.exists())
+        try:
+            path.rename(moved)
+            self.assertFalse(path.exists())
+            self.assertTrue(moved.is_file())
+            self.assertEqual(self.identity(moved), original)
+            moved.rename(path)
+        finally:
+            if moved.exists() and not path.exists():
+                moved.rename(path)
+        self.assertTrue(path.is_file())
+        self.assertEqual(self.identity(path), original)
+
+    def assert_connection_policy(self, store, db):
+        expected = 'wal' if supports_managed_wal() else 'delete'
+        self.assertEqual(db.execute('PRAGMA journal_mode').fetchone()[0], expected)
+        self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0], 2)
+        self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+        if supports_managed_wal():
+            self.assertIs(store._sqlite._db, db)
+        else:
+            self.assertIsNone(store._sqlite._db)
+
+    def join_completed_workers(self, app):
+        with app.lock:
+            workers = list(app._threads.values())
+        for worker in workers:
+            worker.join(2)
+            self.assertFalse(worker.is_alive(), 'Completed job cleanup did not finish within the bound')
+        with app.lock:
+            self.assertEqual(app._threads, {})
+
+    def test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename(self):
+        store = OnlineInventoryStore(self.fixture.root / 'independent-inventory')
+        self.addCleanup(store.close)
+        manifest = self.fixture.manifests['first']
+        first_options = dict(workspace_id='workspace-first', conversation_id='conversation-first',
+            user_message_id='message-first', manifest=manifest, question='Review the first business result')
+        other_options = dict(workspace_id='workspace-first', conversation_id='conversation-other',
+            user_message_id='message-other', manifest=manifest, question='Review the other business result')
+        first, other = store.session(**first_options), store.session(**other_options)
+        retained = {'summary': 'Retained business result from the other session', 'path': 'main.cbl'}
+        with store.connection() as db:
+            first._put(db, 'findings', 'first-result', {'summary': 'First business result', 'path': 'main.cbl'}, 'main.cbl')
+            other._put(db, 'findings', 'retained-result', retained, 'main.cbl')
+            db.execute('INSERT INTO actions VALUES (?,?)', (first.id, 'first-action'))
+            db.execute('INSERT INTO actions VALUES (?,?)', (other.id, 'retained-action'))
+            self.assert_connection_policy(store, db)
+            old_db = db
+        before = self.identity(store.path)
+        store.delete_conversation(first_options['conversation_id'])
+        self.assertEqual(self.identity(store.path), before)
+        self.assertIsNone(first.get('findings', 'first-result'))
+        with self.assertRaises(MaterialError) as deleted:
+            store.session(**first_options, identifier=first.id)
+        self.assertEqual(deleted.exception.code, 'ONLINE_INVENTORY_NOT_FOUND')
+        self.assertEqual(other.get('findings', 'retained-result'), retained)
+        with store.connection() as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM sessions WHERE id=?', (other.id,)).fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT count(*) FROM versions WHERE session=?', (other.id,)).fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT key FROM actions WHERE session=?', (other.id,)).fetchall(), [('retained-action',)])
+            self.assertEqual(db.execute('SELECT count(*) FROM actions WHERE session=?', (first.id,)).fetchone()[0], 0)
+        if supports_managed_wal():
+            self.assertIs(store._sqlite._db, old_db)
+            self.assertEqual(old_db.execute('SELECT count(*) FROM sessions').fetchone()[0], 1)
+        else:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                old_db.execute('SELECT 1')
+        store.close()
+        self.assertIsNone(store._sqlite._db)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            old_db.execute('SELECT 1')
+        self.closed_rename_restore(store.path)
+        reopened = OnlineInventoryStore(store.root)
+        self.addCleanup(reopened.close)
+        restored = reopened.session(**other_options, identifier=other.id)
+        self.assertEqual(restored.get('findings', 'retained-result'), retained)
+        with reopened.connection() as db:
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+            self.assertEqual(db.execute('SELECT key FROM actions WHERE session=?', (other.id,)).fetchall(), [('retained-action',)])
+        self.assertEqual(self.fixture.runner_calls, [])
+        self.assertEqual(self.fixture.source_reads, [])
+
+    def test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename(self):
+        fixture = self.fixture
+        first = fixture.connect('first')
+        self.assertEqual(first['status'], 'completed')
+        self.join_completed_workers(fixture.app)
+        conversation = fixture.conversation(first['workspace_id'])
+        store = fixture.app.inventory_store
+        path = store.path
+        options = dict(workspace_id=first['workspace_id'], conversation_id=conversation['id'],
+            user_message_id='message-first', manifest=fixture.manifests['first'], question='Review the fixed first revision')
+        session = store.session(**options)
+        retained = {'summary': 'Business result owned by the first fixed revision', 'path': 'main.cbl'}
+        with store.connection() as db:
+            session._put(db, 'findings', 'retained-result', retained, 'main.cbl')
+            self.assert_connection_policy(store, db)
+            old_db = db
+        before = self.identity(path)
+        updated = fixture.connect('second', updating=first['workspace_id'])
+        self.assertEqual(updated['status'], 'completed')
+        self.assertNotEqual(updated['workspace_id'], first['workspace_id'])
+        self.join_completed_workers(fixture.app)
+        self.assertIs(fixture.app.inventory_store, store)
+        self.assertEqual(store.path, path)
+        self.assertEqual(self.identity(path), before)
+        self.assertEqual(session.get('findings', 'retained-result'), retained)
+        if supports_managed_wal():
+            self.assertIs(store._sqlite._db, old_db)
+            self.assertEqual(old_db.execute('SELECT count(*) FROM sessions').fetchone()[0], 1)
+        else:
+            with self.assertRaises(sqlite3.ProgrammingError):
+                old_db.execute('SELECT 1')
+        fixture.app.close()
+        self.assertIsNone(store._sqlite._db)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            old_db.execute('SELECT 1')
+        self.closed_rename_restore(path)
+        reopened = OnlineInventoryStore(store.root)
+        self.addCleanup(reopened.close)
+        restored = reopened.session(**options, identifier=session.id)
+        self.assertEqual(restored.get('findings', 'retained-result'), retained)
+        with reopened.connection() as db:
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+        self.assertEqual(fixture.runner_calls, [])
+        self.assertEqual(fixture.source_reads, [])
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,5 +1,6 @@
 """Online-only engine policy, transaction boundaries and owned resources."""
 from pathlib import Path
+from contextlib import nullcontext
 from types import SimpleNamespace
 import sqlite3
 import sys
@@ -217,6 +218,20 @@ class OnlineSQLiteSafetyTests(unittest.TestCase):
         self.assertFalse(thread.is_alive())
         store.close()
 
+    def _assert_windows_blocks_live_database_rename(self, path, backup, store, db):
+        self.assertIs(store._db, db)
+        self.assertFalse(db.in_transaction)
+        info = path.stat()
+        before = (path.read_bytes(), info.st_mtime_ns, info.st_dev, info.st_ino)
+        with self.assertRaises(PermissionError) as blocked:
+            path.rename(backup)
+        self.assertEqual(blocked.exception.winerror, 32)
+        after = path.stat()
+        self.assertEqual((path.read_bytes(), after.st_mtime_ns, after.st_dev, after.st_ino), before)
+        self.assertFalse(backup.exists())
+        self.assertEqual(db.execute('SELECT * FROM content').fetchall(), [(1,)])
+        self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+
     def test_runtime_policy_rechecks_every_actual_symlink_before_reusing_a_cached_connection(self):
         if not managed.supports_managed_wal():
             self.assert_unsupported_wal()
@@ -235,23 +250,37 @@ class OnlineSQLiteSafetyTests(unittest.TestCase):
                     sidecar = Path(str(path) + suffix)
                     backup = sidecar.with_name(sidecar.name + '.original')
                     existed = sidecar.exists()
-                    if existed:
-                        sidecar.rename(backup)
-                    sidecar.symlink_to(target)
-                    try:
-                        with mock.patch.object(managed.sqlite3, 'connect', side_effect=AssertionError('Guard must reject before open')) as connect:
-                            with self.assertRaises(MaterialError) as caught:
-                                with store.connection():
-                                    self.fail('Unsafe cached path was yielded')
-                            self.assertEqual(caught.exception.code, 'ONLINE_STATE_INVALID')
-                            connect.assert_not_called()
-                        self.assertEqual((target.read_bytes(), target.stat().st_mtime_ns), original)
-                        with self.assertRaises(sqlite3.ProgrammingError):
-                            db.execute('SELECT 1')
-                    finally:
-                        sidecar.unlink()
+                    windows_locked = sys.platform == 'win32' and existed and suffix in ('', '-wal', '-shm')
+                    if windows_locked:
+                        self._assert_windows_blocks_live_database_rename(sidecar, backup, store, db)
+                        original_is_symlink = Path.is_symlink
+                        def changed_path(candidate):
+                            return candidate == sidecar or original_is_symlink(candidate)
+                        observation = mock.patch.object(Path, 'is_symlink', new=changed_path)
+                    else:
                         if existed:
-                            backup.rename(sidecar)
+                            sidecar.rename(backup)
+                        sidecar.symlink_to(target)
+                        observation = nullcontext()
+                    issued_sql = []
+                    db.set_trace_callback(issued_sql.append)
+                    try:
+                        with observation:
+                            with mock.patch.object(managed.sqlite3, 'connect', side_effect=AssertionError('Guard must reject before open')) as connect:
+                                with self.assertRaises(MaterialError) as caught:
+                                    with store.connection():
+                                        self.fail('Unsafe cached path was yielded')
+                                self.assertEqual(caught.exception.code, 'ONLINE_STATE_INVALID')
+                                connect.assert_not_called()
+                            self.assertEqual((target.read_bytes(), target.stat().st_mtime_ns), original)
+                            with self.assertRaises(sqlite3.ProgrammingError):
+                                db.execute('SELECT 1')
+                        self.assertEqual(issued_sql, [])
+                    finally:
+                        if not windows_locked:
+                            sidecar.unlink()
+                            if existed:
+                                backup.rename(sidecar)
                     with self.assertRaises(MaterialError):
                         with store.connection():
                             pass
@@ -265,15 +294,32 @@ class OnlineSQLiteSafetyTests(unittest.TestCase):
                 original.execute('CREATE TABLE content(value)')
                 original.execute('INSERT INTO content VALUES(1)')
             backup = self.path.with_name('original.sqlite')
-            self.path.rename(backup)
-            self.path.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
+            if sys.platform == 'win32':
+                self._assert_windows_blocks_live_database_rename(self.path, backup, store, original)
+                observed_replacement = self.path.with_name('observed-replacement.sqlite')
+                observed_replacement.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
+                virtual_original = observed_replacement.read_bytes(), observed_replacement.stat().st_mtime_ns
+                actual_identity = managed._identity
+                def changed_identity(candidate):
+                    return actual_identity(observed_replacement) if candidate == self.path else actual_identity(candidate)
+                observation = mock.patch.object(managed, '_identity', side_effect=changed_identity)
+            else:
+                self.path.rename(backup)
+                self.path.write_bytes(b'Replacement file must not be modified through a cached descriptor.')
+                observation = nullcontext()
             replacement = self.path.read_bytes(), self.path.stat().st_mtime_ns
-            with self.assertRaises(MaterialError):
-                with store.connection():
-                    self.fail('A replaced database was yielded')
-            self.assertEqual((self.path.read_bytes(), self.path.stat().st_mtime_ns), replacement)
-            with self.assertRaises(sqlite3.ProgrammingError):
-                original.execute('SELECT 1')
+            issued_sql = []
+            original.set_trace_callback(issued_sql.append)
+            with observation:
+                with self.assertRaises(MaterialError):
+                    with store.connection():
+                        self.fail('A replaced database was yielded')
+                self.assertEqual((self.path.read_bytes(), self.path.stat().st_mtime_ns), replacement)
+                with self.assertRaises(sqlite3.ProgrammingError):
+                    original.execute('SELECT 1')
+            self.assertEqual(issued_sql, [])
+            if sys.platform == 'win32':
+                self.assertEqual((observed_replacement.read_bytes(), observed_replacement.stat().st_mtime_ns), virtual_original)
 
     def test_invalid_lock_timeouts_cannot_create_an_unbounded_wait(self):
         for timeout in (-1, float('inf'), float('nan')):
