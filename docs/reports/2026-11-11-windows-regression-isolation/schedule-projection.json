@@ -1,0 +1,88 @@
+{
+  "current": [
+    {
+      "shard": 0,
+      "selected": 1355,
+      "modules": 121,
+      "latest_measured_test_seconds": 2808.01,
+      "historical_max_per_test_sum_seconds": 2947.457,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 1,
+      "selected": 1355,
+      "modules": 121,
+      "latest_measured_test_seconds": 847.166,
+      "historical_max_per_test_sum_seconds": 1307.073,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 2,
+      "selected": 1355,
+      "modules": 121,
+      "latest_measured_test_seconds": 1062.4,
+      "historical_max_per_test_sum_seconds": 1097.232,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 3,
+      "selected": 1354,
+      "modules": 120,
+      "latest_measured_test_seconds": 1126.344,
+      "historical_max_per_test_sum_seconds": 1296.348,
+      "missing_duration_ids": []
+    }
+  ],
+  "proposed": [
+    {
+      "shard": 0,
+      "selected": 7,
+      "modules": 1,
+      "latest_measured_test_seconds": 1644.185,
+      "historical_max_per_test_sum_seconds": 1648.38,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 1,
+      "selected": 1804,
+      "modules": 160,
+      "latest_measured_test_seconds": 1222.689,
+      "historical_max_per_test_sum_seconds": 1490.333,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 2,
+      "selected": 1804,
+      "modules": 161,
+      "latest_measured_test_seconds": 1569.647,
+      "historical_max_per_test_sum_seconds": 1804.132,
+      "missing_duration_ids": []
+    },
+    {
+      "shard": 3,
+      "selected": 1804,
+      "modules": 161,
+      "latest_measured_test_seconds": 1407.398,
+      "historical_max_per_test_sum_seconds": 1705.264,
+      "missing_duration_ids": []
+    }
+  ],
+  "module_wall_actual": {
+    "42971680136": {
+      "first_start_to_last_end_seconds": 1713.1036,
+      "including_neighbor_setup_cleanup_window_seconds": 1722.830005
+    },
+    "42952543318": {
+      "first_start_to_last_end_seconds": 1652.513613,
+      "including_neighbor_setup_cleanup_window_seconds": 1667.03106
+    },
+    "42934769797": {
+      "first_start_to_last_end_seconds": 1591.493595,
+      "including_neighbor_setup_cleanup_window_seconds": 1604.51
+    }
+  },
+  "missing_duration_ids": [],
+  "exact_once_discovery": 5419,
+  "bound_seconds": 2700,
+  "observed_duration_only": true
+}

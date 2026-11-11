@@ -89,8 +89,8 @@ def flatten_suite(suite):
             raise TypeError(f"Unsupported discovered test object: {type(item).__name__}")
 
 
-def partition_tests(tests, shard_count):
-    """Balance whole modules by test count; never change their execution order."""
+def partition_tests(tests, shard_count, *, isolated_module=None):
+    """Keep modules intact, reserving one shard for a named long-running suite."""
     if shard_count < 1:
         raise ValueError("shard_count must be positive")
     by_module = defaultdict(list)
@@ -98,8 +98,15 @@ def partition_tests(tests, shard_count):
         by_module[type(test).__module__].append(test)
     loads = [0] * shard_count
     assignments = {}
+    if isolated_module is not None:
+        if shard_count < 2 or isolated_module not in by_module:
+            raise ValueError("Isolating a module requires at least two shards and a discovered module")
+        assignments[isolated_module] = 0
+    regular_shards = range(len(assignments), shard_count)
     for module in sorted(by_module, key=lambda name: (-len(by_module[name]), name)):
-        shard = min(range(shard_count), key=lambda index: (loads[index], index))
+        if module == isolated_module:
+            continue
+        shard = min(regular_shards, key=lambda index: (loads[index], index))
         assignments[module] = shard
         loads[shard] += len(by_module[module])
     return [[test for test in tests if assignments[type(test).__module__] == index]
@@ -225,7 +232,7 @@ def write_report(path, report):
 
 
 def run_regressions(*, tests_dir, shard_index, shard_count, output,
-                    expected_commit=None, stack_dump_interval=120, stream=None):
+                    expected_commit=None, stack_dump_interval=120, stream=None, isolated_module=None):
     stream = stream or sys.stderr
     started = _timer()
     report = {"schema_version": 1, "source_commit": None, "source_dirty": None,
@@ -291,7 +298,7 @@ def run_regressions(*, tests_dir, shard_index, shard_count, output,
                 stream.write(error + "\n")
             stream.flush()
         else:
-            selected = partition_tests(tests, shard_count)[shard_index]
+            selected = partition_tests(tests, shard_count, isolated_module=isolated_module)[shard_index]
             report["selected_ids"] = [test.id() for test in selected]
             report["selected_count"] = len(selected)
             if not selected:
@@ -345,6 +352,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--isolate-module", help="Reserve shard zero for this discovered test module")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--tests-dir", type=Path, default=ROOT / "poc" / "tests")
     parser.add_argument("--source-commit", help="Expected git HEAD; actual provenance is always read from git")
@@ -354,7 +362,7 @@ def main(argv=None):
     return run_regressions(tests_dir=args.tests_dir, shard_index=args.shard_index,
                            shard_count=args.shard_count, output=args.output,
                            expected_commit=args.source_commit,
-                           stack_dump_interval=args.stack_dump_interval)
+                           stack_dump_interval=args.stack_dump_interval, isolated_module=args.isolate_module)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,27 @@
+{
+  "previous_count": 5402,
+  "count": 5419,
+  "removed": [],
+  "added": [
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_answer_reserve_stops_continuation_reads_without_discarding_pending_paths",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_continuation_with_disabled_local_tools_keeps_pending_work_and_request_limit",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_reconnect_without_explicit_continuation_replays_without_new_requests",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_single_pass_brief_continuation_keeps_existing_retrieval_behavior",
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup",
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_a_different_original_question_cannot_supply_memory",
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_changed_source_cannot_supply_memory",
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory",
+    "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory",
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_cancellation_keeps_committed_trim_receipts_and_original_archive",
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source",
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary",
+    "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection",
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable",
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight",
+    "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request"
+  ],
+  "matches_expected_17": true,
+  "previous_report_sha256": "8ca4c1b96f1627f1b8bbb1e451ecc2211b425cabb15516d6406d067402a7f06a",
+  "current_report_sha256": "b7a05bdf311dc9bad1fa8e9b44a6a7d85e279bc0bf51a8004bf2ab5dab3051dd"
+}
