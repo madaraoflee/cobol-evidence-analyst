@@ -1,0 +1,80 @@
+"""Reproduce the office kit runtime-binding gap with neutral ZIP fixtures."""
+import argparse
+import copy
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+from unittest.mock import patch
+import zipfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--repo-root', type=Path, required=True)
+parser.add_argument('--output', type=Path, required=True)
+args = parser.parse_args()
+root = args.repo_root.resolve(strict=True)
+output = args.output.resolve()
+output.mkdir(exist_ok=False)
+sys.path[:0] = [str(root / 'poc'), str(root / 'poc/tests'), str(root / 'tools')]
+from collect_office_acceptance_kit import CANDIDATE_FILES, assemble
+from release_acceptance import evaluate_release
+from sqlite_runtime_probe import APPROVED_PIN
+from test_office_kit_collection import OfficeKitCollectionTests
+from test_release_acceptance import ReleaseAcceptanceTests
+
+kit = OfficeKitCollectionTests()
+release = ReleaseAcceptanceTests()
+kit.setUp()
+release.setUp()
+try:
+    candidate_runtime = {key: APPROVED_PIN[key] for key in ('version', 'source_id')}
+    candidate_runtime['loaded_dll_sha256'] = APPROVED_PIN['dll_sha256']
+    kit.build_info['private_sqlite_runtime'] = {'schema_version': 'private-sqlite-build/v1',
+        'inputs': {'pin': APPROVED_PIN}}
+    kit.build_info['self_test']['sqlite_runtime'] = candidate_runtime
+    candidate = kit.candidate / CANDIDATE_FILES[0]
+    kit.write_candidate(candidate)
+    with zipfile.ZipFile(candidate) as package:
+        binary_hash = hashlib.sha256(package.read('COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe')).hexdigest()
+    compiled = release.read('compiled_report')
+    compiled.update(archive_sha256=hashlib.sha256(candidate.read_bytes()).hexdigest(), binary_sha256=binary_hash,
+                    application_sha256=kit.build_info['source_fingerprint'])
+    (kit.candidate / 'COMPILED-ACCEPTANCE.json').write_text(json.dumps(compiled), encoding='utf-8')
+    shutil.copyfile(release.paths['manifest'], kit.candidate / 'ACCEPTANCE-MANIFEST.json')
+    shutil.copyfile(release.paths['policy'], kit.candidate / 'CANDIDATE-POLICY.json')
+    (kit.candidate / 'BUILD-INFO.json').write_text(json.dumps(kit.build_info), encoding='utf-8')
+    helper_runtime = {'version': '0.0.0', 'source_id': 'neutral deliberately mismatched fixture',
+        'loaded_dll_sha256': '0' * 64}
+    helper_info = copy.deepcopy(kit.helper_metadata)
+    helper_info['self_test']['sqlite_runtime'] = helper_runtime
+    kit.write_helper(metadata=helper_info)
+    # Replace the fixture's mocked candidate decision with the actual gate.
+    with patch('collect_office_acceptance_kit.evaluate_release', evaluate_release):
+        delivered = assemble(candidate=kit.candidate, helper_archive=kit.helper_archive,
+            public_source=kit.public_source, destination=kit.root / 'checked',
+            source_commit=kit.source_commit, helper_commit=kit.helper_commit)
+    assert delivered.is_file()
+    fixtures = {'candidate-fixture.zip': candidate, 'helper-fixture.zip': kit.helper_archive,
+        'accepted-mismatched-kit-fixture.zip': delivered,
+        'KIT-BUILD-RECEIPT.json': delivered.parent / 'KIT-BUILD-RECEIPT.json'}
+    for name, path in fixtures.items():
+        shutil.copyfile(path, output / name)
+    with zipfile.ZipFile(delivered) as bundle:
+        document = json.loads(bundle.read('OfficeAcceptanceKit/OFFICE-KIT.json'))
+    result = {'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
+        'scope': 'Synthetic header-only archive fixtures. Actual collector, candidate gate and kit loader. Only the small source-generation fixture is mocked. Zero EXE or model execution.',
+        'candidate_declared_runtime': candidate_runtime, 'helper_declared_runtime': helper_runtime,
+        'office_kit_created': True, 'office_kit_application': document['artifact'],
+        'fixture_ids': [
+            'test_office_kit_collection.OfficeKitCollectionTests.test_assembly_roundtrip_preserves_exact_application_and_is_no_model',
+            'test_release_acceptance.ReleaseAcceptanceTests.test_joint_contract_accepts_exact_native_artifact_and_reviews'],
+        'evidence_sha256': {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in fixtures},
+        'reviewed_source_sha256': {path: hashlib.sha256((root / path).read_bytes()).hexdigest() for path in (
+            'tools/collect_office_acceptance_kit.py', 'poc/release_acceptance.py', 'tools/office_acceptance_app.py')}}
+    (output / 'REPRODUCTION.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(result, indent=2))
+finally:
+    kit.doCleanups()
+    release.doCleanups()

@@ -8601,6 +8601,51 @@
       "status": "open",
       "verification_scope": "source_offline",
       "limitations": "用户已批准测试改用 closing 显式关闭只读查询连接。原 SQL、10001 文件输入和全部旧断言已保留，历史失败报告继续保留。Windows 整组完成后的目录清理尚待实跑确认。"
+    },
+    {
+      "id": "BUG-20261111-022",
+      "title": "手动办公验收包可混用不同 SQLite 组件的应用和验收助手",
+      "symptom": "应用声明 SQLite 3.54.1、助手声明 0.0.0 的中性 ZIP 仍由真实手动组装入口接受。现场尚未观察到受控 CI 生成失配验收包。",
+      "root_cause": "组装器分别检查应用候选与助手的结构及元数据，缺少对两个实际交付包的 SQLite 私有版本声明、编译探针和 DLL 文件散列的绑定。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_matching_pinned_dll_bytes_and_independent_build_paths_assemble"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_legacy_pair_without_runtime_declarations_still_assembles"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_asymmetric_declarations_including_native_probe_only_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_malformed_or_unapproved_runtime_declarations_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_both_compiled_probes_must_match_approved_component_and_pass_checks"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_tampered_dll_bytes_in_either_product_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_office_private_sqlite_binding.OfficePrivateSQLiteBindingTests.test_missing_duplicate_or_outside_product_dll_is_rejected"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-office-sqlite-runtime-binding/REPRODUCTION.json",
+        "docs/reports/2026-11-11-office-sqlite-runtime-binding/README.md",
+        "tools/tests/test_office_private_sqlite_binding.py",
+        "tools/collect_office_acceptance_kit.py"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "本次修复办公包组装入口。任一包声明私有 SQLite 时，两边都必须匹配固定官方 pin、通过已编译探针并附带同一 DLL；双方均未声明私有组件的历史包按原合同校验。源码夹具不启动 EXE 或调用模型。实际新办公包的双运行时和目标设备结果另行验证。"
     }
   ],
   "updated_at": "2026-11-10"
