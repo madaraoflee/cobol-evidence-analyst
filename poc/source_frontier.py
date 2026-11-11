@@ -27,9 +27,12 @@ def source_frontier_state(business_map, roots, business_overview, saved=None):
 
 
 def prepare_investigation_frontier(business_map, question, roots, paths, source_scopes,
-                                   saved=None, *, advance=False, batch_size=8):
+                                   saved=None, *, advance=False, batch_size=8, restricted_scope=False):
     value = [business_map.get("snapshot_id"), str(question), roots, source_scopes,
              bool(business_map.get("source_identity", {}).get("exclusive_source_scope"))]
+    if restricted_scope:
+        # Earlier cursors could include paths outside the explicitly selected source.
+        value.append("restricted_source_scope")
     scope = hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     valid = (isinstance(saved, dict) and saved.get("schema_version") == 1 and saved.get("scope_key") == scope
              and all(isinstance(saved.get(key), list) for key in ("known_paths", "active_paths", "completed_paths")))

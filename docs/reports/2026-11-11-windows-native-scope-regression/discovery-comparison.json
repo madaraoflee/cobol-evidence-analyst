@@ -1,0 +1,15 @@
+{
+  "previous_run": 42934769797,
+  "previous_commit": "11a6f9be93492b5050c6895ade8c49b0d1c80417",
+  "previous_discovered_ids": 5400,
+  "previous_original_report_sha256": "77a4729caa7a4b970145db8292b507462594a52ffeae5e53cf3bacee0473b7aa",
+  "run": 42952543318,
+  "commit": "7a7f8848d2b3320358bceae94c2fc32fd7e2b7d8",
+  "discovered_ids": 5402,
+  "original_report_sha256": "8ca4c1b96f1627f1b8bbb1e451ecc2211b425cabb15516d6406d067402a7f06a",
+  "removed": [],
+  "added": [
+    "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_sql_conversation_delete_preserves_database_inode_other_session_and_closed_handle_rename",
+    "test_online_sqlite_windows_contract.OnlineSQLiteWindowsContractTests.test_real_workspace_revision_update_retains_inventory_store_inode_and_close_releases_handle_for_rename"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "poc/question_investigation.py": "6ffed49ce4c419ddddd4df79bc65c4224834b4c5e9a2956d49ba88cb8784f91f",
+  "poc/source_frontier.py": "dc19d709a5d122ea9909e18ff4f9c87d97f44d313372841d03dd3a9460bf5981",
+  "poc/tests/test_scoped_formula_frontier.py": "47e10513dae0fca30be0cb8acbad260091be824b9605b8e5ce976ad568148af7",
+  "PROPOSED-SCOPE-FIX.diff": "c7a0cfd170ffd6aa0f0578c3f91aa8ebd9c7a9a3c6c0f05e279a6c073b40297c"
+}

@@ -1,0 +1,20 @@
+{
+  "id": 13829076369,
+  "node_id": "MDg6QXJ0aWZhY3QxMzgyOTA3NjM2OQ==",
+  "name": "failed-native-acceptance-7a7f8848d2b3320358bceae94c2fc32fd7e2b7d8-1",
+  "size_in_bytes": 1220090,
+  "url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13829076369",
+  "archive_download_url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13829076369/zip",
+  "expired": false,
+  "digest": "sha256:6228ed7eb7b70eb77c0dfeed97e1870d888b5c0004a4650a7c47f03b6113ad77",
+  "created_at": "2026-11-11T04:40:35Z",
+  "updated_at": "2026-11-11T04:40:35Z",
+  "expires_at": "2026-11-25T04:40:33Z",
+  "workflow_run": {
+    "id": 42952543318,
+    "repository_id": 1352481697,
+    "head_repository_id": 1352481697,
+    "head_branch": "main",
+    "head_sha": "7a7f8848d2b3320358bceae94c2fc32fd7e2b7d8"
+  }
+}

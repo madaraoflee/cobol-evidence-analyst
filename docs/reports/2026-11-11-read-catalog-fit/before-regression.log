@@ -1,0 +1,78 @@
+test_cancellation_keeps_committed_trim_receipts_and_original_archive (__main__.ReadCatalogFitLatencyTests.test_cancellation_keeps_committed_trim_receipts_and_original_archive) ... ok
+test_exhausting_catalog_rechecks_after_removing_actual_source (__main__.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source) ... FAIL
+test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) ...
+  test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=1) ... FAIL
+  test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=2) ... FAIL
+  test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=17) ... FAIL
+  test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=31) ... FAIL
+test_single_entry_needs_no_extra_full_projection (__main__.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection) ... FAIL
+
+======================================================================
+FAIL: test_exhausting_catalog_rechecks_after_removing_actual_source (__main__.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 131, in test_exhausting_catalog_rechecks_after_removing_actual_source
+    self.assertEqual([len(call.args[0]) for call in builder.call_args_list], [2, 1])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1] != [2, 1]
+
+First differing element 1:
+2
+1
+
+First list contains 24 additional elements.
+First extra element 2:
+2
+
+- [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1]
++ [2, 1]
+
+======================================================================
+FAIL: test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 104, in test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary
+    self.assertEqual(builder.call_count, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1
+
+======================================================================
+FAIL: test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 104, in test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary
+    self.assertEqual(builder.call_count, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 1
+
+======================================================================
+FAIL: test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=17)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 104, in test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary
+    self.assertEqual(builder.call_count, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 18 != 1
+
+======================================================================
+FAIL: test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary (__main__.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary) (removed_count=31)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 104, in test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary
+    self.assertEqual(builder.call_count, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 32 != 1
+
+======================================================================
+FAIL: test_single_entry_needs_no_extra_full_projection (__main__.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-read-catalog-fit-20261111/evidence/before-test-copy.py", line 116, in test_single_entry_needs_no_extra_full_projection
+    self.assertEqual(builder.call_count, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.157s
+
+FAILED (failures=6)

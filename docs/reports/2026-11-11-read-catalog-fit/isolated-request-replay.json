@@ -1,0 +1,34 @@
+{
+  "source_run": "78d222147fe1cf3fbe11c9ba",
+  "model_calls": 0,
+  "catalog_only_reconstruction": true,
+  "baseline_source_sha256": "d04c380cfc13e06bde73411e3bdbb6169ecbae6b5da74ec82a39a19a2868c970",
+  "candidate_source_sha256": "e977d35630264dc8e754e60dd41d3c04bce723d106eaf33b20ea246feb043937",
+  "builder_is_stable_no_sql": true,
+  "before": {
+    "builder_invocations": 28,
+    "request_projections": 28,
+    "distinct_review_page_sets": 1,
+    "trim_reasons": {
+      "prior_read_catalog_request_bytes": 27
+    },
+    "elapsed_seconds": 3.4316395829664543,
+    "wire_bytes": 229733,
+    "wire_sha256": "78efa4dc017bcc89b00488f700717c9421529a003d064aa06de507ca6dd5e69b",
+    "trim_sha256": "91cbaecdd20ecb343fe041cd4708bc8c5401c456a05675ac7e77ff8fe2eaaa14",
+    "retained_catalog_entries": 0
+  },
+  "after": {
+    "builder_invocations": 1,
+    "request_projections": 2,
+    "distinct_review_page_sets": 1,
+    "trim_reasons": {
+      "prior_read_catalog_request_bytes": 27
+    },
+    "elapsed_seconds": 0.1672749579884112,
+    "wire_bytes": 229733,
+    "wire_sha256": "78efa4dc017bcc89b00488f700717c9421529a003d064aa06de507ca6dd5e69b",
+    "trim_sha256": "91cbaecdd20ecb343fe041cd4708bc8c5401c456a05675ac7e77ff8fe2eaaa14",
+    "retained_catalog_entries": 0
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "bug": "BUG024",
+  "source_commit": "08ed60ca5e868ed83bd7f3a173e89aa7a9be0d49",
+  "tested_base_checkout": "7a7f8848d2b3320358bceae94c2fc32fd7e2b7d8",
+  "identical_between_commits": [
+    "poc/business_chat.py",
+    "poc/question_investigation.py",
+    "poc/source_frontier.py"
+  ],
+  "cause": "Brief adaptive ordinary calculation continuations restore all twelve candidate paths, evidence and accepted draft, but skip deterministic pre-request reads. With one model request the only slot is final-answer-only, so the same six supplied files repeat indefinitely without completing the first eight-path batch.",
+  "fix": "Enable the existing bounded pre-request calculation read drain only for explicit adaptive continuation with no repository inventory. Initial brief behavior, single-pass behavior, request allowance, read/context tool allowances, question-time reserve, source ownership/version and unknown-request gates remain unchanged.",
+  "runtime_diff_added_lines": 4,
+  "tests": [
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_continuation_with_disabled_local_tools_keeps_pending_work_and_request_limit",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_single_pass_brief_continuation_keeps_existing_retrieval_behavior",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_answer_reserve_stops_continuation_reads_without_discarding_pending_paths",
+    "test_brief_formula_continuation.BriefFormulaContinuationTests.test_reconnect_without_explicit_continuation_replays_without_new_requests"
+  ],
+  "before": {
+    "tests_run": 5,
+    "failures": [
+      "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work"
+    ],
+    "errors": 0,
+    "skipped": 0,
+    "log": "before.log",
+    "trace": "trace-before.json",
+    "observed_runs": 5,
+    "requests_per_run": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "cumulative_supplied_files": [
+      6,
+      6,
+      6,
+      6,
+      6
+    ]
+  },
+  "after_only024": {
+    "tests_run": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "after-only024.log"
+  },
+  "after_combined023": {
+    "tests_run": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "after-combined023.log",
+    "trace": "trace-after-combined023.json",
+    "observed_runs": 3,
+    "requests_per_run": [
+      1,
+      1,
+      1
+    ],
+    "cumulative_supplied_files": [
+      6,
+      8,
+      12
+    ],
+    "final_active_paths": 4,
+    "final_completed_paths": 8,
+    "final_remaining_paths": 0,
+    "final_status": "PARTIAL"
+  },
+  "old_targeted": {
+    "modules": {
+      "business_chat": "/private/tmp/cobol-brief-single-request-continuation-fix-20261111/poc/business_chat.py",
+      "question_investigation": "/private/tmp/cobol-native-scope-regression-proposal-20261111/poc/question_investigation.py",
+      "source_frontier": "/private/tmp/cobol-native-scope-regression-proposal-20261111/poc/source_frontier.py"
+    },
+    "suites": [
+      "test_question_scope_regressions",
+      "test_question_boundary_scope",
+      "test_persistent_investigation_frontier",
+      "test_complete_working_set",
+      "test_explicit_investigation_continuation",
+      "test_legacy_continuation_language",
+      "test_failed_turn_analysis_progress",
+      "test_question_budget_delivery",
+      "test_business_action_budget",
+      "test_repository_formula_inventory",
+      "test_global_formula_inventory_acceptance",
+      "test_continuation_language_change"
+    ],
+    "tests_run": 150,
+    "failures": [],
+    "errors": [],
+    "skipped": [],
+    "seconds": 22.068
+  },
+  "boundaries": [
+    "A finite one-request run remaining PARTIAL is expected; the defect is repeated usable continuation with no source progress.",
+    "All twelve formulas were actually supplied over the three runs; no invented response supplies missing fixture source.",
+    "The regression checks immutable prior runs, forwarded prior draft, retained evidence IDs and full known candidate frontier.",
+    "This does not claim a complete final business answer under the finite one-request cap, real-model quality, Windows EXE acceptance, company API availability or all-ledger full-suite acceptance.",
+    "Only scratch files written; no tracked source, old tests, bug registry, baseline, ledger checkout or GitHub changes."
+  ],
+  "artifacts": {
+    "poc/business_chat.py": {
+      "sha256": "84eaa756a729b9c450086e3408ee2131740939283c3ebc4da77288196a2579fd"
+    },
+    "poc/tests/test_brief_formula_continuation.py": {
+      "sha256": "d5d9efe046a7715b4b205b0a5ad6e7a151fd87ed5b7c097bd1d5a53c0e36538e"
+    },
+    "BUG024-proposal.patch": {
+      "sha256": "e6ae3cc20b35c24d89b03d5922475457fa136438d9a254f016252b5b3b95980f"
+    },
+    "business_chat.before.py": {
+      "sha256": "d04c380cfc13e06bde73411e3bdbb6169ecbae6b5da74ec82a39a19a2868c970"
+    }
+  },
+  "existing_bug023_additive_tests": {
+    "tests_run": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log": "scoped023-combined.log"
+  },
+  "patch_apply_check": "passed against exact 7a7f884 checkout without applying"
+}

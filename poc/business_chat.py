@@ -1176,9 +1176,12 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         # Navigation/omission metadata can be trimmed many times without
         # changing the actual evidence. Re-evaluate obligations only when the
         # pages, framework material or reviewed draft really change.
+        memory_material = payload.get("prior_source_memory")
+        if isinstance(memory_material, dict) and "read_catalog" in memory_material:
+            # The read catalog cannot supply source or authorize a citation.
+            memory_material = {key: value for key, value in memory_material.items() if key != "read_catalog"}
         material = json.dumps([bundle["pages"], payload.get("framework_facts", []),
-            payload.get("framework_references", []), payload.get("draft_answer", ""),
-            payload.get("prior_source_memory")],
+            payload.get("framework_references", []), payload.get("draft_answer", ""), memory_material],
             ensure_ascii=False, separators=(",", ":"))
         material_changed = material != last_material
         review_pages = source_memory.effective_pages(payload) if source_memory else bundle["pages"]
@@ -1225,6 +1228,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
         messages, size = encode_request()
         if size <= policy.max_request_bytes:
             return messages, size
+        already_reduced = payload.get("context_reduced") is True
         payload["context_reduced"] = True
         def record(item, reason, before=0, after=0, *, role="context"):
             if trim_events is not None:
@@ -1252,9 +1256,25 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             record(None, "source_fact_suggestion_bytes", len(json.dumps(removed, ensure_ascii=False)))
         elif payload.get("prior_source_memory", {}).get("read_catalog", {}).get("entries"):
             catalog = payload["prior_source_memory"]["read_catalog"]
-            removed = catalog["entries"].pop(len(catalog["entries"]) // 2)
-            catalog["omitted_count"] += 1
-            record(removed.get("evidence_id"), "prior_read_catalog_request_bytes")
+            # Prompt projection leaves this navigation catalog unchanged.
+            # Count its exact contribution inside the JSON-encoded user message
+            # and keep the original middle-removal order and trim records.
+            def catalog_wire_size():
+                inner = json.dumps(catalog, ensure_ascii=False, separators=(",", ":"))
+                return len(json.dumps(inner, ensure_ascii=False).encode("utf-8"))
+
+            # An initial overflow may have just added context_reduced.
+            if not already_reduced and len(catalog["entries"]) > 1:
+                _, size = encode_request()
+            bytes_without_catalog = size - catalog_wire_size()
+            while catalog["entries"]:
+                removed = catalog["entries"].pop(len(catalog["entries"]) // 2)
+                catalog["omitted_count"] += 1
+                record(removed.get("evidence_id"), "prior_read_catalog_request_bytes")
+                if check_cancel:
+                    check_cancel()
+                if catalog["entries"] and bytes_without_catalog + catalog_wire_size() <= policy.max_request_bytes:
+                    break
         elif (payload.get("prior_source_memory") and not payload["prior_source_memory"].get("blocks")
                 and not payload["prior_source_memory"].get("read_catalog", {}).get("total_count")):
             payload.pop("prior_source_memory")
@@ -3503,7 +3523,11 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     max_complete_source_characters=policy.max_complete_source_characters)
                 prepared_investigation = question_investigation(selected_pages,
                     advance_frontier=local_evidence_allowed)
+                # Brief explicit continuations still advance saved calculation
+                # gaps before the final request, within the same tool allowance.
                 if (local_evidence_allowed and (detail_requested
+                        or (continuation_requested and adaptive and inventory_state is None
+                            and "calculation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", []))
                         or "business_overview" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])
                         or is_file_impact_question(question) or automatic_followup_material is not None
                         or "activation" in (prepared_investigation.get("analysis_plan") or {}).get("intents", [])

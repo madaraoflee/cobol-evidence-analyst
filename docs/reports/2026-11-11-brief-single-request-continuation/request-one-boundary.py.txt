@@ -1,0 +1,162 @@
+"""Exclusive occurrence scope remains narrow while broad formulas keep paging."""
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(os.environ.get("COBOL_TEST_SOURCE_ROOT", "/private/tmp/cobol-global-formula-audit-tree-20261110"))
+# An explicit PYTHONPATH overlay wins; no repository module is rewritten.
+sys.path.extend([str(ROOT), str(ROOT / "poc")])
+from agent_policy import AgentPolicy
+from business_chat import run_business_chat
+from business_index import build_business_index
+from company_api import CompanyAPIConfig, TransportResponse
+from repository_discovery import ensure_repository_search
+from run_store import RunStore
+from source_frontier import prepare_investigation_frontier
+from tools.desktop_acceptance_cases import _large_program, _supported
+
+
+class ScopedFormulaFrontierTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.source = self.root / "source"
+        self.source.mkdir()
+        self.database = self.root / "index.sqlite"
+        self.config = CompanyAPIConfig("https://offline.example.invalid/v1", "synthetic-model", api_key="offline-only")
+        self.requests = []
+
+    def build(self, files):
+        for name, text in files.items():
+            (self.source / name).write_text(text, encoding="utf-8")
+        build_business_index(self.source, self.database, source_format="free", verify_content=True,
+            quiet=True, framework_reference_path="")
+        ensure_repository_search(self.database, self.source)
+
+    @staticmethod
+    def pages(payload):
+        return [page for bundle in payload.get("source_context", []) for page in bundle.get("pages", [])]
+
+    @staticmethod
+    def reply(text):
+        return TransportResponse(200, json.dumps({"choices": [{"message": {
+            "role": "assistant", "content": text}, "finish_reason": "stop"}]}))
+
+    def test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request(self):
+        files = {f"member-{index:05d}.cbl": _large_program(index, 3, 224, 4) for index in range(3)}
+        files.update({f"shared-{index:03d}.cpy": f"01 SHARED-RECORD-{index:03d}.\n 05 SHARED-FIELD-{index:03d} PIC 9(9).\n"
+            for index in range(4)})
+        self.build(files)
+        question = "MEMBER-00002 的 RULE-000 第一条 IF 如何计算 BILL-AMOUNT，输入在哪里声明，紧接下一条 IF 怎样覆盖？"
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            self.requests.append(payload)
+            pages = self.pages(payload)
+            first = next(page for page in pages if page["relative_path"] == "member-00002.cbl"
+                and "IF INPUT-000 > 0" in page["source_text"])
+            second = next(page for page in pages if page["relative_path"] == "member-00002.cbl"
+                and "IF INPUT-001 > 1" in page["source_text"])
+            return self.reply(f"INPUT-000 > 0 时，BILL-AMOUNT = INPUT-000 * 1。[{first['evidence_id']}] "
+                f"随后 INPUT-001 > 1 时，BILL-AMOUNT = INPUT-001 * 2，会覆盖先前值。[{second['evidence_id']}] "
+                "两个输入和输出均声明为 PIC 9(9)。第二个条件未成立时不执行第二次赋值。"
+                "这只解释提问范围中的前两条 IF；真实输入值和后续代码的最终影响尚未确认。")
+
+        with patch("socket.create_connection", side_effect=AssertionError("network forbidden")):
+            result = run_business_chat(question, self.database, self.source, self.config, transport=transport,
+                allow_network=False, framework_reference_path="", answer_detail="detailed",
+                policy=AgentPolicy(max_model_requests=3, max_answer_revisions=0))["agent_result"]
+        investigation = result["investigation_state"]["question_investigation"]
+        items = {row["kind"]: row for row in investigation["required_items"]}
+        self.assertEqual([items[k]["candidate_count"] for k in ("formula", "conditions", "declarations")], [2, 2, 3])
+        self.assertEqual(set(items["inputs"]["fields"]), {"INPUT-000", "INPUT-001"})
+        self.assertEqual(items["inputs"]["status"], "UNRESOLVED")
+        self.assertEqual(items["inputs"]["reason"], "input_source_not_located")
+        self.assertFalse(any("budget" in row.get("reason", "") for row in investigation["open_gaps"]))
+        self.assertEqual(len(self.requests), 1)
+        supplied = self.pages(self.requests[0])
+        for literal in ("01 INPUT-000 PIC 9(9).", "01 INPUT-001 PIC 9(9).", "01 BILL-AMOUNT PIC 9(9)."):
+            self.assertTrue(any(literal in page["source_text"] and page["relative_path"] == "member-00002.cbl" for page in supplied))
+        self.assertTrue(_supported(result["claim_ledger"], "BILL-AMOUNT", ["INPUT-000", "*", "1"]))
+        self.assertTrue(_supported(result["claim_ledger"], "BILL-AMOUNT", ["INPUT-001", "*", "2"]))
+        self.assertTrue(any(page["relative_path"].endswith(".cpy") for page in supplied), "COPY source remains available")
+        checkpoint = RunStore(self.root / "investigation-runs.sqlite").load(result["run_id"])["checkpoint"]
+        self.assertNotIn("member-00000.cbl", checkpoint["investigation_frontier_state"]["known_paths"])
+        self.assertNotIn("member-00001.cbl", checkpoint["investigation_frontier_state"]["known_paths"])
+
+    def test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable(self):
+        mapping = {"snapshot_id": "fixed-neutral-snapshot", "source_identity": {}}
+        ranges = [{"relative_path": "entry.cbl", "start_line": 10, "end_line": 17, "exclusive": True}]
+        old = prepare_investigation_frontier(mapping, "first two IF", ["entry.cbl"],
+            ["entry.cbl", "outside.cbl"], ranges)
+        old.update(processed_rule_ids=["outside-rule"], active_rule_ids=["outside-rule"], batch_complete=True)
+        original = copy.deepcopy(old)
+        fixed = prepare_investigation_frontier(mapping, "first two IF", ["entry.cbl"], ["entry.cbl"], ranges,
+            saved=old, restricted_scope=True)
+        self.assertEqual(fixed["known_paths"], ["entry.cbl"])
+        self.assertEqual(fixed["active_paths"], ["entry.cbl"])
+        self.assertEqual(fixed["processed_rule_ids"], [])
+        self.assertNotEqual(fixed["scope_key"], old["scope_key"])
+        self.assertEqual(old, original, "Reset navigation must not mutate the retained earlier checkpoint")
+        same = prepare_investigation_frontier(mapping, "first two IF", ["entry.cbl"], ["entry.cbl"], ranges,
+            saved=json.loads(json.dumps(fixed)), restricted_scope=True)
+        self.assertEqual(same["scope_key"], fixed["scope_key"])
+        self.assertEqual(same["batch_key"], fixed["batch_key"])
+        self.assertEqual(same["known_paths"], fixed["known_paths"])
+
+    def test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight(self):
+        self.build({f"calc-{index:02d}.cbl": f"IDENTIFICATION DIVISION.\nPROGRAM-ID. ENTRY-{index:02d}.\n"
+            "DATA DIVISION.\nWORKING-STORAGE SECTION.\n01 PREMIUM-AMT PIC 9(6)V99 VALUE 0.\n"
+            "01 BASIS PIC 9(5) VALUE 100.\n01 FACTOR PIC 9V99 VALUE 1.25.\nPROCEDURE DIVISION.\nMAIN.\n"
+            f"COMPUTE PREMIUM-AMT = BASIS * FACTOR + {index}.\nGOBACK.\n" for index in range(12)})
+
+        def transport(request):
+            payload = json.loads(json.loads(request.body)["messages"][-1]["content"])
+            self.requests.append(payload)
+            if payload.get("schema") == "business-analysis-compaction/v1":
+                task = payload["analysis_compaction"]
+                entries = [{"kind": row["kind"], "text": row["text"], "evidence_ids": row["evidence_ids"],
+                    "covers_entry_ids": [row["entry_id"]]} for row in task["previous_entries"]]
+                entries.append({"kind": "conditions", "text": "保费按已供应的基础金额、系数及每项调整额计算。",
+                    "evidence_ids": task["source_ids"], "covers_entry_ids": []})
+                return self.reply(json.dumps({"schema": "analysis-ledger-result/v1", "task_id": task["task_id"],
+                    "entries": entries, "deferred_source_ids": []}))
+            texts = []
+            for page in self.pages(payload):
+                if "COMPUTE" in page["source_text"]:
+                    number = int(Path(page["relative_path"]).stem.split("-")[-1])
+                    texts.append(f"{page['relative_path']}：PREMIUM-AMT = BASIS * FACTOR + {number}。[{page['evidence_id']}] "
+                        "这项保费由基础金额、计费系数及该项调整共同确定。")
+            return self.reply("\n\n".join(texts))
+
+        results, frontiers, previous = [], [], None
+        with patch("socket.create_connection", side_effect=AssertionError("network forbidden")):
+            for _ in range(5):
+                options = {"resume_run_id": previous["run_id"], "continue_investigation": True} if previous else {}
+                previous = run_business_chat("PREMIUM-AMT 如何计算？", self.database, self.source, self.config,
+                    transport=transport, allow_network=False, framework_reference_path="", answer_detail="brief",
+                    policy=AgentPolicy(max_model_requests=1, max_answer_revisions=0), conversation_id="ordinary-formula", **options)["agent_result"]
+                checkpoint = RunStore(self.root / "investigation-runs.sqlite").load(previous["run_id"])["checkpoint"]
+                self.assertFalse(checkpoint.get("repository_inventory_state"), "This exercises ordinary formula batching")
+                frontier = checkpoint["investigation_frontier_state"]
+                frontiers.append(frontier)
+                if not frontier["remaining_paths"] and len(frontier["completed_paths"]) >= 8:
+                    break
+        expected = {f"calc-{index:02d}.cbl" for index in range(12)}
+        self.assertEqual(set(frontiers[0]["known_paths"]), expected)
+        self.assertEqual(len(frontiers[0]["active_paths"]), 8)
+        self.assertEqual(len(frontiers[0]["remaining_paths"]), 4)
+        self.assertEqual(set(frontiers[-1]["completed_paths"]) | set(frontiers[-1]["active_paths"]), expected)
+        self.assertFalse(set(frontiers[0]["active_paths"]) & set(frontiers[-1]["active_paths"]))
+        self.assertEqual({page["relative_path"] for payload in self.requests for page in self.pages(payload)}, expected)
+
+
+if __name__ == "__main__":
+    unittest.main()
