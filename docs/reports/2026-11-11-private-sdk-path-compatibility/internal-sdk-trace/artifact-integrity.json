@@ -1,0 +1,25 @@
+{
+  "artifact": {
+    "id": 13815454103,
+    "node_id": "MDg6QXJ0aWZhY3QxMzgxNTQ1NDEwMw==",
+    "name": "private-sdk-path-trace-a2dcc97c359854d9920c20df04ff46e27ec1139d-42930498426-1",
+    "size_in_bytes": 105181,
+    "url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13815454103",
+    "archive_download_url": "https://api.github.com/repos/madaraoflee/cobol-evidence-analyst/actions/artifacts/13815454103/zip",
+    "expired": false,
+    "digest": "sha256:cc29d105ac8a9b8175d7f372c97579517f609a6f7e9c5fabca21d9b3491acf2c",
+    "created_at": "2026-11-11T00:20:26Z",
+    "updated_at": "2026-11-11T00:20:26Z",
+    "expires_at": "2026-11-25T00:20:25Z",
+    "workflow_run": {
+      "id": 42930498426,
+      "repository_id": 1352481697,
+      "head_repository_id": 1352481697,
+      "head_branch": "codex/trace-private-sdk-paths-20261111",
+      "head_sha": "a2dcc97c359854d9920c20df04ff46e27ec1139d"
+    }
+  },
+  "download_sha256": "cc29d105ac8a9b8175d7f372c97579517f609a6f7e9c5fabca21d9b3491acf2c",
+  "digest_verified": true,
+  "archive_bytes": 105181
+}

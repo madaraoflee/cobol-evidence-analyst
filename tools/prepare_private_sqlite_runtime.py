@@ -10,6 +10,7 @@ import json
 import ntpath
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 import struct
@@ -31,7 +32,13 @@ REQUIRED_EXPORTS = {
 
 
 class InputError(ValueError):
-    pass
+    def __init__(self, message, *, component_path=None, checked_path=None, info=None):
+        super().__init__(message)
+        self.path_guard = None if component_path is None else {
+            "component_path": str(component_path), "checked_path": str(checked_path),
+            "file_attributes": getattr(info, "st_file_attributes", None),
+            "reparse_tag": getattr(info, "st_reparse_tag", None),
+        }
 
 
 def is_windows():
@@ -66,7 +73,8 @@ def no_links(path):
         except FileNotFoundError:
             continue
         if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
-            raise InputError("Symbolic links and Windows reparse points are refused")
+            raise InputError("Symbolic links and Windows reparse points are refused",
+                             component_path=current, checked_path=path, info=info)
 
 
 def inside(path, root):
@@ -77,7 +85,67 @@ def inside(path, root):
         return False
 
 
-def tree_manifest(root):
+def _file_identity(info):
+    return {name: getattr(info, name, None) for name in (
+        "st_dev", "st_ino", "st_mode", "st_size", "st_mtime_ns",
+        "st_file_attributes", "st_reparse_tag")}
+
+
+def launcher_target(root, original):
+    """Parse the installer's exact interpreter target without dereferencing it."""
+    interpreter, spelling = root / "python.exe", original
+    if spelling.startswith("\\\\?\\"):
+        spelling = spelling[4:]
+        if not ntpath.isabs(spelling) or not re.fullmatch(r"[A-Za-z]:", ntpath.splitdrive(spelling)[0]):
+            raise InputError("Interpreter alias target is not an ordinary SDK drive path")
+    target = Path(spelling)
+    if not target.is_absolute():
+        if spelling != "python.exe":
+            raise InputError("Interpreter alias target is not the SDK interpreter")
+        target = interpreter
+    absolute_path(target)
+    if os.path.normcase(str(target)) != os.path.normcase(str(interpreter)):
+        raise InputError("Interpreter alias target is not the SDK interpreter")
+    return target
+
+
+def python3_alias(root):
+    """Recognize only the selected SDK's top-level interpreter symlink.
+
+    Read the link as metadata, never read or copy through its target. Even an
+    equivalent hard link outside this SDK is not an accepted target spelling.
+    """
+    alias, interpreter = root / "python3.exe", root / "python.exe"
+    info = alias.lstat()
+    def invalid():
+        return InputError("Only the verified top-level python3.exe interpreter alias is permitted",
+                          component_path=alias, checked_path=root, info=info)
+    if (not stat.S_ISLNK(info.st_mode)
+            or not getattr(info, "st_file_attributes", 0) & 0x400
+            or getattr(info, "st_reparse_tag", None) != 0xA000000C):
+        raise invalid()
+    original = str(alias.readlink())
+    # Windows readlink preserves this ordinary drive-path prefix in the
+    # official interpreter installer. UNC/device targets remain invalid.
+    try:
+        launcher_target(root, original)
+    except InputError:
+        raise invalid() from None
+    no_links(interpreter)
+    target_info = interpreter.lstat()
+    if not stat.S_ISREG(target_info.st_mode) or not os.path.samefile(alias, interpreter):
+        raise invalid()
+    target_hash = digest(interpreter.read_bytes())
+    if (_file_identity(alias.lstat()) != _file_identity(info)
+            or str(alias.readlink()) != original
+            or _file_identity(interpreter.lstat()) != _file_identity(target_info)):
+        raise invalid()
+    return {"kind": "verified_python3_launcher_alias", "alias_identity": _file_identity(info),
+            "link_target": original, "target_relative_path": "python.exe",
+            "target_identity": _file_identity(target_info), "target_sha256": target_hash}
+
+
+def tree_manifest(root, *, materialize_python3_alias=False):
     no_links(root)
     result = {}
     def fail_scan(error):
@@ -85,15 +153,54 @@ def tree_manifest(root):
     for directory, folders, names in os.walk(root, followlinks=False, onerror=fail_scan):
         for name in folders + names:
             path = Path(directory) / name
-            no_links(path)
             info = path.lstat()
+            if (materialize_python3_alias and path == root / "python3.exe"
+                    and (stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400)):
+                result["python3.exe"] = python3_alias(root)
+                continue
+            no_links(path)
             if path.is_dir():
                 result[path.relative_to(root).as_posix() + "/"] = "directory"
                 continue
             if not stat.S_ISREG(info.st_mode):
                 raise InputError("Only ordinary SDK files/directories are allowed")
             result[path.relative_to(root).as_posix()] = digest(path.read_bytes())
+    alias = result.get("python3.exe")
+    if isinstance(alias, dict) and alias["target_sha256"] != result.get("python.exe"):
+        raise InputError("Interpreter alias target changed while reading the source manifest")
     return result
+
+
+def source_manifest(root, materialize):
+    # Preserve the original call contract and strict behavior by default.
+    return tree_manifest(root, materialize_python3_alias=True) if materialize else tree_manifest(root)
+
+
+def copy_private_sdk(source, private, before):
+    alias = before.get("python3.exe")
+    if not isinstance(alias, dict):
+        shutil.copytree(source, private, symlinks=False)
+        return before
+    if python3_alias(source) != alias:
+        raise InputError("Interpreter alias changed before private copying")
+    def omit_launcher(directory, names):
+        return [name for name in names if name.casefold() == "python3.exe"] if Path(directory) == source else []
+    # Never dereference the allowed alias. Unexpected links remain links and
+    # fail the unchanged private manifest guard, rather than copying a target.
+    shutil.copytree(source, private, symlinks=True, ignore=omit_launcher)
+    no_links(private / "python.exe")
+    contents = (private / "python.exe").read_bytes()
+    if digest(contents) != alias["target_sha256"]:
+        raise RuntimeError("Private interpreter differs before launcher materialization")
+    destination = private / "python3.exe"
+    no_links(destination)
+    if destination.exists():
+        raise InputError("Private interpreter launcher destination must not already exist")
+    # Exclusive creation also refuses a link inserted after the guard. Do not
+    # apply metadata by path: a replaced destination must never be followed.
+    with destination.open("xb") as handle:
+        handle.write(contents)
+    return {**before, "python3.exe": alias["target_sha256"]}
 
 
 def write_receipt(path, value):
@@ -262,6 +369,7 @@ def prepare(args):
               "source_unchanged": None, "application_built": False}
     write_receipt(receipt, record)
     before = None
+    materialize = getattr(args, "materialize_python3_alias", False) is True
     code = 1
     try:
         source, output = absolute_path(source), absolute_path(output)
@@ -273,7 +381,7 @@ def prepare(args):
                 or not archive.is_file() or not manifest.is_file()
                 or (source / "pyvenv.cfg").exists()):
             raise InputError("Use a real base SDK, fresh disjoint output and external regular inputs")
-        before = tree_manifest(source)
+        before = source_manifest(source, materialize)
         required = {"python.exe", "python313.dll", "DLLs/_sqlite3.pyd", "DLLs/sqlite3.dll", "Lib/sqlite3/dbapi2.py"}
         if not required.issubset(before):
             raise InputError("Expected ordinary Windows CPython 3.13 base layout is missing")
@@ -288,14 +396,14 @@ def prepare(args):
             raise InputError("Private SDK preparation/probe must run on Windows")
         output.mkdir(mode=0o700)
         private = output / "python"
-        shutil.copytree(source, private, symlinks=False)
-        if tree_manifest(private) != before:
+        logical_before = copy_private_sdk(source, private, before)
+        if tree_manifest(private) != logical_before:
             raise RuntimeError("Private SDK differs before component replacement")
         target = private / "DLLs/sqlite3.dll"
         if os.path.samefile(target, source / "DLLs/sqlite3.dll"):
             raise RuntimeError("Private component must not alias the host file")
         target.write_bytes(dll)
-        expected = {**before, "DLLs/sqlite3.dll": pin["dll_sha256"]}
+        expected = {**logical_before, "DLLs/sqlite3.dll": pin["dll_sha256"]}
         if tree_manifest(private) != expected:
             raise RuntimeError("Unexpected private SDK file changes")
         record["stages"].append("private_copy_prepared")
@@ -311,16 +419,20 @@ def prepare(args):
         record["status"], code = "interrupted", 130
     except Exception as error:
         record.update(status="failed", error_type=type(error).__name__, error=str(error))
+        if getattr(error, "path_guard", None) is not None:
+            record["path_guard"] = error.path_guard
         code = 2 if isinstance(error, InputError) else 1
     finally:
         if before is not None:
             try:
-                after = tree_manifest(source)
+                after = source_manifest(source, materialize)
                 record["source_after"] = after
                 record["source_unchanged"] = after == before
             except Exception as error:
                 record["source_unchanged"] = False
                 record["source_guard_error"] = str(error)
+                if getattr(error, "path_guard", None) is not None:
+                    record["source_guard_path"] = error.path_guard
             except KeyboardInterrupt:
                 record["source_unchanged"] = False
                 record["status"], code = "interrupted", 130
@@ -337,11 +449,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source-base", "output", "pin-manifest", "archive", "receipt"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--materialize-python3-alias", action="store_true")
     args = parser.parse_args(argv)
     try:
         return prepare(args)
     except InputError as error:
-        print(json.dumps({"status": "invalid_input", "exit_code": 2, "error": str(error)}), file=sys.stderr)
+        value = {"status": "invalid_input", "exit_code": 2, "error": str(error)}
+        if error.path_guard is not None:
+            value["path_guard"] = error.path_guard
+        print(json.dumps(value), file=sys.stderr)
         return 2
     except Exception as error:
         print(json.dumps({"status": "failed", "exit_code": 1, "error": str(error)}), file=sys.stderr)

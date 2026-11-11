@@ -68,7 +68,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: office-private-sqlite-runtime-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/private-sqlite-setup/*.json
+          path: |
+            ${{ runner.temp }}/private-sqlite-setup/*.json
+            ${{ runner.temp }}/private-sqlite-setup/*.txt
+            ${{ runner.temp }}/private-sqlite-setup/runtime/probe-process.json
           if-no-files-found: ignore
           retention-days: 30
       - name: Resolve one successful main run and its exact candidate artifact

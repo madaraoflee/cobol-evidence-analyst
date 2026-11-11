@@ -1,0 +1,45 @@
+{
+  "frozen": true,
+  "own_files_sha256": {
+    "tools/prepare_private_sqlite_runtime.py": "207a5dce7dbe2129ca44816b66eefe4e26dc6253f1db86194d83caa48d93cc4f",
+    "tools/setup_private_sqlite_workflow.py": "96ebc64e242dab86f6524b08538fc31e0f218c603d9ab3d779979b0cd43eb811",
+    "poc/tests/test_private_sdk_launcher_alias.py": "5854ca14265e6c3f208efae6191360ed05ddeb79e7642b4394e03e3d72e9bbce"
+  },
+  "old_test_bytes_identical_to_HEAD": {
+    "poc/tests/test_prepare_private_sqlite_runtime.py": true,
+    "poc/tests/test_private_sqlite_workflow_setup.py": true
+  },
+  "new_test_ids": [
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_explicit_materialization_preserves_complete_content_host_alias_and_source_identity",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_default_policy_still_rejects_the_launcher_and_preserves_the_old_error_text",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_wrong_and_outside_targets_are_rejected_without_reading_their_bytes",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_nested_other_named_links_and_junction_tags_are_not_exceptions",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_late_alias_target_change_fails_source_guard_after_private_probe",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_installer_device_prefix_is_limited_to_an_ordinary_drive_target",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_enables_materialization_only_for_its_bound_automatic_sdk",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_rejects_a_changed_automatic_sdk_without_activating_environment",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_late_launcher_target_change_never_activates_or_reads_outside",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_early_guard_diagnostic_and_child_failure_remain_available_without_an_unsafe_receipt"
+  ],
+  "targeted_validation": {
+    "old_prepare": 16,
+    "old_setup": 8,
+    "new_alias": 10,
+    "total": 34,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "seconds": 0.262,
+    "log": "targeted-018-frozen.log"
+  },
+  "before_source_sha256": {
+    "tools/prepare_private_sqlite_runtime.py": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a",
+    "tools/setup_private_sqlite_workflow.py": "31d25c3a706d110f563cb8e11e115cb0202002f3efbf2612b1141da6ba45fb24"
+  },
+  "before_reproduction": "before-default-alias-reproduction.json",
+  "after_reproduction": "after-explicit-alias-reproduction.json",
+  "actual_windows_source_evidence": "/private/tmp/cobol-private-sdk-path-trace-run42930498426-20261111/extracted/SDK-PATH-TRACE.json",
+  "cli_new_flag": "prepare_private_sqlite_runtime.py --materialize-python3-alias (explicit only; default unchanged)",
+  "bootstrap_policy": "Only implicit automatically selected ordinary sys.base_prefix with current executable samefile root/python.exe enables the flag. Explicit source_base keeps original strict rejection. Before/after selected SDK and alias identities must match before environment activation.",
+  "boundary": "Neutral PE/SDK fixtures and mocked child probes only; no actual Windows SDK copy, official DLL load, application build, model or company source run here. Root must run complete recorded-bug gate and actual Windows private/runtime/native same-package acceptance."
+}

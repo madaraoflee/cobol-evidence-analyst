@@ -1,0 +1,45 @@
+{
+  "kind": "read_only_SDK_launcher_alias_patch_review",
+  "completed_at": "2026-11-11T00:36:50.878557+00:00",
+  "status": "destination_guard_required_before_full_gate",
+  "repo_files_modified": false,
+  "real_SDK_copied_or_loaded": false,
+  "finding": {
+    "summary": "Windows case-insensitive alias acceptance and case-sensitive copytree ignore can leave a destination symlink for copy2 to follow.",
+    "source_gate": "Path comparisons on Windows accept PYTHON3.EXE as python3.exe.",
+    "sink": "omit_launcher uses literal membership; shutil.copy2(...,follow_symlinks=False) does not refuse an existing destination link.",
+    "minimal_fix": "Refuse any existing destination, or create it exclusively with xb, before copying only the verified private interpreter; make alias omission case-consistent or reject other spelling.",
+    "evidence": "/private/tmp/sdk-alias-destination-link-review-reproduction-20261111.json",
+    "scope": "Neutral two-file POSIX fixture simulates Windows directory spelling; actual Windows executable locking and damage are not claimed."
+  },
+  "other_review_conclusions": [
+    "Default no_links refusal remains unchanged except structured diagnostic.",
+    "Alias exception requires top-level path, symlink tag, exact SDK python.exe spelling and samefile ordinary target.",
+    "The approved alias is omitted before copytree and materialized from verified private python.exe on the expected lowercase path.",
+    "Source before/after include alias target and identity plus all logical entries.",
+    "Bootstrap opt-in is limited to automatically selected base bound to current executable; explicit source keeps old strict policy.",
+    "Workflow changes only add separate debug evidence and retain original candidate assets and time limits."
+  ],
+  "files": [
+    {
+      "path": "tools/prepare_private_sqlite_runtime.py",
+      "sha256": "6388934c2ef4fb8af6b55aa757b35ba3aeafc82f1f689df45e853b9c5314372f"
+    },
+    {
+      "path": "tools/setup_private_sqlite_workflow.py",
+      "sha256": "96ebc64e242dab86f6524b08538fc31e0f218c603d9ab3d779979b0cd43eb811"
+    },
+    {
+      "path": "poc/tests/test_private_sdk_launcher_alias.py",
+      "sha256": "5854ca14265e6c3f208efae6191360ed05ddeb79e7642b4394e03e3d72e9bbce"
+    },
+    {
+      "path": ".github/workflows/windows-desktop.yml",
+      "sha256": "fdb1a0f0f7c070c3158efa2c02e0f323854e7b49d31ab8f3a2ce6603d9750237"
+    },
+    {
+      "path": ".github/workflows/windows-office-acceptance.yml",
+      "sha256": "264ecc9b13d6db3b73483b15cb07e876fc05c4ac875696ba04f5bf4b9c9e100b"
+    }
+  ]
+}

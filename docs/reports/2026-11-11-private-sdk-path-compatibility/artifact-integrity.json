@@ -1,0 +1,30 @@
+[
+  {
+    "shard": 0,
+    "artifact_id": 13814718783,
+    "archive_sha256": "218bfcadb843917aa6eaa7d13b6550f98d501471c1e5d688cf88a3f20d5f332a",
+    "github_digest_verified": true,
+    "archive_bytes": 1196
+  },
+  {
+    "shard": 1,
+    "artifact_id": 13814569162,
+    "archive_sha256": "a6c6f6c03b387792271c50a2c969025e23a3b80d60b19a887aa076dae117eabc",
+    "github_digest_verified": true,
+    "archive_bytes": 1196
+  },
+  {
+    "shard": 2,
+    "artifact_id": 13814289308,
+    "archive_sha256": "4a73ba27fa7d4350ceeb0996f80e8d236276ae7b0e169f6c28f5cef878413070",
+    "github_digest_verified": true,
+    "archive_bytes": 1196
+  },
+  {
+    "shard": 3,
+    "artifact_id": 13813539654,
+    "archive_sha256": "a6c6f6c03b387792271c50a2c969025e23a3b80d60b19a887aa076dae117eabc",
+    "github_digest_verified": true,
+    "archive_bytes": 1196
+  }
+]

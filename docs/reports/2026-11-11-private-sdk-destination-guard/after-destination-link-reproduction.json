@@ -1,0 +1,24 @@
+{
+  "scope": "Neutral PE SDK fixture and simulated Windows case spelling; no real Windows/SDK execution",
+  "host_before": {
+    "sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+    "inode": 87078152,
+    "mtime_ns": 1794357545605321901,
+    "ctime_ns": 1794357545605321901,
+    "size": 8704
+  },
+  "host_after": {
+    "sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+    "inode": 87078152,
+    "mtime_ns": 1794357545605321901,
+    "ctime_ns": 1794357545605321901,
+    "size": 8704
+  },
+  "host_bytes_and_metadata_unchanged": true,
+  "destination_is_symlink": false,
+  "destination_is_samefile_host": false,
+  "private_launcher_hash": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+  "private_launcher_is_ordinary": true,
+  "all_new_destination_race_checks": "See targeted-019-final.log: residual link, postguard link, exclusive-create race, existing ordinary",
+  "production_source_sha256": "6388934c2ef4fb8af6b55aa757b35ba3aeafc82f1f689df45e853b9c5314372f"
+}

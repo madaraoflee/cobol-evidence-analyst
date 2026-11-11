@@ -1,0 +1,135 @@
+{
+  "kind": "independent_windows_private_SQLite_preparation_failure_audit",
+  "recorded_at": "2026-11-11T00:10:42.008254+00:00",
+  "run_id": 42928782157,
+  "attempt": 1,
+  "source_commit": "55a6d1793dce87dc4b161ee9e35bdf93209dead9",
+  "head_branch": "main",
+  "run_conclusion": "failure",
+  "status": "failed_before_private_copy_or_source_regressions",
+  "all_four_original_artifacts_digest_verified": true,
+  "shards": [
+    {
+      "shard": 0,
+      "job_id": 130222133768,
+      "job_conclusion": "failure",
+      "artifact_id": 13814718783,
+      "archive_sha256": "218bfcadb843917aa6eaa7d13b6550f98d501471c1e5d688cf88a3f20d5f332a",
+      "github_digest_verified": true,
+      "archive_bytes": 1196,
+      "workflow_stages": [
+        "download",
+        "private_copy"
+      ],
+      "workflow_failure_type": "CalledProcessError",
+      "download": {
+        "bytes": 1450919,
+        "sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4"
+      },
+      "preparation_exit_code": 2,
+      "preparation_error_type": "InputError",
+      "preparation_error": "Symbolic links and Windows reparse points are refused",
+      "preparation_stages": [],
+      "source_guard_result": null,
+      "source_base": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+      "output": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+      "source_regression_step": "skipped",
+      "actual_loaded_DLL_report_present": false,
+      "actual_active_runtime_report_present": false
+    },
+    {
+      "shard": 1,
+      "job_id": 130222133493,
+      "job_conclusion": "failure",
+      "artifact_id": 13814569162,
+      "archive_sha256": "a6c6f6c03b387792271c50a2c969025e23a3b80d60b19a887aa076dae117eabc",
+      "github_digest_verified": true,
+      "archive_bytes": 1196,
+      "workflow_stages": [
+        "download",
+        "private_copy"
+      ],
+      "workflow_failure_type": "CalledProcessError",
+      "download": {
+        "bytes": 1450919,
+        "sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4"
+      },
+      "preparation_exit_code": 2,
+      "preparation_error_type": "InputError",
+      "preparation_error": "Symbolic links and Windows reparse points are refused",
+      "preparation_stages": [],
+      "source_guard_result": null,
+      "source_base": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+      "output": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+      "source_regression_step": "skipped",
+      "actual_loaded_DLL_report_present": false,
+      "actual_active_runtime_report_present": false
+    },
+    {
+      "shard": 2,
+      "job_id": 130222133510,
+      "job_conclusion": "failure",
+      "artifact_id": 13814289308,
+      "archive_sha256": "4a73ba27fa7d4350ceeb0996f80e8d236276ae7b0e169f6c28f5cef878413070",
+      "github_digest_verified": true,
+      "archive_bytes": 1196,
+      "workflow_stages": [
+        "download",
+        "private_copy"
+      ],
+      "workflow_failure_type": "CalledProcessError",
+      "download": {
+        "bytes": 1450919,
+        "sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4"
+      },
+      "preparation_exit_code": 2,
+      "preparation_error_type": "InputError",
+      "preparation_error": "Symbolic links and Windows reparse points are refused",
+      "preparation_stages": [],
+      "source_guard_result": null,
+      "source_base": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+      "output": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+      "source_regression_step": "skipped",
+      "actual_loaded_DLL_report_present": false,
+      "actual_active_runtime_report_present": false
+    },
+    {
+      "shard": 3,
+      "job_id": 130222133471,
+      "job_conclusion": "failure",
+      "artifact_id": 13813539654,
+      "archive_sha256": "a6c6f6c03b387792271c50a2c969025e23a3b80d60b19a887aa076dae117eabc",
+      "github_digest_verified": true,
+      "archive_bytes": 1196,
+      "workflow_stages": [
+        "download",
+        "private_copy"
+      ],
+      "workflow_failure_type": "CalledProcessError",
+      "download": {
+        "bytes": 1450919,
+        "sha3_256": "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4"
+      },
+      "preparation_exit_code": 2,
+      "preparation_error_type": "InputError",
+      "preparation_error": "Symbolic links and Windows reparse points are refused",
+      "preparation_stages": [],
+      "source_guard_result": null,
+      "source_base": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+      "output": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+      "source_regression_step": "skipped",
+      "actual_loaded_DLL_report_present": false,
+      "actual_active_runtime_report_present": false
+    }
+  ],
+  "build_conclusion": "skipped",
+  "source_regression_steps_started": 0,
+  "source_regression_JSON_reports_present": 0,
+  "large_10001_case": "not_started",
+  "POSIX_only_skips": "not_executed_no_source_test_report",
+  "SQLite_3_54_1_runtime_loading": "not_reached_not_verified",
+  "source_unchanged_receipt": "not_computed_null",
+  "exact_reparse_component": "not_identified_by_current_error_message",
+  "no_rerun_cancel_or_repo_changes": true,
+  "real_model_or_company_source_calls": false
+}
