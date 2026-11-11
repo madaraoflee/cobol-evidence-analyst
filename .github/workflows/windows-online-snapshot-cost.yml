@@ -1,4 +1,4 @@
-name: Windows online snapshot cost diagnostic
+name: Windows private SDK path trace
 
 on:
   workflow_dispatch:
@@ -6,80 +6,133 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: online-snapshot-cost-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  diagnose:
-    name: Measure synthetic snapshot persistence costs
+  trace:
+    name: Inspect path metadata without copying a runtime
     runs-on: windows-2022
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: pwsh
+    timeout-minutes: 10
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: '1'
     steps:
-      - name: Check out the selected revision
+      - name: Check out the diagnostic revision
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-
-      - name: Set up Python x64
+          fetch-depth: 2
+      - name: Set up the same stock Python x64
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           architecture: x64
-
-      - name: Diagnose four synthetic FULL-durability persistence cases
-        timeout-minutes: 55
-        env:
-          DIAGNOSTIC_OUTPUT: ${{ runner.temp }}/online-snapshot-cost
+      - name: Trace SDK and workflow path components read only
+        shell: python
         run: |
-          $PSNativeCommandUseErrorActionPreference = $false
-          New-Item -ItemType Directory -Force -Path $env:DIAGNOSTIC_OUTPUT | Out-Null
-          $record = [ordered]@{
-            schema_version = 1
-            kind = 'workflow_diagnostic_execution'
-            status = 'incomplete'
-            source_commit = $env:GITHUB_SHA
-            run_id = $env:GITHUB_RUN_ID
-            run_attempt = $env:GITHUB_RUN_ATTEMPT
-            runtime_platform = $env:RUNNER_OS
-            started_at = (Get-Date).ToUniversalTime().ToString('o')
-            file_count = 200
-            journal_mode_sequence = @('DELETE', 'PERSIST', 'TRUNCATE', 'DELETE')
-            synchronous = 'FULL'
-            source_regression_acceptance = $false
-            executable_acceptance = $false
-            real_model_acceptance = $false
-            office_acceptance = $false
-            real_source_access = $false
-            real_model_calls = $false
-          }
-          $executionPath = Join-Path $env:DIAGNOSTIC_OUTPUT 'WORKFLOW-EXECUTION.json'
-          $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $executionPath -Encoding utf8
-          python tools/diagnose_online_inventory_cost.py --repo-root . --output "$env:DIAGNOSTIC_OUTPUT" --files 200 2>&1 | Tee-Object -FilePath (Join-Path $env:DIAGNOSTIC_OUTPUT 'diagnostic.log')
-          $toolExit = $LASTEXITCODE
-          $record['exit_code'] = $toolExit
-          $record['completed_at'] = (Get-Date).ToUniversalTime().ToString('o')
-          if ($toolExit -eq 0) {
-            $record['status'] = 'completed_diagnostic'
-          } elseif ($toolExit -eq 130) {
-            $record['status'] = 'incomplete'
-          } else {
-            $record['status'] = 'failed'
-          }
-          $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $executionPath -Encoding utf8
-          if ($toolExit -ne 0) { exit $toolExit }
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import stat
+          import subprocess
+          import sys
 
-      - name: Preserve diagnostic progress, failures and logs
+          baseline = '55a6d1793dce87dc4b161ee9e35bdf93209dead9'
+          output = Path(os.environ['RUNNER_TEMP']) / 'private-sdk-path-trace'
+          output.mkdir(exist_ok=False)
+          report_path = output / 'SDK-PATH-TRACE.json'
+          stdout_path = output / 'path-records.jsonl'
+          report = {'schema_version': 'windows-sdk-path-trace/v1', 'status': 'running',
+                    'diagnostic_only': True, 'baseline_commit': baseline,
+                    'source_commit': os.environ['GITHUB_SHA'],
+                    'branch': os.environ['GITHUB_REF_NAME'],
+                    'run_id': os.environ['GITHUB_RUN_ID'], 'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+                    'python_version': sys.version, 'base_prefix': sys.base_prefix,
+                    'runtime_platform': platform.system(), 'targets': [],
+                    'source_contents_read': False, 'SDK_copied': False, 'runtime_replaced': False,
+                    'application_built': False, 'regression_or_EXE_acceptance': False}
+          report_path.write_text(json.dumps(report, indent=2), encoding='utf-8')
+          def attempt(operation):
+              try:
+                  return {'value': operation()}
+              except Exception as error:
+                  return {'error_type': type(error).__name__, 'errno': getattr(error, 'errno', None),
+                          'winerror': getattr(error, 'winerror', None)}
+          def info(path):
+              value = path.lstat()
+              return {'st_mode': value.st_mode, 'st_file_attributes': getattr(value, 'st_file_attributes', None),
+                      'st_reparse_tag': getattr(value, 'st_reparse_tag', None),
+                      'is_directory': stat.S_ISDIR(value.st_mode),
+                      'is_regular_file': stat.S_ISREG(value.st_mode),
+                      'dev': value.st_dev, 'ino': value.st_ino}
+          def component(path, checked):
+              metadata = attempt(lambda: info(path))
+              row = {'path': str(path), 'helper_checks_this_component': checked, 'lstat': metadata,
+                     'is_symlink': attempt(path.is_symlink), 'is_junction': attempt(path.is_junction),
+                     'resolve_strict_false': attempt(lambda: str(path.resolve(strict=False)))}
+              if 'value' in metadata:
+                  values = metadata['value']
+                  row['helper_would_reject'] = checked and bool(stat.S_ISLNK(values['st_mode']) or
+                      (values['st_file_attributes'] or 0) & 0x400)
+                  if row['is_symlink'].get('value') or row['is_junction'].get('value'):
+                      row['readlink_target'] = attempt(lambda: str(path.readlink()))
+              else:
+                  row['helper_would_reject'] = None
+              resolved = row['resolve_strict_false'].get('value')
+              if resolved:
+                  target = Path(resolved)
+                  row['resolved_target_lstat'] = attempt(lambda: info(target))
+                  row['resolved_target_is_symlink'] = attempt(target.is_symlink)
+                  row['resolved_target_is_junction'] = attempt(target.is_junction)
+              return row
+          prospective = Path(os.environ['RUNNER_TEMP']) / 'private-sqlite-setup'
+          targets = {'source_base': Path(sys.base_prefix).absolute(),
+                     'repository_tools': Path.cwd() / 'tools',
+                     'pin_manifest': Path.cwd() / 'tools/sqlite-runtime-pin.json',
+                     'private_output': prospective / 'runtime',
+                     'archive': prospective / 'official-sqlite.zip',
+                     'prepare_receipt': prospective / 'PRIVATE-SQLITE-PREPARATION.json',
+                     'github_path': Path(os.environ['GITHUB_PATH']),
+                     'github_env': Path(os.environ['GITHUB_ENV'])}
+          with stdout_path.open('x', encoding='utf-8') as stream:
+              for name, target in targets.items():
+                  current = Path(target.anchor)
+                  rows = [component(current, False)]
+                  for part in target.parts[1:]:
+                      current /= part
+                      rows.append(component(current, True))
+                  item = {'name': name, 'requested_path': str(target), 'components': rows,
+                          'rejected_components': [row['path'] for row in rows if row['helper_would_reject'] is True]}
+                  report['targets'].append(item)
+                  line = json.dumps(item, ensure_ascii=True)
+                  print(line, flush=True)
+                  stream.write(line + '\n')
+          def git(*arguments):
+              return subprocess.check_output(['git', *arguments], text=True).strip()
+          areas = ('poc', 'poc/tests', 'tools', 'build_app.py', 'desktop-requirements.txt', 'assets', '.gitattributes', 'docs/bugs')
+          identities = []
+          for area in areas:
+              before = git('rev-parse', baseline + ':' + area)
+              current = git('rev-parse', 'HEAD:' + area)
+              identities.append({'path': area, 'baseline_git_object': before,
+                                 'diagnostic_git_object': current, 'unchanged': before == current})
+          report['application_and_test_git_identity'] = identities
+          report['changed_commit_paths'] = git('diff', '--name-only', baseline, 'HEAD').splitlines()
+          expected = ['.github/workflows/windows-online-snapshot-cost.yml']
+          binding_ok = all(row['unchanged'] for row in identities) and report['changed_commit_paths'] == expected
+          report['source_and_tests_unchanged'] = binding_ok
+          report['status'] = 'completed_metadata_trace' if binding_ok else 'failed_source_binding'
+          report_path.write_text(json.dumps(report, indent=2), encoding='utf-8')
+          print(json.dumps({'status': report['status'], 'source_and_tests_unchanged': binding_ok,
+                            'rejected_paths': {row['name']: row['rejected_components'] for row in report['targets']}},
+                           ensure_ascii=True), flush=True)
+          if not binding_ok:
+              raise SystemExit(1)
+      - name: Preserve path identities and stdout records
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: online-snapshot-cost-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/online-snapshot-cost
+          name: private-sdk-path-trace-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/private-sdk-path-trace/
           if-no-files-found: error
           retention-days: 14
