@@ -21,3 +21,5 @@ GitHub run 42952543318、attempt 1、应用提交 7a7f8848d2b3320358bceae94c2fc3
 同一冻结 12,024 文件及五个样本在隔离提案下全部通过。新增三项、既有相关 76 项也通过。这是本机源码预览；Windows 首个样本仍需按原 60 秒重新验收。[提案源码实测](source-preview-proposed-summary.json)
 
 耗时另有一处已测重复工作。固定回放中裁掉 27 条回读目录记录，原逻辑重复构建同一批证据。单独试验复用相同证据并计算等价裁剪，最终请求及裁剪记录字节一致。这项试验未进入范围补丁，实际 Windows 整题耗时仍按原门槛判定。[耗时诊断](catalog-rebuild-diagnostic.json)
+
+台账更新后在提交 `b72aef3c1ba0595fb85bbf2c28cfbeb52488ecd3` 再次执行完整验证。5,410 项 Python、338 项浏览器测试全部通过，零失败、零跳过。308 条记录中 298 条源码回归有通过结果，10 条保持开放，所以完整缺陷状态仍为 blocked。全套日志归档 SHA-256 为 `71895355df4b03d714644e4a58205ad95be545df527b081ada50a40bf2556b81`。[逐条结果](BUG-REGRESSION-REPORT.json) · [完整归档](latest-full-source-evidence.zip)
