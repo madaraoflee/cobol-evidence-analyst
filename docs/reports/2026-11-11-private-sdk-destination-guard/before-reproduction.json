@@ -1,0 +1,16 @@
+{
+  "scope": "two-file neutral POSIX fixture; simulated Windows case-insensitive directory spelling, not real SDK or Windows execution",
+  "Windows_Path_uppercase_equals_expected": true,
+  "case_sensitive_ignore_result": [],
+  "materialize_copy_destination_is_host": true,
+  "copied_destination_remains_symlink": true,
+  "destination_samefile_host_interpreter": true,
+  "source_bytes_unchanged": true,
+  "source_ctime_before": 1794357324023209014,
+  "source_ctime_after": 1794357324024461640,
+  "source_ctime_changed": true,
+  "source_host_real_runtime_touched": false,
+  "fixture_root": "/private/tmp/sdk-alias-destination-repro-vj2b5oxv",
+  "production_source_modified": false,
+  "Windows_running_executable_locking_not_tested": true
+}

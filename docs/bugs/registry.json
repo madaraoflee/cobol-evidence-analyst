@@ -8460,6 +8460,98 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "新在线补丁入库前修复，真实lease单次收尾异常注入及8项专属源码/4项浏览器回归通过；完整项目门禁另行报告。只保存已经返回且通过原安全/结果校验的内容；底层仍无法持久化则继续报失败，不假成功、不自动重发未知请求。未改冻结本地核心、共享组件或旧断言，未据此推断公司现场500根因；最终Windows EXE与公司设备未验。"
+    },
+    {
+      "id": "BUG-20261111-018",
+      "title": "新私有SDK准备流程在标准Windows runner路径检查阶段提前失败且未指出命中组件",
+      "symptom": "main55a6d179的真实Windows run42928782157四分片均在准备阶段提前退出；官方1450919字节归档及固定SHA3已通过，prepare返回InputError符号链接/重解析点拒绝。源码回归、万文件用例、复制和加载均未开始，EXE构建被阻断。",
+      "root_cause": "真实只读两轮诊断已确认：所有输入外层路径均ordinary；SDK内部5856条完整枚举只有顶层python3.exe是0xA000000C符号链接，目标为同SDK普通python.exe且samefile=true。严格整树扫描把这个标准启动器alias视作任意链接拒绝，在source_before赋值前退出。原错误又未指触发条目，不能由source_unchanged=null推断顶层junction；该假说已被第一轮反证。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_explicit_materialization_preserves_complete_content_host_alias_and_source_identity"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_default_policy_still_rejects_the_launcher_and_preserves_the_old_error_text"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_wrong_and_outside_targets_are_rejected_without_reading_their_bytes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_nested_other_named_links_and_junction_tags_are_not_exceptions"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_late_alias_target_change_fails_source_guard_after_private_probe"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_installer_device_prefix_is_limited_to_an_ordinary_drive_target"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_enables_materialization_only_for_its_bound_automatic_sdk"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_rejects_a_changed_automatic_sdk_without_activating_environment"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_bootstrap_late_launcher_target_change_never_activates_or_reads_outside"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_early_guard_diagnostic_and_child_failure_remain_available_without_an_unsafe_receipt"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-private-sdk-path-compatibility/summary.json",
+        "docs/reports/2026-11-11-private-sdk-path-compatibility/outer-path-trace/SDK-PATH-TRACE.json",
+        "docs/reports/2026-11-11-private-sdk-path-compatibility/internal-sdk-trace/SDK-PATH-TRACE.json"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "已依据真实SDK5856条metadata-only诊断实现仅python3.exe标准别名的显式窄物化，默认/显式任意source路径及其他links仍拒；原24与新增10回归通过，019收紧另有5例。目标真实Windows SDK复制/加载尚未完成，仍open，不把中性PE/进程模拟当成目标验收；完整旧回归随后执行。"
+    },
+    {
+      "id": "BUG-20261111-019",
+      "title": "新SDK启动器物化复制可沿残留destination链接尝试写回宿主",
+      "symptom": "018未入库补丁的中性临时fixture复现：WindowsPath对大小写等价，但ignore对PYTHON3.EXE字面匹配失败，copy后目标保留link；copy2 materialize的destination与host fixture同file，host ctime改变。Windows实际exe锁可能阻写，不声称真实宿主损坏。",
+      "root_cause": "源alias排除规则与Windows路径大小写语义不一致；随后copy2(...follow_symlinks=False)只控制source，不阻止destination是已存link，私有树末次guard会在尝试写后才拒绝。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_uppercase_launcher_spelling_is_excluded_without_writing_through_to_host"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_residual_destination_link_never_changes_host_or_external_target_bytes_or_metadata"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_link_inserted_after_destination_guard_is_rejected_before_target_writes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_exclusive_create_refuses_a_link_inserted_after_the_nonexistence_check"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_existing_ordinary_destination_is_never_overwritten_or_retimestamped"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-private-sdk-destination-guard/before-reproduction.json",
+        "docs/reports/2026-11-11-private-sdk-destination-guard/README.md",
+        "docs/reports/2026-11-11-private-sdk-destination-guard/after-destination-link-reproduction.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "新018补丁入库前修复；中性真实文件/链接和注入窗口回归已验证，大小写源排除与目标独占创建防止沿existing/late link写外部文件，不再对目标做路径metadata操作。原49和前10方法/断言保持。并未伤及真实SDK；完整旧回归和真实Windows/EXE仍按后续门禁验证。"
     }
   ],
   "updated_at": "2026-11-10"

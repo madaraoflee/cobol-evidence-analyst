@@ -1,0 +1,37 @@
+{
+  "frozen": true,
+  "own_files_sha256": {
+    "tools/prepare_private_sqlite_runtime.py": "6388934c2ef4fb8af6b55aa757b35ba3aeafc82f1f689df45e853b9c5314372f",
+    "poc/tests/test_private_sdk_launcher_alias.py": "5bf0ae080edfb73f8dd96a6d9f6a76ae7dc05036d1859fbc4c8a0120b4a1f83e"
+  },
+  "setup_unchanged_from_018_sha256": "96ebc64e242dab86f6524b08538fc31e0f218c603d9ab3d779979b0cd43eb811",
+  "existing_old_tests_byte_identical_to_HEAD": {
+    "poc/tests/test_prepare_private_sqlite_runtime.py": true,
+    "poc/tests/test_private_sqlite_workflow_setup.py": true
+  },
+  "all_prior_launcher_class_method_ASTs_unchanged": true,
+  "prior_launcher_test_methods": 10,
+  "new_test_ids": [
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_uppercase_launcher_spelling_is_excluded_without_writing_through_to_host",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_residual_destination_link_never_changes_host_or_external_target_bytes_or_metadata",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_link_inserted_after_destination_guard_is_rejected_before_target_writes",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_exclusive_create_refuses_a_link_inserted_after_the_nonexistence_check",
+    "test_private_sdk_launcher_alias.PrivateSDKLauncherAliasTests.test_existing_ordinary_destination_is_never_overwritten_or_retimestamped"
+  ],
+  "targeted_validation": {
+    "old_prepare": 16,
+    "old_setup": 8,
+    "previous_alias": 10,
+    "new_destination": 5,
+    "total": 39,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "seconds": 0.313,
+    "log": "targeted-019-final.log"
+  },
+  "before_prepare_sha256": "207a5dce7dbe2129ca44816b66eefe4e26dc6253f1db86194d83caa48d93cc4f",
+  "before_reproduction": "before-destination-link-reproduction.json",
+  "after_reproduction": "after-destination-link-reproduction.json",
+  "scope": "Only casefold launcher exclusion and exclusive no-clobber materialization using verified cached interpreter bytes. No path metadata operation on the destination. Existing guards/tests, source manifest retention, official pin/probe and workflow contracts unchanged. Neutral fixture only; not real Windows damage or a real SDK/EXE acceptance claim."
+}

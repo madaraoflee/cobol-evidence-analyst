@@ -1,0 +1,32 @@
+{
+  "kind": "read_only_windows_SDK_path_trace_audit",
+  "run_id": 42929957675,
+  "attempt": 1,
+  "diagnostic_commit": "9c9a8096babe82b8433f4887eeafc6e513e0a1ea",
+  "diagnostic_branch": "codex/trace-private-sdk-paths-20261111",
+  "baseline_main_commit": "55a6d1793dce87dc4b161ee9e35bdf93209dead9",
+  "run_conclusion": "success",
+  "source_app_test_tools_ledger_Git_objects_unchanged": true,
+  "changed_commit_paths": [
+    ".github/workflows/windows-online-snapshot-cost.yml"
+  ],
+  "artifact_id": 13815817398,
+  "artifact_sha256": "c5ef78b1bad925d1db31f232dc5c37e3fcf126aedfc70a0ec26ebed80a1a1a97",
+  "artifact_digest_verified": true,
+  "outer_path_rejected_components": {
+    "source_base": [],
+    "repository_tools": [],
+    "pin_manifest": [],
+    "private_output": [],
+    "archive": [],
+    "prepare_receipt": [],
+    "github_path": [],
+    "github_env": []
+  },
+  "SDK_bytes_read_by_tracer": false,
+  "SDK_copied": false,
+  "runtime_replaced": false,
+  "application_built": false,
+  "regression_or_EXE_acceptance": false,
+  "completed_at": "2026-11-11T00:22:50.866188+00:00"
+}

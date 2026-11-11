@@ -1,0 +1,1822 @@
+{
+  "schema_version": "windows-sdk-path-trace/v1",
+  "status": "completed_metadata_trace",
+  "diagnostic_only": true,
+  "baseline_commit": "55a6d1793dce87dc4b161ee9e35bdf93209dead9",
+  "source_commit": "9c9a8096babe82b8433f4887eeafc6e513e0a1ea",
+  "branch": "codex/trace-private-sdk-paths-20261111",
+  "run_id": "42929957675",
+  "run_attempt": "1",
+  "python_version": "3.13.17 (tags/v3.13.17:64e080d, Oct 21 2026, 14:08:53) [MSC v.1944 64 bit (AMD64)]",
+  "base_prefix": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+  "runtime_platform": "Windows",
+  "targets": [
+    {
+      "name": "source_base",
+      "requested_path": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+      "components": [
+        {
+          "path": "C:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "C:\\hostedtoolcache",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 1125899907584297
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\hostedtoolcache"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 1125899907584297
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "C:\\hostedtoolcache\\windows",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 281474977452333
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\hostedtoolcache\\windows"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 281474977452333
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "C:\\hostedtoolcache\\windows\\Python",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 5348024558189759
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\hostedtoolcache\\windows\\Python"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 5348024558189759
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "C:\\hostedtoolcache\\windows\\Python\\3.13.17",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 3096224744704500
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\hostedtoolcache\\windows\\Python\\3.13.17"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 3096224744704500
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 3096224744704503
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "C:\\hostedtoolcache\\windows\\Python\\3.13.17\\x64"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 333453060169384722,
+              "ino": 3096224744704503
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "repository_tools",
+      "requested_path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421365
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421365
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976710710
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976710710
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976713442
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976713442
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "pin_manifest",
+      "requested_path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools\\sqlite-runtime-pin.json",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421365
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421365
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976710710
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976710710
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976713442
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 281474976713442
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools\\sqlite-runtime-pin.json",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713485
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\tools\\sqlite-runtime-pin.json"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713485
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "private_output",
+      "requested_path": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup\\runtime",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup\\runtime"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "archive",
+      "requested_path": "D:\\a\\_temp\\private-sqlite-setup\\official-sqlite.zip",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup\\official-sqlite.zip",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup\\official-sqlite.zip"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "prepare_receipt",
+      "requested_path": "D:\\a\\_temp\\private-sqlite-setup\\PRIVATE-SQLITE-PREPARATION.json",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 2
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\private-sqlite-setup\\PRIVATE-SQLITE-PREPARATION.json",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\private-sqlite-setup\\PRIVATE-SQLITE-PREPARATION.json"
+          },
+          "helper_would_reject": null,
+          "resolved_target_lstat": {
+            "error_type": "FileNotFoundError",
+            "errno": 2,
+            "winerror": 3
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "github_path",
+      "requested_path": "D:\\a\\_temp\\_runner_file_commands\\add_path_f201b40a-32c9-4b54-b886-b2a2558c5827",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\_runner_file_commands",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1125899906842682
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\_runner_file_commands"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1125899906842682
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\_runner_file_commands\\add_path_f201b40a-32c9-4b54-b886-b2a2558c5827",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713505
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\_runner_file_commands\\add_path_f201b40a-32c9-4b54-b886-b2a2558c5827"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713505
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    },
+    {
+      "name": "github_env",
+      "requested_path": "D:\\a\\_temp\\_runner_file_commands\\set_env_f201b40a-32c9-4b54-b886-b2a2558c5827",
+      "components": [
+        {
+          "path": "D:\\",
+          "helper_checks_this_component": false,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 22,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1407374883553285
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421359
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 562949953421360
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\_runner_file_commands",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1125899906842682
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\_runner_file_commands"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 16895,
+              "st_file_attributes": 16,
+              "st_reparse_tag": 0,
+              "is_directory": true,
+              "is_regular_file": false,
+              "dev": 4339886852394700560,
+              "ino": 1125899906842682
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        },
+        {
+          "path": "D:\\a\\_temp\\_runner_file_commands\\set_env_f201b40a-32c9-4b54-b886-b2a2558c5827",
+          "helper_checks_this_component": true,
+          "lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713506
+            }
+          },
+          "is_symlink": {
+            "value": false
+          },
+          "is_junction": {
+            "value": false
+          },
+          "resolve_strict_false": {
+            "value": "D:\\a\\_temp\\_runner_file_commands\\set_env_f201b40a-32c9-4b54-b886-b2a2558c5827"
+          },
+          "helper_would_reject": false,
+          "resolved_target_lstat": {
+            "value": {
+              "st_mode": 33206,
+              "st_file_attributes": 32,
+              "st_reparse_tag": 0,
+              "is_directory": false,
+              "is_regular_file": true,
+              "dev": 4339886852394700560,
+              "ino": 281474976713506
+            }
+          },
+          "resolved_target_is_symlink": {
+            "value": false
+          },
+          "resolved_target_is_junction": {
+            "value": false
+          }
+        }
+      ],
+      "rejected_components": []
+    }
+  ],
+  "source_contents_read": false,
+  "SDK_copied": false,
+  "runtime_replaced": false,
+  "application_built": false,
+  "regression_or_EXE_acceptance": false,
+  "application_and_test_git_identity": [
+    {
+      "path": "poc",
+      "baseline_git_object": "4e1a648e206906612e3bad29bbfa36ed4c493483",
+      "diagnostic_git_object": "4e1a648e206906612e3bad29bbfa36ed4c493483",
+      "unchanged": true
+    },
+    {
+      "path": "poc/tests",
+      "baseline_git_object": "fa6909bb3a82914ec8c9bdbbc048397e753f4dd3",
+      "diagnostic_git_object": "fa6909bb3a82914ec8c9bdbbc048397e753f4dd3",
+      "unchanged": true
+    },
+    {
+      "path": "tools",
+      "baseline_git_object": "7325dfc700220e8bd402b571111287e3886a35e5",
+      "diagnostic_git_object": "7325dfc700220e8bd402b571111287e3886a35e5",
+      "unchanged": true
+    },
+    {
+      "path": "build_app.py",
+      "baseline_git_object": "d4409b244ea1e69c90262e96458fd501169403ae",
+      "diagnostic_git_object": "d4409b244ea1e69c90262e96458fd501169403ae",
+      "unchanged": true
+    },
+    {
+      "path": "desktop-requirements.txt",
+      "baseline_git_object": "6dbc23b70a76dac46547fc8ef6d6137ffcf4daeb",
+      "diagnostic_git_object": "6dbc23b70a76dac46547fc8ef6d6137ffcf4daeb",
+      "unchanged": true
+    },
+    {
+      "path": "assets",
+      "baseline_git_object": "72c1e0d3ea2506ad0829a0fa9e2303755fcd4514",
+      "diagnostic_git_object": "72c1e0d3ea2506ad0829a0fa9e2303755fcd4514",
+      "unchanged": true
+    },
+    {
+      "path": ".gitattributes",
+      "baseline_git_object": "3ff2eb1039a94f2064be7c78969e0d22ed8d7d44",
+      "diagnostic_git_object": "3ff2eb1039a94f2064be7c78969e0d22ed8d7d44",
+      "unchanged": true
+    },
+    {
+      "path": "docs/bugs",
+      "baseline_git_object": "f5edbd23baed2838bb5193c53d55bd09ce947121",
+      "diagnostic_git_object": "f5edbd23baed2838bb5193c53d55bd09ce947121",
+      "unchanged": true
+    }
+  ],
+  "changed_commit_paths": [
+    ".github/workflows/windows-online-snapshot-cost.yml"
+  ],
+  "source_and_tests_unchanged": true
+}

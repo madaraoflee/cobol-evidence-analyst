@@ -87,6 +87,55 @@ def _run(command, *, stdout, stderr, timeout):
                        timeout=timeout)
 
 
+def _selected_sdk_binding(base):
+    """Bind only the running, automatically selected ordinary base SDK."""
+    import prepare_private_sqlite_runtime as preparation
+    preparation.absolute_path(base)
+    preparation.no_links(base)
+    executable = Path(sys.executable).absolute()
+    preparation.no_links(executable)
+    preparation.no_links(base / 'python.exe')
+    require(base.is_dir() and (base / 'python.exe').is_file()
+            and os.path.samefile(executable, base / 'python.exe'),
+            'PRIVATE_SQLITE_AUTOMATIC_BASE_MISMATCH')
+    binding = {'source_base': str(base), 'executable': str(executable),
+               'source_identity': preparation._file_identity(base.lstat()),
+               'python_identity': preparation._file_identity((base / 'python.exe').lstat())}
+    alias = base / 'python3.exe'
+    if alias.is_symlink() or (alias.exists() and getattr(alias.lstat(), 'st_file_attributes', 0) & 0x400):
+        binding['python3_alias'] = preparation.python3_alias(base)
+    return binding
+
+
+def _failure_path_guard(output, error):
+    """Keep only the preparation tool's controlled structural path diagnostic."""
+    values = [getattr(error, 'path_guard', None)]
+    try:
+        path = output / 'PRIVATE-SQLITE-PREPARATION.json'
+        if path.is_file() and not path.is_symlink():
+            details = _json(path)
+            values.extend((details.get('path_guard'), details.get('source_guard_path')))
+        stderr = output / 'prepare-stderr.txt'
+        if stderr.is_file() and not stderr.is_symlink() and stderr.stat().st_size <= 65536:
+            for line in reversed(stderr.read_text(encoding='utf-8').splitlines()):
+                try:
+                    details = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(details, dict):
+                    values.append(details.get('path_guard'))
+    except Exception:
+        pass
+    for value in values:
+        if (isinstance(value, dict) and set(value) == {
+                'component_path', 'checked_path', 'file_attributes', 'reparse_tag'}
+                and all(isinstance(value.get(key), str) for key in ('component_path', 'checked_path'))
+                and all(value.get(key) is None or type(value[key]) is int
+                        for key in ('file_attributes', 'reparse_tag'))):
+            return value
+    return None
+
+
 def _verified_prepare(receipt, *, source_base, output, pin_path, pin):
     require(isinstance(receipt, dict) and receipt.get('status') == 'completed_private_runtime'
             and receipt.get('exit_code') == 0 and receipt.get('source_unchanged') is True,
@@ -127,15 +176,21 @@ def setup(*, output, pin_manifest=DEFAULT_PIN, source_base=None, github_path=Non
         # Preserve lexical source components for prepare's reparse/link guard.
         base = Path(sys.base_prefix if source_base is None else source_base).absolute()
         receipt.update(source_base=str(base), pin_manifest=str(pin_path), pin=pin)
+        automatic_binding = _selected_sdk_binding(base) if source_base is None else None
+        if automatic_binding is not None:
+            receipt['automatic_sdk_before'] = automatic_binding
         archive = output / 'official-sqlite.zip'
         receipt['stages'].append('download')
         receipt['download'] = download_archive(pin, archive)
         private_root = output / 'runtime'
         prepare_receipt = output / 'PRIVATE-SQLITE-PREPARATION.json'
         receipt['stages'].append('private_copy')
-        _run([sys.executable, '-I', '-B', ROOT / 'tools' / 'prepare_private_sqlite_runtime.py',
+        command = [sys.executable, '-I', '-B', ROOT / 'tools' / 'prepare_private_sqlite_runtime.py',
               '--source-base', base, '--output', private_root, '--pin-manifest', pin_path,
-              '--archive', archive, '--receipt', prepare_receipt],
+              '--archive', archive, '--receipt', prepare_receipt]
+        if automatic_binding is not None:
+            command.append('--materialize-python3-alias')
+        _run(command,
              stdout=output / 'prepare-stdout.txt', stderr=output / 'prepare-stderr.txt', timeout=900)
         prepared = _json(prepare_receipt)
         interpreter, fingerprint = _verified_prepare(prepared, source_base=base,
@@ -157,6 +212,10 @@ def setup(*, output, pin_manifest=DEFAULT_PIN, source_base=None, github_path=Non
             sys.path.pop(0)
         require(probe.get('schema_version') == 'sqlite-runtime-probe/v1' and probe.get('status') == 'passed',
                 'PRIVATE_SQLITE_PROBE_FAILED')
+        if automatic_binding is not None:
+            receipt['automatic_sdk_after'] = _selected_sdk_binding(base)
+            require(receipt['automatic_sdk_after'] == automatic_binding,
+                    'PRIVATE_SQLITE_AUTOMATIC_BASE_CHANGED')
         receipt['probe'] = probe
         private_fingerprint = hashlib.sha256(json.dumps({'source_manifest_sha256': fingerprint, 'pin': pin},
             sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
@@ -185,6 +244,9 @@ def setup(*, output, pin_manifest=DEFAULT_PIN, source_base=None, github_path=Non
     except BaseException as error:
         primary_error = error
         receipt.update(status='failed_private_workflow', failure_type=type(error).__name__)
+        details = _failure_path_guard(output, error)
+        if details is not None:
+            receipt['path_guard'] = details
         raise
     finally:
         try:

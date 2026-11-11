@@ -1,0 +1,9 @@
+{
+  "BUG-20261111-018-README.md": "7d0625b93074c2c65855250ecc8002532c148a5493ceb0dd57507f1184f1c028",
+  "018-final-freeze-handoff.json": "0475ed139685c55814771eb824a5ada395377508fc30a0a883e0094af627c701",
+  "before-prepare_private_sqlite_runtime.py": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a",
+  "before-setup_private_sqlite_workflow.py": "31d25c3a706d110f563cb8e11e115cb0202002f3efbf2612b1141da6ba45fb24",
+  "before-default-alias-reproduction.json": "58395437d655f96c4f082437be918299c0d033dab4f39edb536f972a119134f9",
+  "after-explicit-alias-reproduction.json": "da13e8b7f7d8a3d0e2827ca1d623ccb3c69efac23116684f7f0de36beb20d5dc",
+  "targeted-018-frozen.log": "779e4b3162196c3dbf8f92aeef85821438fa6e751edc4a327fa7d592adc33434"
+}

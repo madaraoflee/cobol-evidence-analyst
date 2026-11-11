@@ -1,0 +1,174 @@
+{
+  "kind": "neutral_fixture_reproduction_not_real_windows",
+  "pin_fixture": "neutral_PE_and_mocked_child_not_actual_loaded_engine",
+  "code": 0,
+  "private_probe_called": 1,
+  "source_unchanged": true,
+  "source_manifest_before_equals_after": true,
+  "source_alias": {
+    "kind": "verified_python3_launcher_alias",
+    "alias_identity": {
+      "st_dev": 16777230,
+      "st_ino": 87076330,
+      "st_mode": 41453,
+      "st_size": 115,
+      "st_mtime_ns": 1794357205446070815,
+      "st_file_attributes": 1056,
+      "st_reparse_tag": 2684354572
+    },
+    "link_target": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/synthetic-base/python.exe",
+    "target_relative_path": "python.exe",
+    "target_identity": {
+      "st_dev": 16777230,
+      "st_ino": 87076319,
+      "st_mode": 33188,
+      "st_size": 8704,
+      "st_mtime_ns": 1794357205444972981,
+      "st_file_attributes": null,
+      "st_reparse_tag": null
+    },
+    "target_sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374"
+  },
+  "source_alias_retained": true,
+  "private_launcher_is_regular": true,
+  "private_launcher_hash": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+  "private_python_hash": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+  "source_entries": 10,
+  "private_entries": 10,
+  "receipt": {
+    "status": "completed_private_runtime",
+    "exit_code": 0,
+    "source_base": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/synthetic-base",
+    "output": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization",
+    "receipt": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization.receipt.json",
+    "stages": [
+      "archive_and_base_verified",
+      "private_copy_prepared",
+      "private_interpreter_probe_verified"
+    ],
+    "archive": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/component.zip",
+    "pin_manifest": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/pin.json",
+    "source_unchanged": true,
+    "application_built": false,
+    "source_before": {
+      "DLLs/": "directory",
+      "Lib/": "directory",
+      "neutral-empty-directory/": "directory",
+      "python3.exe": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 16777230,
+          "st_ino": 87076330,
+          "st_mode": 41453,
+          "st_size": 115,
+          "st_mtime_ns": 1794357205446070815,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/synthetic-base/python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 16777230,
+          "st_ino": 87076319,
+          "st_mode": 33188,
+          "st_size": 8704,
+          "st_mtime_ns": 1794357205444972981,
+          "st_file_attributes": null,
+          "st_reparse_tag": null
+        },
+        "target_sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374"
+      },
+      "python313.dll": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "python.exe": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "DLLs/sqlite3.dll": "8f6495197aa827c1c485c0a966e8e0f9a659eb22a604d6e17ea40f37e68c3e3d",
+      "DLLs/_sqlite3.pyd": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "Lib/sqlite3/": "directory",
+      "Lib/sqlite3/dbapi2.py": "5707ce7e3c13ace556a6ad1be4a8f4a81a3adcb44717fc57eed681a333b915e8"
+    },
+    "source_manifest_sha256": "bac4bddb72265c8933d6d189e89ef08e13cf1e6908ba56a732ec9d6f757527b5",
+    "pin": {
+      "version": "3.54.1",
+      "url": "https://sqlite.org/2026/sqlite-dll-win-x64-3540100.zip",
+      "archive_sha3_256": "04502b19d18e098e4f870224133de0cf5b1d88e3e76f5d6cc43bbbbca7f99123",
+      "dll_sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76"
+    },
+    "private_python": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python/python.exe",
+    "probe": {
+      "status": "passed",
+      "version": "3.54.1",
+      "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "schema_version": "sqlite-runtime-probe/v1",
+      "identity_kind": "source",
+      "runtime_platform": "Windows",
+      "extension_origin": "file",
+      "python_major_minor": [
+        3,
+        13
+      ],
+      "pointer_bits": 64,
+      "loaded_dll_sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "compile_options": [
+        "ENABLE_FTS5",
+        "ENABLE_MATH_FUNCTIONS",
+        "ENABLE_RTREE",
+        "THREADSAFE=1"
+      ],
+      "checks": {
+        "math": true,
+        "rtree": true,
+        "json": true,
+        "fts5": true,
+        "fts4": true,
+        "backup": true,
+        "config": true,
+        "serialize": true
+      },
+      "executable": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python/python.exe",
+      "prefix": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python",
+      "base_prefix": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python",
+      "extension_path": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python/DLLs/_sqlite3.pyd",
+      "loaded_dll_path": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/new-explicit-materialization/python/DLLs/sqlite3.dll"
+    },
+    "source_after": {
+      "DLLs/": "directory",
+      "Lib/": "directory",
+      "neutral-empty-directory/": "directory",
+      "python3.exe": {
+        "kind": "verified_python3_launcher_alias",
+        "alias_identity": {
+          "st_dev": 16777230,
+          "st_ino": 87076330,
+          "st_mode": 41453,
+          "st_size": 115,
+          "st_mtime_ns": 1794357205446070815,
+          "st_file_attributes": 1056,
+          "st_reparse_tag": 2684354572
+        },
+        "link_target": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-bpfw7_sq/synthetic-base/python.exe",
+        "target_relative_path": "python.exe",
+        "target_identity": {
+          "st_dev": 16777230,
+          "st_ino": 87076319,
+          "st_mode": 33188,
+          "st_size": 8704,
+          "st_mtime_ns": 1794357205444972981,
+          "st_file_attributes": null,
+          "st_reparse_tag": null
+        },
+        "target_sha256": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374"
+      },
+      "python313.dll": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "python.exe": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "DLLs/sqlite3.dll": "8f6495197aa827c1c485c0a966e8e0f9a659eb22a604d6e17ea40f37e68c3e3d",
+      "DLLs/_sqlite3.pyd": "3875f52d52b5638eaf3a803d0c86a3c0b9845152e1e609d8b0e7fc0270828374",
+      "Lib/sqlite3/": "directory",
+      "Lib/sqlite3/dbapi2.py": "5707ce7e3c13ace556a6ad1be4a8f4a81a3adcb44717fc57eed681a333b915e8"
+    }
+  },
+  "source_sha256": {
+    "tools/prepare_private_sqlite_runtime.py": "207a5dce7dbe2129ca44816b66eefe4e26dc6253f1db86194d83caa48d93cc4f",
+    "tools/setup_private_sqlite_workflow.py": "96ebc64e242dab86f6524b08538fc31e0f218c603d9ab3d779979b0cd43eb811",
+    "poc/tests/test_private_sdk_launcher_alias.py": "5854ca14265e6c3f208efae6191360ed05ddeb79e7642b4394e03e3d72e9bbce"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "kind": "neutral_fixture_reproduction_not_real_windows",
+  "code": 2,
+  "private_probe_called": false,
+  "source_alias_retained": true,
+  "same_file": true,
+  "readlink_target": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/synthetic-base/python.exe",
+  "receipt": {
+    "status": "failed",
+    "exit_code": 2,
+    "source_base": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/synthetic-base",
+    "output": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/source-launcher-alias",
+    "receipt": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/source-launcher-alias.receipt.json",
+    "stages": [],
+    "archive": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/component.zip",
+    "pin_manifest": "/private/var/folders/dz/40ngc3rd2tjfxxq5s9_4nl7h0000gn/T/private-runtime-fixture-p0xq60bn/pin.json",
+    "source_unchanged": null,
+    "application_built": false,
+    "error_type": "InputError",
+    "error": "Symbolic links and Windows reparse points are refused"
+  },
+  "source_sha256": {
+    "tools/prepare_private_sqlite_runtime.py": "669ee9453b1f2d49c62f02e1e59407e836a3b8e9dff1cc740e3b106166d28e5a",
+    "tools/setup_private_sqlite_workflow.py": "31d25c3a706d110f563cb8e11e115cb0202002f3efbf2612b1141da6ba45fb24"
+  }
+}
