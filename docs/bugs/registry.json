@@ -8789,6 +8789,36 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "实际保留请求的重放校验最终 229,733 字节和 27 条有序裁剪记录一致。源变更仍重新核对，取消仍保留已记录步骤。隔离耗时不作为最终 EXE 的 60 秒验收。"
+    },
+    {
+      "id": "BUG-20261111-026",
+      "title": "Windows 仅按数量分组，万文件回归通过后整组仍累计超时",
+      "symptom": "run 42971680136 的 10,001 文件在线、本地及其它五项均通过。该组随后于 2,699.825 秒被 45 分钟门槛中断，338 个已分配用例未启动，编译未开始。",
+      "root_cause": "分组按模块用例数量平衡，和万文件模块的实际执行代价差异很大。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_isolation.PythonRegressionIsolationTests.test_long_module_is_isolated_without_dropping_or_reordering_tests"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_isolation.PythonRegressionIsolationTests.test_isolation_refuses_missing_module_or_single_shard"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_python_regression_isolation.PythonRegressionIsolationTests.test_windows_workflow_uses_isolation_with_the_original_shard_contract"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-regression-isolation/README.md",
+        "docs/reports/2026-11-11-windows-regression-isolation/source-verification-summary.json",
+        "docs/reports/2026-11-11-windows-regression-isolation/original-timeout-evidence.zip",
+        "docs/reports/2026-11-11-windows-regression-isolation/exact-assignment.json",
+        "docs/reports/2026-11-11-windows-regression-isolation/schedule-projection.json"
+      ],
+      "status": "open",
+      "verification_scope": "source_offline",
+      "limitations": "已验证新分组保留全部 5,419 个 Windows ID 和每组原 45 分钟限制。真实 Windows 各组耗时、完整运行与成品验收仍待重跑。原超时报告保留。"
     }
   ],
   "updated_at": "2026-11-11"

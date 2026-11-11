@@ -136,7 +136,7 @@ jobs:
         env:
           SHARD_INDEX: ${{ matrix.shard }}
         run: |
-          python tools/run_python_regressions.py --shard-index $env:SHARD_INDEX --shard-count 4 --source-commit $env:GITHUB_SHA --output "$env:RUNNER_TEMP\python-regressions-$env:SHARD_INDEX.json"
+          python tools/run_python_regressions.py --shard-index $env:SHARD_INDEX --shard-count 4 --source-commit $env:GITHUB_SHA --output "$env:RUNNER_TEMP\python-regressions-$env:SHARD_INDEX.json" --isolate-module test_large_repository_inventory_acceptance
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Preserve the complete regression shard report
