@@ -37,25 +37,28 @@ def _latest_owned_handle(database_path, source_root, conversation_id):
     return _latest_owned_analysis(database_path, source_root, conversation_id)[0]
 
 
-def _latest_owned_analysis(database_path, source_root, conversation_id):
+def _latest_owned_analysis(database_path, source_root, conversation_id, *, first_failure_followup=None):
     path = Path(database_path).resolve().parent / "conversations.sqlite"
     if not path.is_file() or path.is_symlink():
-        return None, [], []
+        return None, [], [], None
     from conversation_store import MODEL_HISTORY_MESSAGES, _MESSAGE_TURN_POSITION_SQL, _model_history_rows
     with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
         db.row_factory = sqlite3.Row
         owner = db.execute("SELECT 1 FROM conversations WHERE id=? AND source_key=?", (
             conversation_id, hashlib.sha256(str(Path(source_root).resolve()).encode()).hexdigest())).fetchone()
         if owner is None:
-            return None, [], []
+            return None, [], [], None
         # A diagnostic-only failed answer is not model history. Select the same
         # latest eligible assistant as the transcript, including valid partial
         # answers and logical retry order. Never skip a missing/invalid handle
         # on that selected answer to borrow an older investigation instead.
         latest = next((row for row in _model_history_rows(db, conversation_id,
             MODEL_HISTORY_MESSAGES, None, legacy=False) if row["role"] == "assistant"), None)
+        if latest is None and first_failure_followup is not None:
+            failed_handle, failed_question = _first_failed_turn(db, conversation_id, first_failure_followup)
+            return failed_handle, [], [], failed_question
         if latest is None or latest["status"] not in {"completed", "partial"}:
-            return None, [], []
+            return None, [], [], None
         row = db.execute("SELECT CASE WHEN json_valid(details) THEN "
             "CASE WHEN json_type(details,'$.investigation_run_id')='text' "
             "AND length(json_extract(details,'$.investigation_run_id'))=24 "
@@ -64,7 +67,7 @@ def _latest_owned_analysis(database_path, source_root, conversation_id):
             "FROM messages WHERE conversation_id=? AND position=? AND role='assistant'",
             (conversation_id, latest["position"])).fetchone()
         if row is None or row[1] == "REMOTE_REQUEST_OUTCOME_UNKNOWN":
-            return None, [], []
+            return None, [], [], None
         # Only diagnostic turns after this logical turn may be skipped. A
         # retried older question can have a newer physical row position.
         skipped = db.execute("SELECT role,status,run_id AS job_id,"
@@ -76,7 +79,7 @@ def _latest_owned_analysis(database_path, source_root, conversation_id):
             f"AND ({_MESSAGE_TURN_POSITION_SQL})>? ORDER BY {_MESSAGE_TURN_POSITION_SQL} DESC,position DESC LIMIT ?",
             (conversation_id, latest["turn_position"], MODEL_HISTORY_MESSAGES + 1)).fetchall()
         if len(skipped) > MODEL_HISTORY_MESSAGES or any(item["blocked"] == "REMOTE_REQUEST_OUTCOME_UNKNOWN" for item in skipped):
-            return None, [], []
+            return None, [], [], None
         questions = [{"question": item["question"], "handles": [answer["handle"] for answer in skipped
             if answer["role"] == "assistant" and item["job_id"] and answer["job_id"] == item["job_id"]
             and answer["turn_position"] == item["turn_position"] and isinstance(answer["handle"], str)
@@ -85,7 +88,42 @@ def _latest_owned_analysis(database_path, source_root, conversation_id):
             and item["status"] in {"failed", "partial", "cancelled", "interrupted"}]
         handles = [item["handle"] for item in skipped if item["role"] == "assistant"
                    and isinstance(item["handle"], str) and re.fullmatch(r"[0-9a-f]{24}", item["handle"])]
-    return row[0], questions, handles
+    return row[0], questions, handles, None
+
+
+def _first_failed_turn(db, conversation_id, followup):
+    """Pair the only closed diagnostic turn with its original user question."""
+    from conversation_store import _MESSAGE_TURN_POSITION_SQL
+
+    rows = db.execute(
+        "SELECT role,status,run_id,"
+        f"{_MESSAGE_TURN_POSITION_SQL} AS turn_position,"
+        "CASE WHEN role='user' THEN substr(content,1,32769) END AS question,"
+        "CASE WHEN json_valid(details) THEN json_extract(details,'$.investigation_run_id') END AS handle,"
+        "CASE WHEN json_valid(details) THEN json_extract(details,'$.retry_blocked_reason') END AS blocked,"
+        "CASE WHEN json_valid(details) THEN json_extract(details,'$.answer_origin') END AS origin,"
+        "CASE WHEN json_valid(details) THEN json_extract(details,'$.answer_available') END AS available "
+        "FROM messages WHERE conversation_id=? AND role IN ('user','assistant') ORDER BY position LIMIT 4",
+        (conversation_id,)).fetchall()
+    if len(rows) == 3:
+        pending = rows[-1]
+        if (pending["role"] != "user" or pending["status"] != "pending" or pending["question"] != followup
+                or not pending["run_id"] or pending["run_id"] == rows[0]["run_id"]):
+            return None, None
+        rows = rows[:2]
+    if len(rows) != 2:
+        return None, None
+    user, assistant = rows
+    question, handle = user["question"], assistant["handle"]
+    if (user["role"] != "user" or assistant["role"] != "assistant"
+            or user["status"] != "failed" or assistant["status"] != "failed"
+            or not user["run_id"] or user["run_id"] != assistant["run_id"]
+            or user["turn_position"] != assistant["turn_position"]
+            or assistant["blocked"] or assistant["origin"] != "diagnostic" or assistant["available"] != 0
+            or not question or len(question) > 32768
+            or not isinstance(handle, str) or re.fullmatch(r"[0-9a-f]{24}", handle) is None):
+        return None, None
+    return handle, question
 
 
 def _strictly_extends_analysis_memory(previous, current):
@@ -137,13 +175,22 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
             or _RESET.search(str(question)) or _NEW_TOPIC.search(str(question))):
         return None
     latest = next((item for item in reversed(history or ())
-                   if isinstance(item, dict) and item.get("role") == "assistant"), {})
-    run_id = latest.get("investigation_run_id")
-    if not isinstance(run_id, str) or re.fullmatch(r"[0-9a-f]{24}", run_id) is None:
+                   if isinstance(item, dict) and item.get("role") == "assistant"), None)
+    run_id = latest.get("investigation_run_id") if latest is not None else None
+    first_failure_followup = None
+    if latest is None and _FOLLOWUP.search(str(question)):
+        from repository_scope import repository_inventory_requested
+        if not repository_inventory_requested(question):
+            first_failure_followup = question
+    if first_failure_followup is None and (
+            not isinstance(run_id, str) or re.fullmatch(r"[0-9a-f]{24}", run_id) is None):
         return None
     try:
-        owned_handle, skipped_questions, skipped_handles = _latest_owned_analysis(database_path, source_root, conversation_id)
-        if owned_handle != run_id:
+        owned_handle, skipped_questions, skipped_handles, failed_question = _latest_owned_analysis(
+            database_path, source_root, conversation_id, first_failure_followup=first_failure_followup)
+        if failed_question is not None:
+            run_id = owned_handle
+        if owned_handle != run_id or run_id is None:
             return None
         skipped_runs = {handle: store.load(handle) for handle in skipped_handles}
         if any(saved.get("uncertain_requests") for saved in skipped_runs.values()):
@@ -157,10 +204,17 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                 or fingerprint(checkpoint.get("compilation_context")) !=
                     fingerprint(session.options.get("compilation_context"))):
             return None
-        prior_subject = checkpoint.get("session_subject") or {}
-        if (prior_subject.get("status") != "resolved" or len(prior_subject.get("root_paths", [])) != 1
-                or not checkpoint.get("prior_source_memory")):
+        if failed_question is not None:
+            memory_context = checkpoint.get("source_memory_context")
+            if (saved["metadata"].get("question_id") != "sha256:" + hashlib.sha256(failed_question.encode()).hexdigest()
+                    or not isinstance(memory_context, dict) or memory_context.get("run_id") != run_id):
+                return None
+        prior_subject = checkpoint.get("session_subject")
+        if (not isinstance(prior_subject, dict) or prior_subject.get("status") != "resolved"
+                or not isinstance(prior_subject.get("root_paths"), list) or len(prior_subject["root_paths"]) != 1
+                or not isinstance(prior_subject.get("scope"), dict) or not checkpoint.get("prior_source_memory")):
             return None
+        prior_scope = prior_subject["scope"]
         # Transcript eligibility and reusable source work are separate. A
         # diagnostic-only turn may still have durably completed new analysis.
         handoff_saved, handoff_run_id = saved, run_id
@@ -204,8 +258,7 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                 else:
                     return None
                 skipped_scope = skipped_subject.get("scope")
-                prior_scope = prior_subject.get("scope")
-                if (not isinstance(skipped_scope, dict) or not isinstance(prior_scope, dict)
+                if (not isinstance(skipped_scope, dict)
                         or skipped_subject.get("status") != "resolved"
                         or skipped_subject.get("root_paths") != prior_subject["root_paths"]
                         or skipped_scope.get("exclusive_source_scope") != prior_scope.get("exclusive_source_scope")):
@@ -235,10 +288,20 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
                     lineage_handles.add(failed_handle)
                     if _strictly_extends_analysis_memory(handoff_saved["checkpoint"], failed_checkpoint):
                         handoff_saved, handoff_run_id = failed_run, failed_handle
+            navigation_history = history
+            if failed_question is not None:
+                failed_identity = _question_identity(connection, failed_question)
+                failed_subject = build_session_subject(connection, failed_question, failed_identity)
+                if (failed_subject.get("status") != "resolved"
+                        or failed_subject.get("root_paths") != prior_subject["root_paths"]
+                        or failed_subject.get("scope", {}).get("exclusive_source_scope") !=
+                            prior_scope.get("exclusive_source_scope")):
+                    return None
+                navigation_history = [{"role": "user", "content": failed_question}]
             current = _question_identity(connection, question)
             if current.get("status") == "none":
                 current = (resolve_question_field_subject(connection, question)
-                    or (resolve_conversation_subject(connection, question, history, current_identity=current)
+                    or (resolve_conversation_subject(connection, question, navigation_history, current_identity=current)
                         if _FOLLOWUP.search(str(question)) else None))
             if current is None or current.get("status") != "resolved":
                 return None
@@ -246,7 +309,7 @@ def followup_analysis_seed(question, *, database_path, source_root, session, his
             if (subject.get("status") != "resolved" or subject.get("version_changed")
                     or subject.get("root_paths") != prior_subject["root_paths"]
                     or subject.get("scope", {}).get("exclusive_source_scope") !=
-                        prior_subject.get("scope", {}).get("exclusive_source_scope")):
+                        prior_scope.get("exclusive_source_scope")):
                 return None
             if entry_program:
                 entry = _question_identity(connection, entry_program)

@@ -1910,15 +1910,18 @@ def build_question_investigation(question, business_map, *, database_path=None,
                        if scope_hit else {}}
     rule_frontier = None
     if business_overview or calculation:
+        restricted_scope = bool(exclusive_paths or exclusive_ranges)
         expected_scope = frontier_scope(business_map,
             identity.get("direct_paths") or business_map.get("direct_paths", []), business_overview)
         if source_frontier_state and source_frontier_state.get("scope_key") != expected_scope:
             source_frontier_state = None
             base["source_frontier_reset_reason"] = "source_frontier_scope_changed"
-        accepted = (source_frontier_state or {}).get("read_candidate_paths", [])
-        paths = list(dict.fromkeys([*paths, *accepted]))
+        if not restricted_scope:
+            accepted = (source_frontier_state or {}).get("read_candidate_paths", [])
+            paths = list(dict.fromkeys([*paths, *accepted]))
         rule_frontier = prepare_investigation_frontier(business_map, question, root_paths, paths, source_scopes,
-            investigation_frontier_state, advance=advance_frontier, batch_size=_MAX_PATHS)
+            investigation_frontier_state, advance=advance_frontier, batch_size=_MAX_PATHS,
+            restricted_scope=restricted_scope)
         paths = rule_frontier["active_paths"]
         base["investigation_frontier_state"] = rule_frontier
         base["obligation_batch_key"] = rule_frontier["batch_key"]

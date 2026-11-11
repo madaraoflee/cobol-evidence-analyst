@@ -5280,6 +5280,10 @@
         {
           "kind": "python",
           "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight"
         }
       ],
       "verification_scope": "source_offline",
@@ -6800,16 +6804,40 @@
       "title": "首轮失败且没有可用回答锚点时普通追问不接续已完成分析",
       "symptom": "首次提问已完成2代压缩后终答HTTP500，检查点仍在磁盘且unknown为空；普通下一问没有assistant历史锚点，按第0代开始。",
       "root_cause": "接续以可用assistant历史句柄作为所有权锚点；首轮诊断-only失败没有该锚点，不能进入现有失败轮累计状态选择。",
-      "status": "open",
+      "status": "fixed",
       "evidence": [
         "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-open.json",
         "docs/reports/2026-11-10-language-instructions-recovery/README.md",
         "docs/reports/2026-11-10-language-instructions-recovery/reproduce_first_failed_handoff.py",
-        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-continuation.json"
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-continuation.json",
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-fix.md",
+        "docs/reports/2026-11-10-language-instructions-recovery/first-failed-handoff-regression-before.log",
+        "poc/tests/test_first_failed_turn_handoff.py"
       ],
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_a_different_original_question_cannot_supply_memory"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_changed_source_cannot_supply_memory"
+        }
+      ],
       "verification_scope": "source_offline",
-      "limitations": "已离线复现，属于原有问题；不纳入本次已准备并获准的已有成功锚点后最小接续修复。需另行设计并验证首轮所有权、原始请求证明与未知请求边界，不能绕过检查。未修复，不能因其他源码测试通过而关闭。"
+      "limitations": "同对话同对象、首轮诊断且原请求结果已知时，已验证的原文与两代压缩分析可接续。新问题使用新请求，原检查点保留。独立验证未知标记、未确认请求、原问题不匹配及原文变化时不继承。验收使用中性夹具和注入 HTTP 500。"
     },
     {
       "id": "BUG-20261110-008",
@@ -8665,6 +8693,18 @@
         {
           "kind": "python",
           "test_id": "test_question_scope_regressions.QuestionScopeRegressions.test_occurrence_window_and_pic_fit_three_actual_source_reads"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_three_program_occurrence_question_keeps_two_formulas_three_declarations_and_one_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_old_polluted_cursor_is_discarded_and_restricted_cursor_is_stable"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_scoped_formula_frontier.ScopedFormulaFrontierTests.test_ordinary_twelve_formula_paths_continue_beyond_the_first_eight"
         }
       ],
       "evidence": [
@@ -8672,27 +8712,83 @@
         "docs/reports/2026-11-11-windows-native-scope-regression/failure-evidence-13829076369.original.zip",
         "docs/reports/2026-11-11-windows-native-scope-regression/README.md",
         "docs/reports/2026-11-11-windows-native-scope-regression/native-before-vs-earlier-passing.json",
-        "docs/reports/2026-11-11-windows-native-scope-regression/causal-source-reproduction.json"
+        "docs/reports/2026-11-11-windows-native-scope-regression/causal-source-reproduction.json",
+        "poc/tests/test_scoped_formula_frontier.py"
       ],
       "status": "open",
       "verification_scope": "source_offline",
-      "limitations": "现有小型用例能核对单程序范围，新复现含干扰程序、已读路径及重复动作。修复需要触及冻结的本地问答，待核对最小方案及用户决定范围。现有 EXE 候选门禁如实失败，原样保留，尚无可交付新候选。"
+      "limitations": "用户已明确授权完成修复并交付可用候选。已应用审核过的限定范围补丁和三项新增回归。原文与回答保留，重新计算旧定向规则游标；普通公式分批与显式全库清单继续保留。Windows 成品同一冻结合同及 60 秒门槛仍待实测。"
     },
     {
       "id": "BUG-20261111-024",
       "title": "简要回答每轮仅一次请求时显式续查无法推进普通公式后续批次",
       "symptom": "12 个中性公式程序均已定位。简要模式每轮一次模型请求时，五次显式继续仍重复同一批源码，末四项未进入供证；路径记录仍保留。当前源码和 023 提案均复现。",
       "root_cause": "唯一可用请求被判定为最后一次，简要回答的预取条件不执行待办读取。继续后重新进入同一请求预算阶段，没有完成并推进当前批。",
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_one_request_brief_continuations_supply_all_twelve_paths_and_retain_saved_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_continuation_with_disabled_local_tools_keeps_pending_work_and_request_limit"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_single_pass_brief_continuation_keeps_existing_retrieval_behavior"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_answer_reserve_stops_continuation_reads_without_discarding_pending_paths"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_brief_formula_continuation.BriefFormulaContinuationTests.test_reconnect_without_explicit_continuation_replays_without_new_requests"
+        }
+      ],
       "evidence": [
         "docs/reports/2026-11-11-brief-single-request-continuation/README.md",
         "docs/reports/2026-11-11-brief-single-request-continuation/request-one-boundary-before.log",
         "docs/reports/2026-11-11-brief-single-request-continuation/request-one-boundary-after.log",
-        "docs/reports/2026-11-11-brief-single-request-continuation/detailed-one-control.json"
+        "docs/reports/2026-11-11-brief-single-request-continuation/detailed-one-control.json",
+        "poc/tests/test_brief_formula_continuation.py",
+        "docs/reports/2026-11-11-brief-single-request-continuation/fix-validation.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "边界是普通公式、简要回答且每轮仅一次请求的组合。正常两请求简要模式和一次请求详细模式有通过对照。未改本地预算与续查行为，尚无入库的专项回归。"
+      "limitations": "明确续查时用既有工具和时间配额先准备后续原文，模型仍每轮最多一次。12 个中性程序在三轮的累计供证为 6→8→12，末轮没有遗留路径，原检查点与证据保留。五项新增及 150 项相关回归通过；部分回答状态仍依真实完成度判定。"
+    },
+    {
+      "id": "BUG-20261111-025",
+      "title": "请求裁剪回读位置目录时重复重算原文义务和整份编码",
+      "symptom": "大库问答在减少旧原文位置目录时，每删一条都重复核对同样的原文。实际保留请求回放中，27 条目录裁剪触发 28 次完整证据构建及请求编码。",
+      "root_cause": "材料变化比较把回读目录当成原文授权信息，逐条裁剪反复重建请求。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_partial_catalog_fit_preserves_wire_order_and_exact_byte_boundary"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_single_entry_needs_no_extra_full_projection"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_exhausting_catalog_rechecks_after_removing_actual_source"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_read_catalog_fit_latency.ReadCatalogFitLatencyTests.test_cancellation_keeps_committed_trim_receipts_and_original_archive"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-read-catalog-fit/README.md",
+        "docs/reports/2026-11-11-read-catalog-fit/isolated-request-replay.json",
+        "docs/reports/2026-11-11-read-catalog-fit/before-regression.log"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "实际保留请求的重放校验最终 229,733 字节和 27 条有序裁剪记录一致。源变更仍重新核对，取消仍保留已记录步骤。隔离耗时不作为最终 EXE 的 60 秒验收。"
     }
   ],
   "updated_at": "2026-11-11"

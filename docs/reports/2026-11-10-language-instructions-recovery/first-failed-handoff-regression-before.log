@@ -1,0 +1,21 @@
+test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup (test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup) ... FAIL
+test_first_diagnostic_with_a_different_original_question_cannot_supply_memory (test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_a_different_original_question_cannot_supply_memory) ... ok
+test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory (test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_uncertain_saved_request_cannot_supply_memory) ... ok
+test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory (test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_with_unknown_request_marker_cannot_supply_memory) ... ok
+
+======================================================================
+FAIL: test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup (test_first_failed_turn_handoff.FirstFailedTurnHandoffTests.test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/cobol-native-scope-regression-ledger-20261111/poc/tests/test_first_failed_turn_handoff.py", line 95, in test_first_diagnostic_only_turn_passes_verified_generations_to_a_deictic_followup
+    result, payload, saved = self.followup("这个流程前面的抵扣还需要什么前提？", inherited=True)
+                             ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/cobol-native-scope-regression-ledger-20261111/poc/tests/test_first_failed_turn_handoff.py", line 87, in followup
+    self.assertTrue(result["answer_available"], result.get("errors"))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 4 tests in 1.034s
+
+FAILED (failures=1)
