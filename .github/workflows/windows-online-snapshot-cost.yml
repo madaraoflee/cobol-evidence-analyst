@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 3
       - name: Set up the same stock Python x64
         uses: actions/setup-python@v7
         with:
@@ -107,6 +107,63 @@ jobs:
                   line = json.dumps(item, ensure_ascii=True)
                   print(line, flush=True)
                   stream.write(line + '\n')
+          sdk = Path(sys.base_prefix).absolute()
+          sdk_resolved = sdk.resolve(strict=False)
+          key_names = ('python.exe', 'python3.exe', 'python3.13.exe', 'python313.dll',
+                       'DLLs/_sqlite3.pyd', 'DLLs/sqlite3.dll')
+          enumeration_errors, sdk_entries, reparse_entries = [], [], []
+          def scan_error(error):
+              enumeration_errors.append({'path': getattr(error, 'filename', None),
+                  'error_type': type(error).__name__, 'errno': getattr(error, 'errno', None),
+                  'winerror': getattr(error, 'winerror', None)})
+          def key_identity(path):
+              row = component(path, True)
+              resolved = row['resolve_strict_false'].get('value')
+              row['resolved_target_within_sdk'] = (Path(resolved).is_relative_to(sdk_resolved)
+                                                     if resolved else None)
+              row['samefile_key_entries'] = {name: attempt(lambda other=sdk / name:
+                  os.path.samefile(path, other)) for name in key_names}
+              return row
+          for directory, folders, names in os.walk(sdk, followlinks=False, onerror=scan_error):
+              retained = []
+              for name in sorted(folders + names):
+                  path = Path(directory) / name
+                  metadata = attempt(lambda: info(path))
+                  row = {'relative_path': path.relative_to(sdk).as_posix(), 'path': str(path),
+                         'listed_as_directory': name in folders, 'lstat': metadata}
+                  sdk_entries.append(row)
+                  if 'value' not in metadata:
+                      enumeration_errors.append({'path': str(path), **metadata})
+                      continue
+                  values = metadata['value']
+                  reparse = bool(stat.S_ISLNK(values['st_mode']) or
+                                 (values['st_file_attributes'] or 0) & 0x400)
+                  row['is_symlink'] = attempt(path.is_symlink)
+                  row['is_junction'] = attempt(path.is_junction)
+                  row['is_reparse_or_symlink'] = reparse
+                  if reparse:
+                      detail = key_identity(path)
+                      detail['relative_path'] = row['relative_path']
+                      reparse_entries.append(detail)
+                  elif name in folders:
+                      retained.append(name)
+              # Junctions are pruned explicitly, even if os.walk treats them as directories.
+              folders[:] = retained
+          report['sdk_internal_entries'] = sdk_entries
+          report['sdk_internal_reparse_entries'] = reparse_entries
+          report['sdk_internal_enumeration_errors'] = enumeration_errors
+          report['sdk_internal_entry_count'] = len(sdk_entries)
+          report['sdk_internal_reparse_count'] = len(reparse_entries)
+          report['sdk_key_entries'] = {name: key_identity(sdk / name) for name in key_names}
+          internal_summary = {'sdk_internal_entry_count': len(sdk_entries),
+              'sdk_internal_reparse_count': len(reparse_entries),
+              'sdk_internal_enumeration_errors': enumeration_errors,
+              'sdk_internal_reparse_entries': reparse_entries,
+              'sdk_key_entries': report['sdk_key_entries']}
+          with stdout_path.open('a', encoding='utf-8') as stream:
+              line = json.dumps(internal_summary, ensure_ascii=True)
+              print(line, flush=True)
+              stream.write(line + '\n')
           def git(*arguments):
               return subprocess.check_output(['git', *arguments], text=True).strip()
           areas = ('poc', 'poc/tests', 'tools', 'build_app.py', 'desktop-requirements.txt', 'assets', '.gitattributes', 'docs/bugs')
@@ -121,12 +178,13 @@ jobs:
           expected = ['.github/workflows/windows-online-snapshot-cost.yml']
           binding_ok = all(row['unchanged'] for row in identities) and report['changed_commit_paths'] == expected
           report['source_and_tests_unchanged'] = binding_ok
-          report['status'] = 'completed_metadata_trace' if binding_ok else 'failed_source_binding'
+          report['status'] = ('completed_metadata_trace' if binding_ok and not enumeration_errors
+                              else 'failed_source_binding_or_metadata_enumeration')
           report_path.write_text(json.dumps(report, indent=2), encoding='utf-8')
           print(json.dumps({'status': report['status'], 'source_and_tests_unchanged': binding_ok,
                             'rejected_paths': {row['name']: row['rejected_components'] for row in report['targets']}},
                            ensure_ascii=True), flush=True)
-          if not binding_ok:
+          if not binding_ok or enumeration_errors:
               raise SystemExit(1)
       - name: Preserve path identities and stdout records
         if: always()
