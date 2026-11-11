@@ -1,0 +1,70 @@
+{
+  "run_id": 42978782500,
+  "attempt": 1,
+  "source_commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+  "status": "passed",
+  "scope": "Read-only identity audit of verified Actions artifacts. Native EXE execution occurred in the original Windows workflow.",
+  "github_wrappers": {
+    "candidate": {
+      "id": 13839516724,
+      "metadata_sha256": "8160c4b7048dc6279c162cbc37b33f9ce9afda3fab76d120bb0f778af796c57a",
+      "sha256": "2cd651e3fb128273a0fcec50151096d04f0974feb9c3ff0cab83670cecf02fb2",
+      "bytes": 39331570
+    },
+    "global": {
+      "id": 13839142739,
+      "metadata_sha256": "e509c8308375379b776de07a87b79dfd7b18c00bd59868399081f313d31a75ce",
+      "sha256": "8c13985cf4be07ce92066017ceefe95e301a39cb13ecc63f5719d5859f1324ac",
+      "bytes": 12655
+    },
+    "sqlite": {
+      "id": 13839412098,
+      "metadata_sha256": "46b6fd6c438bdc47898c479be0da95b990cd4060ead1d51471097d3deae57595",
+      "sha256": "6ff6171f5a9bab07dc7a4d02ec86abd61d51d3fbaf228e05c5d2914e42420b98",
+      "bytes": 2308
+    }
+  },
+  "zip_sha256": "4106cc59f0e249de7606c93a54afe1502a3826bb239009ea49338364489a988c",
+  "sole_executable": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+  "executable_sha256": "335ac73f31cd7a8c5b62fc596349f7ac154042acca2f46778a1d7d228df52077",
+  "no_python_launcher_in_zip": true,
+  "native_checker_subprocess_source_line": 99,
+  "native_checker_argument_zero": "str(binary)",
+  "native_checker_file_sha256": "013647056b4aa42e21c17aa7551ed2e285db3f17b58d3171d81f04992f091d66",
+  "native_probe_source_sha256": "96f9b8eb1a04d09f0fa274337db97c6eb0cf438f33b598582831002bb0c75fd0",
+  "executable_dll_extension_PE_machine": "0x8664",
+  "packaged_sqlite_dll": {
+    "path": "COBOLWorkbench/COBOLWorkbench/sqlite3.dll",
+    "sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea"
+  },
+  "sqlite_report_sha256": "4f0ee3cbb035b283213fa0a56aff754d1c1cf570a4a88d6edc7ca3e84602839b",
+  "joint_report_sha256": "325beeb2c82264617a78e7d01efa2c3049c1623bf0e80b74a4fddc9fa3a89455",
+  "global_report_sha256": "6b0e23c7a0c598e1f24a81786ac840cb100c8d9fc846f72eacffc2b07a0448bd",
+  "source_pin_sha256": "03b06daa98e92a2c2d88791d02ee577419282af7b7cedd7200b185e5ccb2113f",
+  "both_compiled_sqlite_probes": [
+    {
+      "kind": "extracted_package",
+      "compiled": true,
+      "reported_sys_executable": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench\\python.exe",
+      "product_root": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench",
+      "actual_loaded_dll": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench\\sqlite3.dll",
+      "extension": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench\\_sqlite3.pyd",
+      "version": "3.54.1",
+      "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_loaded_dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "all_8_features_passed": true
+    },
+    {
+      "kind": "pre_package_compiled_build",
+      "compiled": true,
+      "reported_sys_executable": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\.build\\desktop\\run-4ck388xd\\compiled\\desktop_app.dist\\python.exe",
+      "product_root": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\.build\\desktop\\run-4ck388xd\\compiled\\desktop_app.dist",
+      "actual_loaded_dll": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\.build\\desktop\\run-4ck388xd\\compiled\\desktop_app.dist\\sqlite3.dll",
+      "extension": "D:\\a\\cobol-evidence-analyst\\cobol-evidence-analyst\\.build\\desktop\\run-4ck388xd\\compiled\\desktop_app.dist\\_sqlite3.pyd",
+      "version": "3.54.1",
+      "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+      "actual_loaded_dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+      "all_8_features_passed": true
+    }
+  ]
+}

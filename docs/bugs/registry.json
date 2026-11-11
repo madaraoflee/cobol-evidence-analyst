@@ -8378,11 +8378,14 @@
         "docs/reports/2026-11-11-sqlite-runtime-decision/archive-static-verification.json",
         "docs/reports/2026-11-11-sqlite-runtime-decision/windows-experiment/summary.json",
         "docs/reports/2026-11-11-approved-private-sqlite-runtime/README.md",
-        "docs/reports/2026-11-11-windows-native-scope-regression/sdk-verification-summary.json"
+        "docs/reports/2026-11-11-windows-native-scope-regression/sdk-verification-summary.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/SQLITE-RUNTIME-ACCEPTANCE.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/NATIVE-SQLITE-LAUNCH-IDENTITY.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/OFFICE-CI-VERIFICATION.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "四个真实 Windows 私有 SDK 已验证，编译与构建时自检已过。最终 ZIP 的独立 SQLite 实际加载检查因 BUG-20261111-023 阻断而未执行，办公助手尚未验证。本项目未复现实际数据损坏，现场 HTTP 500 单独跟踪。"
+      "limitations": "真实 Windows 的最终应用 EXE 已加载 ZIP 内官方 SQLite 3.54.1 DLL，八项能力探针均通过。办公验收助手在同一组件与同一发布包上完成编译、启动、计划和 79 项离线验收。本项目未复现实际数据损坏，现场 HTTP 500 单独跟踪。"
     },
     {
       "id": "BUG-20261111-015",
@@ -8674,11 +8677,12 @@
         "docs/reports/2026-11-11-office-sqlite-runtime-binding/REPRODUCTION.json",
         "docs/reports/2026-11-11-office-sqlite-runtime-binding/README.md",
         "tools/tests/test_office_private_sqlite_binding.py",
-        "tools/collect_office_acceptance_kit.py"
+        "tools/collect_office_acceptance_kit.py",
+        "docs/reports/2026-11-11-windows-verified-candidate/OFFICE-CI-VERIFICATION.json"
       ],
       "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "本次修复办公包组装入口。任一包声明私有 SQLite 时，两边都必须匹配固定官方 pin、通过已编译探针并附带同一 DLL；双方均未声明私有组件的历史包按原合同校验。源码夹具不启动 EXE 或调用模型。实际新办公包的双运行时和目标设备结果另行验证。"
+      "limitations": "原负例继续拒绝组件不匹配的组装。真实 Windows 已编译并启动同一官方 SQLite 3.54.1 的助手，核对应用与助手的组件、冻结的应用 ZIP 及验收合同后完成组装、零外部调用的计划与 79 项原生离线验收。公司目标设备结果另行验证。"
     },
     {
       "id": "BUG-20261111-023",
@@ -8713,11 +8717,13 @@
         "docs/reports/2026-11-11-windows-native-scope-regression/README.md",
         "docs/reports/2026-11-11-windows-native-scope-regression/native-before-vs-earlier-passing.json",
         "docs/reports/2026-11-11-windows-native-scope-regression/causal-source-reproduction.json",
-        "poc/tests/test_scoped_formula_frontier.py"
+        "poc/tests/test_scoped_formula_frontier.py",
+        "docs/reports/2026-11-11-windows-verified-candidate/NATIVE-LARGE-REPOSITORY.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/FINAL-CANDIDATE-VERIFICATION.json"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "用户已明确授权完成修复并交付可用候选。已应用审核过的限定范围补丁和三项新增回归。原文与回答保留，重新计算旧定向规则游标；普通公式分批与显式全库清单继续保留。Windows 成品同一冻结合同及 60 秒门槛仍待实测。"
+      "limitations": "最终同包 Windows 原生回归 79/79，通过五次大库定向题。每次两条条件、三处声明、两个未知输入，定向补问各一次。主问与补问合计最长 51.183 秒，原 60 秒门槛未变。真实业务语义继续现场验收。"
     },
     {
       "id": "BUG-20261111-024",
@@ -8814,11 +8820,50 @@
         "docs/reports/2026-11-11-windows-regression-isolation/source-verification-summary.json",
         "docs/reports/2026-11-11-windows-regression-isolation/original-timeout-evidence.zip",
         "docs/reports/2026-11-11-windows-regression-isolation/exact-assignment.json",
-        "docs/reports/2026-11-11-windows-regression-isolation/schedule-projection.json"
+        "docs/reports/2026-11-11-windows-regression-isolation/schedule-projection.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/source-verification-summary.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/original-windows-source-evidence.zip"
       ],
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "limitations": "已验证新分组保留全部 5,419 个 Windows ID 和每组原 45 分钟限制。真实 Windows 各组耗时、完整运行与成品验收仍待重跑。原超时报告保留。"
+      "limitations": "真实 Windows 的 5,419 个旧 ID 全部选择、开始并完成一次。两项原有 POSIX 跳过按原合同记录。四组最慢 1,540.431 秒，45 分钟不变。万文件模块 7/7 正常结束和清理，原失败完整保留。"
+    },
+    {
+      "id": "BUG-20261111-027",
+      "title": "候选补充校验误把编译 Python 的诊断路径当作 Windows 启动路径",
+      "symptom": "run 42978782500 的原 SQLite 成品检查通过。离线补充工具遇到同一产品内的 sys.executable=python.exe 字段后误拒已通过的成品报告。",
+      "root_cause": "补充脚本将编译模式下兼容的解释器 basename 等同于已启动的 Windows EXE 路径。冻结编译器 4.2.2 的 standalone 模式会生成该诊断值。",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_candidate_sqlite_evidence.CandidateSQLiteEvidenceTests.test_pinned_compiled_alias_requires_the_same_root_and_no_shipped_interpreter"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_candidate_sqlite_evidence.CandidateSQLiteEvidenceTests.test_canonical_executable_path_continues_to_pass"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_candidate_sqlite_evidence.CandidateSQLiteEvidenceTests.test_unrelated_executable_and_external_root_are_rejected"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_candidate_sqlite_evidence.CandidateSQLiteEvidenceTests.test_alias_cannot_accept_wrong_compiler_prefix_or_shipped_interpreter"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_candidate_sqlite_evidence.CandidateSQLiteEvidenceTests.test_compatible_alias_cannot_accept_an_external_loaded_dll"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-11-windows-verified-candidate/PREVIOUS-SUPPLEMENTARY-VERIFIER-FAILURE.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/NATIVE-SQLITE-LAUNCH-IDENTITY.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/SQLITE-ALIAS-NEGATIVE-CONTROLS.json",
+        "docs/reports/2026-11-11-windows-verified-candidate/FINAL-CANDIDATE-VERIFICATION.json"
+      ],
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "limitations": "独立校验只接受已核对编译器版本与同目录诊断，ZIP 中应只有实际应用 EXE。真实 Windows 直接启动及模块加载路径、文件散列和三件原始附件已核对。应用 ZIP 字节与原 Windows 发布门禁保持。"
     }
   ],
   "updated_at": "2026-11-11"

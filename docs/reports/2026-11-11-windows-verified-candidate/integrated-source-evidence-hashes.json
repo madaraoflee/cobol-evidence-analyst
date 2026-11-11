@@ -1,0 +1,30 @@
+{
+  "FIRST-FAILURE-HANDOFF-INDEPENDENT-REVIEW.json": {
+    "sha256": "5ee72a156904921b9082ed78ff479a5e30d690a8a57ca13820edae2d31db16b3",
+    "bytes": 2156
+  },
+  "INTEGRATED-BUG-REGRESSION-REPORT.json": {
+    "sha256": "5009f0beb807c02ec7e82d6adf40ee9a83535b960143d87af974d26fe089371a",
+    "bytes": 231474
+  },
+  "INTEGRATED-SOURCE-LARGE-REPOSITORY.json": {
+    "sha256": "a1f9393b081841561488c4cab80767e5e42f1455cc152c9c4869e0e37e811da7",
+    "bytes": 5718
+  },
+  "INTEGRATED-SOURCE-SNAPSHOT.json": {
+    "sha256": "f676a35cebbb3916951a8ee4d2f400eac241c3270bda59b6ee89106b13020b95",
+    "bytes": 140031
+  },
+  "SOURCE-GLOBAL-INVENTORY-CONTINUITY.json": {
+    "sha256": "f9aaaed7da4c045ea7cd40a1778ed3a88ed7604dd15c1e4fd5d6bb93567999cd",
+    "bytes": 32173
+  },
+  "SOURCE-INVESTIGATION-CONTINUITY.json": {
+    "sha256": "a3b93e1a65ce5a9bffe25fc56f369eb74829d20355de41fffc50f0d096c0fe00",
+    "bytes": 16103
+  },
+  "integrated-source-evidence.zip": {
+    "sha256": "79c2ddbffa13506165aae9df34606ce64dcd2ba722687070d5f0ae66516c414d",
+    "bytes": 1364495
+  }
+}

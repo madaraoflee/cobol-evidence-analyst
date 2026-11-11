@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "errors": [
+    {
+      "type": "ValueError",
+      "message": "SQLite probe executable is not that extracted product"
+    }
+  ]
+}

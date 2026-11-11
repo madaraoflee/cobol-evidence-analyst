@@ -1,0 +1,134 @@
+{
+  "status": "passed",
+  "verified_at_utc": "2026-11-11T08:30:37.930979+00:00",
+  "identity": {
+    "archive_sha256": "4106cc59f0e249de7606c93a54afe1502a3826bb239009ea49338364489a988c",
+    "binary_path": "COBOLWorkbench/COBOLWorkbench/COBOLWorkbench.exe",
+    "binary_sha256": "335ac73f31cd7a8c5b62fc596349f7ac154042acca2f46778a1d7d228df52077",
+    "application_sha256": "5878880b112355b9cd8dbb1538cb647faa31674f0cbeb42f570f66898a4c8ea9",
+    "source_commit": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+    "source_dirty": false,
+    "execution_surface": "native_windows_http",
+    "runtime_platform": "Windows"
+  },
+  "candidate_allowed": true,
+  "formal_publish_allowed": false,
+  "formal_gate_reasons": [
+    {
+      "code": "REAL_MODEL_AND_OFFICE_ACCEPTANCE_REQUIRED"
+    }
+  ],
+  "native_cases": 25,
+  "native_samples": 79,
+  "continuity_checks": 55,
+  "global_checks": 13,
+  "global_formula_positions": 257,
+  "global_lookup_phases": [
+    {
+      "phase": "invalid_lookup",
+      "run_id": "08cb901d695c19cffdbf6ef3",
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "model_requests": 2,
+      "counts": {
+        "candidates": 514,
+        "excluded": 0,
+        "files": 257,
+        "included": 0,
+        "pending": 514,
+        "review_pending": 514,
+        "reviewed": 0
+      },
+      "convergence_stop_reason": "no_evidence_progress",
+      "request_limit": null,
+      "hard_seconds": null,
+      "elapsed_seconds": 0.8393624999998792
+    },
+    {
+      "phase": "empty_lookup",
+      "run_id": "0dd05c5f88ddbce8abbf3bfd",
+      "status": "PARTIAL",
+      "stop_reason": "answer_incomplete",
+      "model_requests": 2,
+      "counts": {
+        "candidates": 514,
+        "excluded": 0,
+        "files": 257,
+        "included": 0,
+        "pending": 514,
+        "review_pending": 514,
+        "reviewed": 0
+      },
+      "convergence_stop_reason": "no_evidence_progress",
+      "request_limit": null,
+      "hard_seconds": null,
+      "elapsed_seconds": 0.6694906000002447
+    }
+  ],
+  "candidate_artifact": {
+    "artifact_id": 13839516724,
+    "artifact_name": "COBOLWorkbench-windows-x64-86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e-1",
+    "sha256": "2cd651e3fb128273a0fcec50151096d04f0974feb9c3ff0cab83670cecf02fb2",
+    "run_id": 42978782500
+  },
+  "global_artifact": {
+    "artifact_id": 13839142739,
+    "artifact_name": "global-inventory-continuity-86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e-1",
+    "sha256": "8c13985cf4be07ce92066017ceefe95e301a39cb13ecc63f5719d5859f1324ac",
+    "run_id": 42978782500
+  },
+  "sqlite_artifact": {
+    "artifact_id": 13839412098,
+    "artifact_name": "sqlite-runtime-acceptance-86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e-1",
+    "sha256": "6ff6171f5a9bab07dc7a4d02ec86abd61d51d3fbaf228e05c5d2914e42420b98",
+    "run_id": 42978782500
+  },
+  "sqlite_runtime": {
+    "version": "3.54.1",
+    "source_id": "2026-10-16 14:45:20 555e07ef33f69a0957d24d8e555b702464a131d6f1607f4c3c1e4551e8e6ca76",
+    "loaded_dll_sha256": "4b59d3cded9dc1608544160f3b4b10ac974c6ac0d6ffc23064e5f4c8dbd05aea",
+    "packaged_dll": "COBOLWorkbench/COBOLWorkbench/sqlite3.dll",
+    "native_loaded_dll_path": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench\\sqlite3.dll",
+    "feature_checks": 8,
+    "reported_sys_executable": "D:\\a\\_temp\\compiled-sqlite-runtime\\extracted\\COBOLWorkbench\\COBOLWorkbench\\python.exe",
+    "sys_executable_is_nuitka_standalone_alias": true,
+    "download_host_loaded_dll_or_ran_exe": false
+  },
+  "sqlite_report_sha256": "4f0ee3cbb035b283213fa0a56aff754d1c1cf570a4a88d6edc7ca3e84602839b",
+  "assets": {
+    "ACCEPTANCE-MANIFEST.json": {
+      "bytes": 47542,
+      "sha256": "ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06"
+    },
+    "BUILD-INFO.json": {
+      "bytes": 5913,
+      "sha256": "5ac729520e340a079e20b72c67b49f5400e78b8a5682be9d4d9ffb26fab694c9"
+    },
+    "CANDIDATE-GATE.json": {
+      "bytes": 10700,
+      "sha256": "ed50c33bfcdae72d76a4e5dfbc8f65fa1afdd499be32374201920fca9ca49728"
+    },
+    "CANDIDATE-POLICY.json": {
+      "bytes": 198,
+      "sha256": "601ff583fda9eb3f458f62a34cfaa5bf8bccf28a5f83bf0d9644ba3902785c88"
+    },
+    "COBOLWorkbench-windows-x64.zip": {
+      "bytes": 23439139,
+      "sha256": "4106cc59f0e249de7606c93a54afe1502a3826bb239009ea49338364489a988c"
+    },
+    "COBOLWorkbench-windows-x64.zip.sha256": {
+      "bytes": 98,
+      "sha256": "16d4206e448de9b31885a8bfb4df20a3b2f949e22ac7f5b85494885a7f4dd0a8"
+    },
+    "COMPILED-ACCEPTANCE.json": {
+      "bytes": 15810266,
+      "sha256": "325beeb2c82264617a78e7d01efa2c3049c1623bf0e80b74a4fddc9fa3a89455"
+    },
+    "INVESTIGATION-CONTINUITY.json": {
+      "bytes": 16558,
+      "sha256": "00e337db55f744e0dab485846fb14754fc30be217dd7e26913edeab659007c89"
+    }
+  },
+  "global_report_sha256": "6b0e23c7a0c598e1f24a81786ac840cb100c8d9fc846f72eacffc2b07a0448bd",
+  "executables_or_models_run_by_this_verifier": false
+}

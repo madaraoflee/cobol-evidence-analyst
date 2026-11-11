@@ -1,0 +1,83 @@
+{
+  "id": 441413654,
+  "html_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/tag/v2026.11.11.1-rc.1",
+  "tag_name": "v2026.11.11.1-rc.1",
+  "target_commitish": "86c8b28501eedbc90f8dbfdf991bc7ebe26cce0e",
+  "draft": false,
+  "prerelease": true,
+  "published_at": "2026-11-11T08:31:51Z",
+  "assets": [
+    {
+      "id": 734756072,
+      "name": "ACCEPTANCE-MANIFEST.json",
+      "size": 47542,
+      "digest": "sha256:ffbb287833621ad1326a17f76d7c008065c703323f4114878680b10f2037fe06",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/ACCEPTANCE-MANIFEST.json"
+    },
+    {
+      "id": 734756003,
+      "name": "BUILD-INFO.json",
+      "size": 5913,
+      "digest": "sha256:5ac729520e340a079e20b72c67b49f5400e78b8a5682be9d4d9ffb26fab694c9",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/BUILD-INFO.json"
+    },
+    {
+      "id": 734756020,
+      "name": "CANDIDATE-GATE.json",
+      "size": 10700,
+      "digest": "sha256:ed50c33bfcdae72d76a4e5dfbc8f65fa1afdd499be32374201920fca9ca49728",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/CANDIDATE-GATE.json"
+    },
+    {
+      "id": 734756071,
+      "name": "CANDIDATE-POLICY.json",
+      "size": 198,
+      "digest": "sha256:601ff583fda9eb3f458f62a34cfaa5bf8bccf28a5f83bf0d9644ba3902785c88",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/CANDIDATE-POLICY.json"
+    },
+    {
+      "id": 734756000,
+      "name": "COBOLWorkbench-windows-x64.zip",
+      "size": 23439139,
+      "digest": "sha256:4106cc59f0e249de7606c93a54afe1502a3826bb239009ea49338364489a988c",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/COBOLWorkbench-windows-x64.zip"
+    },
+    {
+      "id": 734755994,
+      "name": "COBOLWorkbench-windows-x64.zip.sha256",
+      "size": 98,
+      "digest": "sha256:16d4206e448de9b31885a8bfb4df20a3b2f949e22ac7f5b85494885a7f4dd0a8",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/COBOLWorkbench-windows-x64.zip.sha256"
+    },
+    {
+      "id": 734755992,
+      "name": "COMPILED-ACCEPTANCE.json",
+      "size": 15810266,
+      "digest": "sha256:325beeb2c82264617a78e7d01efa2c3049c1623bf0e80b74a4fddc9fa3a89455",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/COMPILED-ACCEPTANCE.json"
+    },
+    {
+      "id": 734756161,
+      "name": "GLOBAL-INVENTORY-CONTINUITY.json",
+      "size": 32947,
+      "digest": "sha256:6b0e23c7a0c598e1f24a81786ac840cb100c8d9fc846f72eacffc2b07a0448bd",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/GLOBAL-INVENTORY-CONTINUITY.json"
+    },
+    {
+      "id": 734756146,
+      "name": "INVESTIGATION-CONTINUITY.json",
+      "size": 16558,
+      "digest": "sha256:00e337db55f744e0dab485846fb14754fc30be217dd7e26913edeab659007c89",
+      "state": "uploaded",
+      "browser_download_url": "https://github.com/madaraoflee/cobol-evidence-analyst/releases/download/v2026.11.11.1-rc.1/INVESTIGATION-CONTINUITY.json"
+    }
+  ]
+}
