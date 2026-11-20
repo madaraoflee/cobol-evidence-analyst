@@ -1,0 +1,38 @@
+{
+  "files": 134,
+  "substring": {
+    "fts_files": 0,
+    "source_files_returned": [
+      "ycopy.cbl"
+    ],
+    "exact_returned": true,
+    "orientation_only": false,
+    "raw_fallback": {
+      "checked_pages": 128,
+      "exhausted": true,
+      "status": "budget_exhausted"
+    }
+  },
+  "phrase": {
+    "fts_files": 2,
+    "source_files_returned": [
+      "adummy.cbl",
+      "aentry.cbl",
+      "zcalc.cbl"
+    ],
+    "exact_returned": true,
+    "orientation_only": false,
+    "raw_fallback": {}
+  },
+  "phrase_grep": [
+    "./adummy.cbl:4:           DISPLAY 'PREMIUM COLLECTION'.",
+    "./aentry.cbl:4:      * PREMIUM COLLECTION"
+  ],
+  "substring_grep": [
+    "./ycopy.cbl:4:           IF PLAN-CODE = 'PM/XADJKEYENDORSED'"
+  ],
+  "links": [
+    "./aentry.cbl:5:           CALL 'NETDUE' USING DUE-BAL.",
+    "./zcalc.cbl:2:       PROGRAM-ID. NETDUE."
+  ]
+}

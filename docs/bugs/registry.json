@@ -9043,6 +9043,132 @@
         "poc/tests/test_named_scope_sentence_end.py"
       ],
       "limitations": "已验证英文句末点号后的提问及模型补查都受原文件范围约束，并验证含点路径、额外扩展名的边界。真实公司资料及 Windows 成品需另行验证。"
+    },
+    {
+      "id": "BUG-20261120-007",
+      "title": "本地业务问答漏掉位于普通索引词内部的业务标识",
+      "symptom": "134 个定长合成源文件中，字面串出现在后部文件的 IF 条件。普通索引命中零个文件，128 页回退用尽，交付的 8 页均不含该串。",
+      "root_cause": "分词无法检索单词内部片段，通用原文回退按页序扫描固定前缀。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_ordinary_questions_receive_late_embedded_literal_in_first_model_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_weak_exact_screen_and_comment_do_not_hide_embedded_branch"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_literal_search_respects_exclusive_scope_and_checks_only_selected_sources"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_literal_lookup_keeps_callee_without_topic_words_and_its_formula"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_changed_source_cannot_be_cited_from_literal_search"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_unrelated_prose_avoids_scan_and_long_literal_scan_can_be_cancelled"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-cross-file-search/local-before.json",
+        "docs/reports/2026-11-20-cross-file-search/local-after.json",
+        "docs/reports/2026-11-20-cross-file-search/large-snapshot.json",
+        "docs/reports/2026-11-20-cross-file-search/README.md",
+        "poc/tests/test_cross_file_literal_retrieval.py"
+      ],
+      "limitations": "字面命中经已导入原文定位，再按当前文件哈希核验。仅覆盖已保存的完整原文页；范围外、未导入、缺页或变更的源码不能据此排除。注释或显示文案不得压过已找到的分支证据。公司业务模型尚待现场复核。"
+    },
+    {
+      "id": "BUG-20261120-008",
+      "title": "在线普通业务题无法按嵌入标识跨文件定位原文",
+      "symptom": "已知原文中出现的业务代码片段，词检索无命中。要进一步定位行号，提问端必须预先知道目标文件路径。",
+      "root_cause": "材料词检索按完整 token 路由，原文字面定位仅接受单个已知路径；普通调查缺少跨文件的字面定位入口。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_embedded_literal_finds_original_lines_in_multiple_files_and_resumes_inside_a_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_search_verifies_unicode_punctuation_whitespace_and_short_literals_against_original"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_pre_locator_material_expands_existing_tokens_without_fetching_unrelated_originals"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_legacy_budget_exhaustion_recommends_directory_without_repeating_action_or_swallowing_integrity_errors"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_page_byte_and_file_limits_advance_to_next_candidate_and_changed_source_fails_verification"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_original_publication_walk_reaches_all_search_objects_and_normal_queries_still_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_literal.CrossFileLiteralTests.test_literal_filter_rejects_overlong_trailing_or_incomplete_compressed_data"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_investigation.OnlineCrossFileInvestigationTests.test_missing_token_finds_pinned_caller_and_resumes_into_renamed_worker_formula"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_investigation.OnlineCrossFileInvestigationTests.test_display_only_token_hit_offers_substring_route_to_additional_condition"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_investigation.OnlineCrossFileInvestigationTests.test_global_literal_rejects_malformed_model_actions"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_cross_file_investigation.OnlineCrossFileInvestigationTests.test_paged_global_locations_resume_without_crediting_formula_review"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-cross-file-search/README.md",
+        "docs/reports/2026-11-20-cross-file-search/large-snapshot.json",
+        "poc/tests/test_online_cross_file_literal.py",
+        "poc/tests/test_online_cross_file_investigation.py"
+      ],
+      "limitations": "新快照中的候选须用同提交原件核对并回读才能引用；旧快照的词候选存在覆盖边界。定位动作不代替全量公式评审。线上网络、公司真实问答及目标设备尚待验证。"
+    },
+    {
+      "id": "BUG-20261120-009",
+      "title": "在线原文字面定位连续翻页时重复解码整个源文件",
+      "symptom": "8,192 行每行都包含同一字段。定位前八页各 20 个命中，旧实现为 160 个行号完整解码同一文件八次。",
+      "root_cause": "按命中偏移翻页时每一页重新遍历全部物理行以计算命中总数。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_literal_paging_cost.LiteralPagingCostTests.test_dense_hits_decode_once_and_support_out_of_order_pages"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_literal_paging_cost.LiteralPagingCostTests.test_sparse_empty_and_replaced_source_obey_current_snapshot"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-cross-file-search/dense-locations.json",
+        "poc/tests/test_online_literal_paging_cost.py"
+      ],
+      "limitations": "复用同一查询实例中最近一个词在同一版本原件上的命中位置。每次读页仍须校验原件；跨进程或切换词以后需要重新定位。现场耗时未测。"
     }
   ],
   "updated_at": "2026-11-20"

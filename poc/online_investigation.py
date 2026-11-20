@@ -59,6 +59,15 @@ To investigate return {"actions":[one or more tool objects],"remaining":[short
 descriptions of business questions still to verify]}. At most eight actions.
 Tools (all paths are relative to the manifest's selected directory):
 {"tool":"search","text":"source vocabulary/program/field","limit":20,"offset":0}
+{"tool":"locate_global","text":"literal or part of an identifier","limit":10,"cursor":null}
+  Find physical line locations across this snapshot without guessing a file path. Use a
+  business label, field fragment, program name or alias seen in source. When a word search
+  misses, or leads only to DISPLAY, comments, declarations or setup, try its literal_action
+  and follow the executable caller and the amount through its parameters into the worker.
+  Each page is navigation only. Read the matched lines and enclosing branches for evidence.
+  Copy next_cursor unchanged to continue the same literal; retain unfinished work.
+  A completed legacy_token_candidates_only search covers just the files identified by
+  the older word index. Use inventory and file-level locate for unresolved leads.
 {"tool":"relations","path":"main.cbl","relation_type":"CALLS","limit":50,"offset":0}
   Omit relation_type to inspect CALL/COPY/dynamic and other static relations.
 {"tool":"incoming","target":"PROGRAM-OR-COPY-NAME","relation_type":"CALLS","limit":50,"offset":0}
@@ -563,14 +572,16 @@ def _action(value):
         if set(value) - {"tool", "offset"} or type(offset) is not int or not 0 <= offset < 60000:
             raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
         return {"tool": kind, "offset": offset}
-    required = {"locate": {"path", "text"}, "search": {"text"}, "relations": {"path"}, "incoming": {"target"},
+    required = {"locate": {"path", "text"}, "locate_global": {"text"}, "search": {"text"},
+                "relations": {"path"}, "incoming": {"target"},
                 "read": {"path", "start_line", "end_line"}, "recall": {"evidence_ids"},
                 "evidence_catalog": set(), "inventory": set(), "arithmetic_candidates": {"path"},
                 "work_catalog": set(), "findings_catalog": set(), "source_reviews_catalog": set(),
                 "review": {"candidate_id", "disposition", "summary", "citations"},
                 "record_finding": {"path", "start_line", "end_line", "disposition", "summary", "citations"},
                 "review_file": {"path", "summary", "citations"}}
-    optional = {"locate": {"limit", "offset"}, "search": {"limit", "offset"}, "relations": {"relation_type", "limit", "offset"},
+    optional = {"locate": {"limit", "offset"}, "locate_global": {"limit", "cursor"},
+                "search": {"limit", "offset"}, "relations": {"relation_type", "limit", "offset"},
                 "incoming": {"relation_type", "limit", "offset"}, "read": {"max_characters"}, "recall": set(),
                 "evidence_catalog": {"offset", "limit"}, "inventory": {"limit", "cursor"},
                 "arithmetic_candidates": {"offset", "limit"}, "work_catalog": {"offset", "limit"},
@@ -581,10 +592,19 @@ def _action(value):
     item = {"tool": kind}
     if "path" in value:
         item["path"] = relative_path(value["path"])
-    if kind == "locate":
+    if kind in {"locate", "locate_global"}:
         item["text"] = _text(value["text"], 256)
         if item["text"].splitlines() != [item["text"]]:
             raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+    if kind == "locate_global":
+        item["limit"] = _positive(value.get("limit", 10), 20)
+        cursor = value.get("cursor")
+        if cursor is not None:
+            if (not isinstance(cursor, dict) or set(cursor) != {"key", "group", "index", "offset"}
+                    or any(type(cursor[k]) is not int or not 0 <= cursor[k] < 2**63 for k in ("group", "index", "offset"))):
+                raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+            valid_hash(cursor["key"])
+        item["cursor"] = deepcopy(cursor)
     if kind == "search":
         item["text"] = _text(value["text"], 4096)
     if kind == "incoming":
@@ -960,6 +980,8 @@ def _execute_action(query, sources, action, state, verified):
                 "truncated": action["offset"] + len(rows) < total, "absence_established": False}
     if kind == "inventory":
         return query.inventory(action["limit"], cursor=action["cursor"])
+    if kind == "locate_global":
+        return query.locate_global(action["text"], sources, limit=action["limit"], cursor=action["cursor"])
     if kind == "locate":
         value = query.locate(action["path"], action["text"], sources, limit=action["limit"], offset=action["offset"])
         return _compact_result(value, "matches", limit=action["limit"])
@@ -981,8 +1003,17 @@ def _execute_action(query, sources, action, state, verified):
     if kind == "search":
         value = query.search(action["text"], limit=action["limit"], offset=action["offset"])
         result = _compact_result(value, "matches", limit=action["limit"])
-        if result["total_matches"] == 0 and not state["work_ledger"]["global"]:
-            result["suggested_action"] = {"tool": "inventory", "limit": 20, "cursor": None}
+        if action["offset"] == 0 and not state.get("work_ledger", {}).get("global"):
+            text = action["text"].strip()
+            # A source identifier or short label can match inside a longer code
+            # even when exact tokens hit only a declaration or a display string.
+            if len(text) <= 256 and re.fullmatch(r"[\w$#@./-]+(?: [\w$#@./-]+){0,2}", text):
+                result["literal_action"] = {"tool": "locate_global", "text": text}
+            if result["total_matches"] == 0:
+                # Preserve directory discovery for questions expressed as prose.
+                result["suggested_action"] = {"tool": "inventory", "limit": 20, "cursor": None}
+                if "literal_action" in result and (text.isascii() or len(text) <= 4):
+                    result["suggested_action"] = result["literal_action"]
         return result
     if kind == "relations":
         value = query.relations(action["path"], action.get("relation_type"))

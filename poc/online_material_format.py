@@ -185,3 +185,23 @@ def validate_manifest(value) -> dict:
     if len(canonical_json(value)) > MAX_MANIFEST_BYTES:
         raise MaterialError("MATERIAL_SIZE_LIMIT")
     return value
+
+
+# Each original file has a fixed-size filter. A set bit is a candidate only;
+# collisions never turn an unverified source position into evidence.
+LITERAL_DIRECTORY_KEY = "ORIGINAL_LITERAL:v1"
+LITERAL_FILTER_BYTES = 1024
+LITERAL_LANE_BYTES = 32
+LITERAL_GROUP_FILES = 1024
+
+
+def literal_probes(text, width):
+    """Stable rolling hashes for all folded fragments of the supplied width."""
+    mask = LITERAL_FILTER_BYTES * 8 - 1
+    folded = text.casefold()
+    if width == 1:
+        return (ord(ch) & mask for ch in folded)
+    if width == 2:
+        return ((ord(a) * 131 + ord(b)) & mask for a, b in zip(folded, folded[1:]))
+    return (((ord(a) * 131 + ord(b)) * 131 + ord(c)) & mask
+            for a, b, c in zip(folded, folded[1:], folded[2:]))

@@ -6,7 +6,9 @@ not establish repository-wide completeness or run an analysis/model request.
 
 from __future__ import annotations
 
+import base64
 from contextlib import closing
+from functools import lru_cache
 import hashlib
 import json
 from pathlib import Path
@@ -14,12 +16,14 @@ import re
 import shutil
 import sqlite3
 import tempfile
+import zlib
 
 from business_index import PARSER_VERSION
 from compilation_context import resolve_compilation_context
 from online_material_format import (
     SCHEMA_VERSION, INLINE_POSTING_BYTES, INLINE_POSTING_PATHS,
-    MAX_OBJECT_BYTES, MAX_SOURCE_BYTES, MaterialError, bucket,
+    LITERAL_DIRECTORY_KEY, LITERAL_FILTER_BYTES, LITERAL_GROUP_FILES, LITERAL_LANE_BYTES,
+    MAX_OBJECT_BYTES, MAX_SOURCE_BYTES, MaterialError, bucket, literal_probes,
     canonical_json, digest, object_reference, reference_key, relative_path,
     seal_manifest, tokens, valid_commit, valid_hash,
 )
@@ -192,8 +196,33 @@ def _export_facts(db, spool, destination, path, sha, line_count, check):
     return references
 
 
+def _literal_bits(text):
+    bits = bytearray(LITERAL_FILTER_BYTES)
+    for width in (1, 2, 3):
+        for bit in literal_probes(text, width):
+            bits[bit // 8] |= 1 << (bit % 8)
+    return int.from_bytes(bits, "little")
+
+
+def _literal_directory(spool, destination, check):
+    groups = []
+    cursor = spool.execute("SELECT path,signature FROM files ORDER BY path")
+    while rows := cursor.fetchmany(LITERAL_GROUP_FILES):
+        _cancel(check)
+        paths = _write_object(destination, {"kind": "literal_paths", "paths": [path for path, _ in rows]})
+        lanes = []
+        for start in range(0, LITERAL_FILTER_BYTES, LITERAL_LANE_BYTES):
+            _cancel(check)
+            packed = b"".join(bits[start:start + LITERAL_LANE_BYTES] for _, bits in rows)
+            lanes.append(_write_object(destination, {"kind": "literal_lane",
+                "data": base64.b64encode(zlib.compress(packed)).decode("ascii")}))
+        groups.append({"count": len(rows), "paths": paths, "lanes": lanes})
+    return _write_object(destination, {"kind": "literal_groups", "groups": groups})
+
+
 def _export_files(db, spool, root, destination, check):
     total, source_bytes = 0, 0
+    common_line_bits = lru_cache(maxsize=2048)(_literal_bits)
     snapshot = hashlib.sha256()
     for raw in db.execute("SELECT * FROM source_files ORDER BY relative_path COLLATE material_casefold"):
         _cancel(check)
@@ -209,15 +238,25 @@ def _export_files(db, spool, root, destination, check):
         # Exhausting this iterator verifies bytes, encoding, line count and
         # file identity. The high limit retains long physical lines in the
         # bounded single-file budget instead of silently dropping their terms.
+        # Large source blobs are always candidates. The exact scan still uses
+        # the verified full file, while weekly export work stays bounded.
+        broad = size > 2 * 1024 * 1024
+        signature = 0
         for text, truncated in _verified_lines(root, row, check, MAX_SOURCE_BYTES):
             _cancel(check)
             if truncated:
                 raise MaterialError("MATERIAL_SOURCE_SIZE_LIMIT")
             _add_terms(spool, text, path)
+            if not broad:
+                if len(text) > 32768:
+                    broad = True
+                else:
+                    signature |= common_line_bits(text) if len(text) <= 256 else _literal_bits(text)
         record = {"relative_path": path, "sha256": sha, "size": size, "encoding": row["encoding"],
                   "source_format": row["format_hint"], "line_count": row["line_count"],
                   "facts": _export_facts(db, spool, destination, path, sha, row["line_count"], check)}
-        spool.execute("INSERT INTO files VALUES (?,?,?)", (bucket(path), path, canonical_json(record)))
+        spool.execute("INSERT INTO files VALUES (?,?,?,?)", (bucket(path), path, canonical_json(record),
+            b"\xff" * LITERAL_FILTER_BYTES if broad else signature.to_bytes(LITERAL_FILTER_BYTES, "little")))
         snapshot.update(path.encode("utf-8") + b"\0" + sha.encode("ascii") + b"\n")
         source_bytes += size
         total += 1
@@ -226,7 +265,7 @@ def _export_files(db, spool, root, destination, check):
     return total, source_bytes, "sha256:" + snapshot.hexdigest()
 
 
-def _routing_bucket(destination, kind, rows, check):
+def _routing_bucket(destination, kind, rows, check, *, literal_directory=None):
     entries, size = {}, len(canonical_json({"kind": kind, "entries": {}}))
     for key, value in rows:
         _cancel(check)
@@ -234,6 +273,11 @@ def _routing_bucket(destination, kind, rows, check):
         if size > MAX_OBJECT_BYTES:
             raise MaterialError("MATERIAL_BUCKET_SIZE_LIMIT")
         entries[key] = value
+    # Previous readers ignore unrelated reverse keys. The distribution walker
+    # follows references inside entries, so both old and new publishers ship
+    # these objects. Prefer the original route if it is already at capacity.
+    if literal_directory and size + 512 <= MAX_OBJECT_BYTES:
+        entries[LITERAL_DIRECTORY_KEY] = {"directory": literal_directory()}
     return _write_object(destination, {"kind": kind, "entries": entries})
 
 
@@ -260,11 +304,21 @@ def _export_routes(spool, destination, check):
                 spool.execute("SELECT path,record FROM files WHERE prefix=? ORDER BY path", (prefix,)))
         routes["files"][prefix] = _routing_bucket(destination, "files", rows, check)
     for kind in ("terms", "references"):
-        for (prefix,) in spool.execute("SELECT DISTINCT prefix FROM postings WHERE kind=? ORDER BY prefix", (kind,)):
+        prefixes = {row[0] for row in spool.execute("SELECT DISTINCT prefix FROM postings WHERE kind=?", (kind,))}
+        literal_prefix = bucket(LITERAL_DIRECTORY_KEY)
+        # Keep the optional single-object directory well within the existing
+        # object ceiling even for unusually large historical exports.
+        add_locator = kind == "references" and spool.execute("SELECT COUNT(*) FROM files").fetchone()[0] <= 500000
+        if add_locator:
+            prefixes.add(literal_prefix)
+        for prefix in sorted(prefixes):
             def entries():
                 for (key,) in spool.execute("SELECT DISTINCT key FROM postings WHERE kind=? AND prefix=? ORDER BY key", (kind, prefix)):
                     yield key, _posting_entry(spool, destination, kind, key, check)
-            routes[kind][prefix] = _routing_bucket(destination, kind, entries(), check)
+            locator = None
+            if add_locator and prefix == literal_prefix:
+                locator = lambda: _literal_directory(spool, destination, check)
+            routes[kind][prefix] = _routing_bucket(destination, kind, entries(), check, literal_directory=locator)
     return routes
 
 
@@ -392,7 +446,7 @@ def export_material(database: Path, source: Path, destination: Path, *, reposito
                         CREATE TABLE postings(kind TEXT,prefix TEXT,key TEXT,path TEXT,
                             PRIMARY KEY(kind,key,path)) WITHOUT ROWID;
                         CREATE INDEX buckets ON postings(kind,prefix,key);
-                        CREATE TABLE files(prefix TEXT,path TEXT PRIMARY KEY,record BLOB);
+                        CREATE TABLE files(prefix TEXT,path TEXT PRIMARY KEY,record BLOB,signature BLOB);
                         CREATE INDEX file_buckets ON files(prefix,path);""")
                     count, size, snapshot = _export_files(db, spool, root, destination, check_cancel)
                     if snapshot != metadata["snapshot_id"]:

@@ -1596,6 +1596,142 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
     return result, report
 
 
+_RULE_LINE = re.compile(
+    r"^\s*(?:(?:\d{6}\s*)|(?:ELSE\s+))?(?:IF|WHEN|EVALUATE|PERFORM|CALL|COMPUTE|"
+    r"ADD|SUBTRACT|MULTIPLY|DIVIDE|READ|WRITE|REWRITE|EXEC)\b", re.IGNORECASE | re.ASCII)
+
+
+def _literal_leads(question, search_terms):
+    """Search explicit source spellings; do not scan the snapshot for every prose word."""
+    result = []
+    for value in (search_terms or [question]):
+        words = [word.rstrip(".") for word in _WORDS.findall(value)]
+        latin = [word for word in words if word.isascii() and word.casefold() not in _STOP]
+        # Quoted text and short suggested terms explicitly request a spelling,
+        # including lowercase phrases. Mixed-language prose often spells its
+        # few source labels in Latin script without quoting them.
+        quoted = re.findall(r"""[`"“‘']([^\n`"”’']{3,64})[`"”’']""", value)
+        candidates = [term.strip() for term in quoted if term.strip()]
+        has_cjk = any("\u3400" <= ch <= "\u9fff" for ch in value)
+        for word in latin:
+            if ("." not in word and any(c.isalpha() for c in word)
+                    and (len(latin) == 1 or word.isupper() or "-" in word or has_cjk
+                         or any(c.isdigit() for c in word) or (search_terms and len(latin) <= 4))):
+                candidates.append(word)
+        for word in candidates:
+            if not 3 <= len(word) <= 64:
+                continue
+            folded = word.casefold()
+            if folded not in result:
+                result.append(folded)
+                if len(result) == 8:
+                    return result
+    return result
+
+
+def _literal_witness(lines, literal):
+    """Prefer a condition or operation over a caption, comment or declaration."""
+    first = None
+    for offset, line in enumerate(lines):
+        if literal not in line:
+            continue
+        if first is None:
+            first = offset
+        if (line[6:7] not in {"*", "/"} and literal in line.partition("*>")[0]
+                and _RULE_LINE.match(line)):
+            return 2, offset
+    return (1, first) if first is not None else (0, 0)
+
+
+def _literal_source_matches(connection, literals, ranked, scope_sql, scope_values, max_pages,
+                            source_session, check_cancel):
+    """Stream complete imported original pages independently of token postings.
+
+    Keep only bounded page locators. Selected originals follow the usual
+    current-source verification and citation path before reaching the model.
+    """
+    _cancel(check_cancel)
+    strength = dict.fromkeys(literals, 0)
+    for row in ranked[:max_pages]:
+        evidence = connection.execute("SELECT text FROM evidence_spans WHERE evidence_id=?",
+                                      (row["evidence_id"],)).fetchone()
+        if evidence:
+            folded = evidence[0].casefold()
+            for literal in literals:
+                if strength[literal] < 2 and literal in folded:
+                    lines = folded.split("\n")
+                    score, offset = _literal_witness(lines, literal)
+                    # A hit on a different word may rank this page while the
+                    # matching embedded code lies outside its eventual crop.
+                    if score == 2 and not _contains_identifier(lines[offset], {literal}):
+                        score = 1
+                    strength[literal] = max(strength[literal], score)
+    wanted = {term: score for term, score in strength.items() if score < 2}
+    if not wanted:
+        return [], None
+    generation = _graph_cache_key(connection) if source_session is not None else None
+    cache = getattr(source_session, "_literal_search_cache", {})
+    key = (generation, tuple(wanted.items()), scope_sql, tuple(scope_values), max_pages)
+    if generation and key in cache:
+        rows, report = cache[key]
+        return list(rows), {**report, "cache_reused": True}
+
+    # Drive the join from physical pages. For a constrained set of paths the
+    # path index already orders by (path, rowid); for the whole snapshot the
+    # primary key suffices. Neither route sorts original text before yielding.
+    order = "p.relative_path,p.page_id" if scope_values else "p.page_id"
+    candidates = connection.execute(
+        "SELECT p.*,e.text FROM repo_pages p CROSS JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+        "CROSS JOIN source_files f ON f.relative_path=p.relative_path AND f.sha256=p.source_sha256 "
+        "WHERE p.span_truncated=0" + scope_sql + " ORDER BY " + order, scope_values)
+    found = {literal: [] for literal in wanted}
+    best = dict(wanted)
+    checked = 0
+    exhausted = True
+    for candidate in candidates:
+        _cancel(check_cancel)
+        checked += 1
+        folded = candidate["text"].casefold()
+        lines = None
+        for literal, prior in wanted.items():
+            if literal not in folded or (best[literal] == 2 and len(found[literal]) >= max_pages):
+                continue
+            if lines is None:
+                lines = folded.split("\n")
+            score, offset = _literal_witness(lines, literal)
+            if score <= prior or score < best[literal]:
+                continue
+            if score > best[literal]:
+                found[literal].clear()
+                best[literal] = score
+            if len(found[literal]) < max_pages:
+                row = {k: candidate[k] for k in candidate.keys() if k != "text"}
+                found[literal].append({**row, "selection_reason": "literal_source_match",
+                    "retrieval_terms": (literal,), "focus_line": row["start_line"] + offset})
+        if all(best[term] == 2 and len(rows) == max_pages for term, rows in found.items()):
+            exhausted = False
+            break
+    # Give each independent lead a slot before taking a second hit for any.
+    rows = [matches[index] for index in range(max_pages) for matches in found.values() if index < len(matches)]
+    report = {"scope": "complete_saved_original_pages", "checked_pages": checked,
+              "reached_end_of_scope": exhausted, "retained_matches": len(rows), "cache_reused": False}
+    # A page can contain distant matches. Preserve their separate crop centers
+    # when the normal path interleaver later deduplicates the physical page.
+    by_page = {}
+    for row in rows:
+        page = by_page.setdefault(row["page_id"], {**row, "retrieval_leads": []})
+        lead = {field: row[field] for field in ("focus_line", "retrieval_terms")}
+        if lead not in page["retrieval_leads"]:
+            page["retrieval_leads"].append(lead)
+    rows = list(by_page.values())
+    if generation:
+        cache[key] = (rows, report)
+        while len(cache) > 8:
+            cache.pop(next(iter(cache)))
+        source_session._literal_search_cache = cache
+    return rows, report
+
+
 def retrieve_repository_context(database_path, source_root, question, *, search_terms=None, focus_paths=None,
                                 prior_paths=None, max_pages=8, max_chars=32000, check_cancel=None,
                                 source_session=None, entry_program=None, history=()):
@@ -1638,6 +1774,25 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         elif not ranked and not blocked:
             ranked, raw_fallback = _raw_text_fallback(connection, root, terms, identity,
                 max_pages=max_pages, check_cancel=check_cancel, source_session=source_session)
+        literal_report = None
+        literals = _literal_leads(question, search_terms)
+        if literals and not blocked and not incomplete_path:
+            literal_rows, literal_report = _literal_source_matches(connection, literals, ranked,
+                scope_sql, scope_values, max_pages, source_session, check_cancel)
+            if literal_rows:
+                # Keep existing independent search crops when a newly located
+                # substring shares their physical page.
+                promote = {row["page_id"]: {**row, "retrieval_leads": list(row["retrieval_leads"])}
+                           for row in literal_rows}
+                if len(literals) > 1:
+                    for row in ranked:
+                        if row["page_id"] not in promote or not row.get("retrieval_terms"):
+                            continue
+                        for lead in row.get("retrieval_leads", [{"retrieval_terms": row["retrieval_terms"],
+                                "retrieval_identifiers": row.get("retrieval_identifiers", ())}]):
+                            promote[row["page_id"]]["retrieval_leads"].append({**lead, "focus_line": None,
+                                "selection_reason": row.get("selection_reason", "question_match")})
+                ranked = list(promote.values()) + ranked
         # Across-file diversity prevents an enormous matching program from
         # displacing every other implementation. Extra pages remain searchable.
         by_path = {}
@@ -1725,10 +1880,14 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         result = _assemble_context(connection, root, overview, rows, terms, max_pages=max_pages,
                                    max_chars=max_chars, check_cancel=check_cancel, source_session=source_session,
                                    relation_cache=relation_cache)
+        delivered_literals = [p for p in result["pages"] if "literal_source_match" in p["selection_reasons"]]
+        if literal_report is not None:
+            result["literal_search"] = {**literal_report, "selected_pages": len(delivered_literals),
+                "selected_files": len({p["relative_path"] for p in delivered_literals})}
         result.update(search_terms=terms, omitted_search_terms=omitted_terms,
                       matched_page_count=matched_count, matched_file_count=matched_files,
                       source_identity=identity, fallback_all=False,
-                      orientation_only=not matched_count and not (raw_fallback or {}).get("matched_pages")
+                      orientation_only=not delivered_literals and not matched_count and not (raw_fallback or {}).get("matched_pages")
                           and not identity["direct_paths"] and not blocked,
                       omitted_matched_pages=max(0, matched_count - sum("question_match" in page["selection_reasons"] for page in result["pages"])))
         result["boundaries"].extend(identity_boundaries(identity))

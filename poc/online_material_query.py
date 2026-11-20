@@ -15,12 +15,13 @@ calls; callers may supply their own bounded, version-aware source cache.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 import codecs
 from copy import deepcopy
 import re
 
 from online_material_format import (
-    MAX_SOURCE_BYTES, MaterialError, bucket, canonical_json, digest, normalized_term, reference_key,
+    MAX_SOURCE_BYTES, MaterialError, bucket, canonical_json, digest, literal_probes, normalized_term, reference_key,
     relative_path, tokens, valid_hash,
 )
 
@@ -124,10 +125,71 @@ def _excerpt(raw, encoding, start, end, maximum):
             "complete_line_count": len(fragments) - int(partial_line)}
 
 
+_MATCH_BLOCK_LINES = 1024
+
+
+def _index_literal_lines(raw, encoding, expected_count, needle):
+    # Store one bit per matching physical line in nonempty blocks. Even a
+    # dense file never creates a Python object for every individual line.
+    blocks = []
+    line_number, matches = 1, 0
+    tail, matched, open_line = "", False, False
+    try:
+        for pieces in _decoded_line_chunks(raw, encoding):
+            for piece in pieces:
+                complete = piece[-1] in _LINE_ENDINGS
+                if not matched:
+                    combined = tail + piece.casefold()
+                    if needle in combined:
+                        block, bit = divmod(line_number - 1, _MATCH_BLOCK_LINES)
+                        if not blocks or blocks[-1][1] != block:
+                            blocks.append([matches, block, 0])
+                        blocks[-1][2] |= 1 << bit
+                        matches += 1
+                        matched = True
+                    elif not complete and len(needle) > 1:
+                        tail = combined[1 - len(needle):]
+                open_line = not complete
+                if complete:
+                    line_number += 1
+                    tail, matched = "", False
+    except (UnicodeError, LookupError, TypeError):
+        raise MaterialError("MATERIAL_SOURCE_ENCODING_INVALID") from None
+    if line_number - 1 + int(open_line) != expected_count:
+        raise MaterialError("MATERIAL_SOURCE_LINE_COUNT_MISMATCH")
+    return blocks, matches
+
+
+def _literal_line_page(blocks, offset, limit):
+    index = bisect_right(blocks, offset, key=lambda block: block[0]) - 1
+    skip = offset - blocks[index][0]
+    lines = []
+    while index < len(blocks) and len(lines) < limit:
+        _, number, mask = blocks[index]
+        while skip:
+            mask &= mask - 1
+            skip -= 1
+        while mask and len(lines) < limit:
+            bit = mask & -mask
+            lines.append(number * _MATCH_BLOCK_LINES + bit.bit_length())
+            mask ^= bit
+        index += 1
+    return lines
+
+
+_UNREAD = object()
+_LITERAL_PAGE_FILES = 6
+_LITERAL_PAGE_BYTES = 8 * 1024 * 1024
+_LITERAL_PAGE_GROUPS = 16
+
+
 class MaterialQuery:
     def __init__(self, reader):
         self.reader = reader
         self._manifest = deepcopy(reader.manifest)
+        self._literal_directory = _UNREAD
+        self._last_literal_group = None
+        self._last_literal_lines = None
 
     def _context(self):
         return {
@@ -374,33 +436,114 @@ class MaterialQuery:
             raise MaterialError("MATERIAL_INVALID_QUERY")
         raw, encoding, expected_count, source_hash = self._verified_source(path, source_reader)
         needle = text.casefold()
-        lines = []
-        line_number, matches = 1, 0
-        tail, matched, open_line = "", False, False
-        try:
-            for pieces in _decoded_line_chunks(raw, encoding):
-                for piece in pieces:
-                    complete = piece[-1] in _LINE_ENDINGS
-                    if not matched:
-                        combined = tail + piece.casefold()
-                        if needle in combined:
-                            if offset <= matches < offset + limit:
-                                lines.append(line_number)
-                            matches += 1
-                            matched = True
-                        elif not complete and len(needle) > 1:
-                            tail = combined[1 - len(needle):]
-                    open_line = not complete
-                    if complete:
-                        line_number += 1
-                        tail, matched = "", False
-        except (UnicodeError, LookupError, TypeError):
-            raise MaterialError("MATERIAL_SOURCE_ENCODING_INVALID") from None
-        if line_number - 1 + int(open_line) != expected_count:
-            raise MaterialError("MATERIAL_SOURCE_LINE_COUNT_MISMATCH")
+        key = (path, source_hash, encoding, expected_count, needle)
+        cached = self._last_literal_lines
+        if cached is None or cached[0] != key:
+            blocks, matches = _index_literal_lines(raw, encoding, expected_count, needle)
+            self._last_literal_lines = (key, blocks, matches)
+        else:
+            _, blocks, matches = cached
+        lines = _literal_line_page(blocks, offset, limit) if offset < matches else []
         return {"matches": lines, "total_matches": matches, "offset": offset,
                 "query_kind": "original_source_literal", "source_sha256": source_hash,
                 "absence_established": False}
+
+    def _legacy_literal_unavailable(self, mode):
+        return {"matches": [], "next_cursor": None, "complete": False, "scanned_files": 0,
+                "search_mode": mode, "absence_established": False, "scope": "indexed_snapshot",
+                "revision": self._manifest["revision"],
+                "coverage_note": "Use file inventory and per-file locate, or republish the material with literal filters.",
+                "suggested_action": {"tool": "inventory", "limit": 20, "cursor": None}}
+
+    def locate_global(self, text, source_reader, limit=10, *, cursor=None):
+        """Find physical line anchors in pinned originals, with a bounded page of reads."""
+        _positive_integer(limit, 20, "MATERIAL_INVALID_LIMIT")
+        if (not isinstance(text, str) or not text.strip() or len(text) > 256
+                or any(ch in _LINE_ENDINGS or 0xd800 <= ord(ch) <= 0xdfff for ch in text)):
+            raise MaterialError("MATERIAL_INVALID_QUERY")
+        folded = text.casefold()
+        key = digest(canonical_json([self._manifest["revision"], folded]))
+        if cursor is None:
+            group_no, index, offset = 0, 0, 0
+        else:
+            if (not isinstance(cursor, dict) or set(cursor) != {"key", "group", "index", "offset"}
+                    or cursor["key"] != key or any(type(cursor[k]) is not int or not 0 <= cursor[k] < 2**63
+                                                   for k in ("group", "index", "offset"))):
+                raise MaterialError("MATERIAL_INVALID_CURSOR")
+            group_no, index, offset = cursor["group"], cursor["index"], cursor["offset"]
+        initial_bytes = self._transfer_bytes()
+        if self._literal_directory is _UNREAD:
+            self._literal_directory = self.reader.literal_directory()
+        directory = self._literal_directory
+        groups = len(directory) if directory is not None else 1
+        if group_no >= groups:
+            raise MaterialError("MATERIAL_INVALID_CURSOR")
+        # Four probes keep online reads small even for long phrases. Each
+        # selected fragment must occur in an actual physical-line match.
+        bits = list(literal_probes(text, min(3, len(folded))))
+        probes = sorted({bits[0], bits[len(bits) // 3], bits[2 * len(bits) // 3], bits[-1]})
+        matches = []
+        scanned = size = checked_groups = match_bytes = 0
+        while group_no < groups and checked_groups < _LITERAL_PAGE_GROUPS:
+            checked_groups += 1
+            cache = self._last_literal_group
+            if cache is not None and cache[:2] == (key, group_no):
+                paths = cache[2]
+            else:
+                if directory is None:
+                    anchor = max(tokens(text), key=lambda word: (len(word), word), default="")
+                    if not anchor:
+                        return self._legacy_literal_unavailable("legacy_no_searchable_term")
+                    try:
+                        paths = self.reader.legacy_literal_candidates(anchor)
+                        self._check_transfer(initial_bytes)
+                        if (len(paths) > _MAX_CANDIDATE_PATHS
+                                or sum(len(p.encode("utf-8")) for p in paths) > _MAX_QUERY_PATH_BYTES):
+                            raise MaterialError("MATERIAL_QUERY_BUDGET_EXCEEDED")
+                    except MaterialError as error:
+                        if error.code not in {"MATERIAL_OPERATION_LIMIT", "MATERIAL_QUERY_BUDGET_EXCEEDED",
+                                              "DISTRIBUTION_NETWORK_BUDGET_EXCEEDED"}:
+                            raise
+                        return self._legacy_literal_unavailable("legacy_material_budget_exceeded")
+                else:
+                    paths = self.reader.literal_group_paths(directory[group_no], probes)
+                self._last_literal_group = (key, group_no, paths)
+            self._check_transfer(initial_bytes)
+            if index > len(paths) or (index == len(paths) and offset):
+                raise MaterialError("MATERIAL_INVALID_CURSOR")
+            while index < len(paths) and len(matches) < limit and scanned < _LITERAL_PAGE_FILES:
+                path = paths[index]
+                row_bytes = len(canonical_json({"path": path, "line": 2**63 - 1})) + 1
+                line_limit = min(limit - len(matches), (20000 - match_bytes) // row_bytes)
+                if line_limit == 0:
+                    break
+                file_size = self._file(path)["size"]
+                if scanned and size + file_size > _LITERAL_PAGE_BYTES:
+                    break
+                result = self.locate(path, text, source_reader, limit=line_limit, offset=offset)
+                if offset and offset >= result["total_matches"]:
+                    raise MaterialError("MATERIAL_INVALID_CURSOR")
+                matches.extend({"path": path, "line": line} for line in result["matches"])
+                match_bytes += len(result["matches"]) * row_bytes
+                scanned += 1
+                size += file_size
+                if offset + len(result["matches"]) < result["total_matches"]:
+                    offset += len(result["matches"])
+                    break
+                index += 1
+                offset = 0
+            if index < len(paths):
+                break
+            group_no += 1
+            index = offset = 0
+            if len(matches) == limit or scanned == _LITERAL_PAGE_FILES or size >= _LITERAL_PAGE_BYTES:
+                break
+        next_cursor = ({"key": key, "group": group_no, "index": index, "offset": offset}
+                       if group_no < groups else None)
+        return {"matches": matches, "next_cursor": next_cursor, "complete": next_cursor is None,
+                "scanned_files": scanned, "search_mode": ("verified_originals" if directory is not None
+                    else "legacy_token_candidates_only"), "absence_established": False,
+                "scope": "indexed_snapshot", "revision": self._manifest["revision"]}
 
     def evidence(self, path, start_line, end_line, source_reader, max_characters=12000):
         """Verify bytes before exposing an excerpt with a pinned citation.
