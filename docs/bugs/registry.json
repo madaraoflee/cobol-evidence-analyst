@@ -9602,6 +9602,67 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "同题经真实在线入口、固定中性原文和受控响应重放。公司现场时长、真实模型解释、真实部署及目标设备仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-009",
+      "title": "扣费主题的片段匹配到不同业务并过早交付最终答案",
+      "symptom": "把同题中的 refund 换成 fund，或把 reserve 换成 serv，仍生成原来两步扣减的完整答案。",
+      "root_cause": "匹配把任意字串命中当成已绑定业务主题。现在只接受整个标识符、词段或可无歧义拆分的完整复合词。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-online-progressive-answer/README.md",
+        "poc/tests/test_online_grounded_findings.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_topic_substrings_cannot_promote_an_unrelated_deduction_to_a_complete_answer"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证给定业务词和改名反例。尚未验证企业术语的召回情况。"
+    },
+    {
+      "id": "BUG-20261121-010",
+      "title": "不确定的外部入口和编译条件可被误作已确定的子程序",
+      "symptom": "将子程序改用其他外部名称，或用条件编译包裹实现，仍生成原来的完整扣减路径。",
+      "root_cause": "原判定用内部程序名绑定调用并漏掉以美元符号开头的编译指令。现在只有普通程序名和无此类指令的程序可用于这条静态推导。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-online-progressive-answer/README.md",
+        "poc/tests/test_online_grounded_findings.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_external_name_or_conditional_compilation_prevents_static_call_closure"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证别名和条件编译反例。真实运行配置和程序的部署绑定仍待企业环境确认。"
+    },
+    {
+      "id": "BUG-20261121-011",
+      "title": "自定义呈现要求下的完整扣费回答可漏掉已证实的第二步",
+      "symptom": "在同题附加简短段落要求后，模型只描述第一笔扣减，引用两份源码并说最终处理完毕，仍被判为已回答。",
+      "root_cause": "原复核只检查模型自行列出的步骤，合并两页引用即可漏掉被调程序。现将独立可证的两程序扣减路径与所列步骤及最终结果的源码位置核对。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-online-progressive-answer/README.md",
+        "poc/tests/test_online_deduction_review.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_formatted_answer_cannot_omit_second_deduction_by_citing_both_programs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_step_anchors_accept_overlapping_windows_but_reject_a_lookalike_file"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证同题在自定义表达要求下的已证步骤覆盖。任意复杂业务语义及企业真实模型表现仍须现场复核。"
     }
   ],
   "updated_at": "2026-11-21"

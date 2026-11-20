@@ -59,6 +59,11 @@ _SUBJECTS = {"准备金": "reserve", "準備金": "reserve", "退款": "refund",
              "利息": "interest", "税款": "tax", "稅款": "tax", "罚款": "penalty", "罰款": "penalty",
              "押金": "deposit", "奖励": "reward", "獎勵": "reward", "手续费": "fee", "手續費": "fee"}
 _SUBJECT_PATTERN = re.compile("|".join(sorted(_SUBJECTS, key=len, reverse=True)))
+_COMPOUND_PARTS = frozenset(_SUBJECTS.values()) | frozenset("""
+account adjust amount apply balance calculate cash charge collect credit debit discount due entry
+fee fund interest net payment post process rate rebate redeem refund reserve return reward sum tax
+""".split())
+_COMPILER_RECORD = re.compile(r"^\s*(?:[0-9]{6}\s)?\$")
 
 
 @dataclass(frozen=True)
@@ -130,6 +135,13 @@ def _program(page):
     if len(names) != 1 or not re.fullmatch(_NAME, names[0][0]):
         return None
     words = [t.value for t in tokens]
+    if any(_COMPILER_RECORD.match(line) for line in text.splitlines()):
+        return None
+    declarations = [index for index, word in enumerate(words) if word == "PROGRAM-ID"]
+    # AS can supply an external entry name different from the internal program
+    # name. Only the ordinary, unqualified name can establish this call match.
+    if len(declarations) != 1 or words[declarations[0] + 3:declarations[0] + 4] != ["."]:
+        return None
     if ">>" in text or {"COPY", "REPLACE", "EXEC", "DECLARATIVES", "REDEFINES", "RENAMES", "BASED"} & set(words):
         return None
     headers = [i for i in range(len(words) - 1) if words[i:i + 2] == ["PROCEDURE", "DIVISION"]]
@@ -207,8 +219,21 @@ def _describe(program, step, language):
         f"若{condition}，從 `{step.receiver}` 中減去 `{step.operand}`。若{skip}，跳過這筆扣減。") + " " + source
 
 
-def _names(step):
-    return " ".join([*step.guard, step.operand, step.receiver]).casefold()
+def _subject_words(program, step):
+    source = " ".join([program.name, *step.guard, step.operand, step.receiver]).casefold()
+    names = set(re.findall(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", source))
+    words = names.copy()
+    for name in names:
+        for part in re.split("[-_]", name):
+            words.add(part)
+            if part not in _COMPOUND_PARTS:
+                # An unseparated COBOL name can concatenate two business words.
+                # Split only a whole and unambiguous compound, never an infix.
+                splits = [(part[:i], part[i:]) for i in range(1, len(part))
+                          if part[:i] in _COMPOUND_PARTS and part[i:] in _COMPOUND_PARTS]
+                if len(splits) == 1:
+                    words.update(splits[0])
+    return words
 
 
 def _matches_scope(question, programs):
@@ -225,14 +250,14 @@ def _matches_scope(question, programs):
     terms = {word.lower() for word in re.findall(r"[a-zA-Z][a-zA-Z0-9_-]*", terms)} - _EN_GRAMMAR
     # The two files can be tied to a named caller or to the distinct business
     # subjects in the simple chain. Navigation relevance by itself is not proof.
-    stage_names = [program.name.casefold() + " " + _names(step) for program in programs
+    stage_names = [_subject_words(program, step) for program in programs
                    for step in program.steps if step.kind == "subtract"]
-    vocabulary = " ".join([*(p.name.casefold() for p in programs), *stage_names])
-    if any(term not in vocabulary for term in terms):
+    vocabulary = {p.name.casefold() for p in programs}.union(*stage_names)
+    if not terms <= vocabulary:
         return False
     if any(p.path in paths or p.name.casefold() in terms for p in programs if p.steps[-1].kind == "call"):
         return True
-    return len(terms) >= 2 and all(any(term in stage for term in terms) for stage in stage_names)
+    return len(terms) >= 2 and all(terms & stage for stage in stage_names)
 
 
 def grounded_preview(question, pages, language):
@@ -247,7 +272,7 @@ def grounded_preview(question, pages, language):
         if restricted and program.path not in paths:
             continue
         for step in program.steps:
-            vocabulary = program.name.casefold() + " " + _names(step)
+            vocabulary = _subject_words(program, step)
             score = sum(term in vocabulary for term in set(terms))
             if program.path in paths or program.name.casefold() in terms:
                 score += 1

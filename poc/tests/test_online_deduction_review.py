@@ -1,4 +1,5 @@
 """Ordinary online investigations retain review boundaries across model rounds."""
+from copy import deepcopy
 import sys
 from pathlib import Path
 import unittest
@@ -49,6 +50,58 @@ class OnlineDeductionReviewTests(unittest.TestCase):
         self.assertEqual((result["status"], result["model_calls"]), ("answered", 3))
         self.assertIn("相等或更大时跳过退款", result["answer"])
         self.assertNotIn("deduction_review", result["answer"])
+
+    def test_formatted_answer_cannot_omit_second_deduction_by_citing_both_programs(self):
+        def incomplete(context):
+            response = self.reviewed(context)
+            review = response["deduction_review"]
+            first = review["steps"][0]
+            first["citations"] = list(response["citations"])
+            review["steps"] = [first]
+            review["result"] = "最终处理完毕"
+            review["result_source_line"] = first["source_line"]
+            response["answer"] = scenario.answer(context, "，".join(first[k] for k in
+                ("applies", "skips", "effect")) + "。" + review["result"])["answer"]
+            return response
+
+        def correct(context):
+            self.assertEqual(context["observations"][-1]["result"]["issue"], "deduction_steps_incomplete")
+            return self.reviewed(context)
+
+        output = self.run_question([fixture.missing, incomplete, correct], question=self.case.question,
+                                   answer_instructions="用简短段落回答")
+        self.assertEqual((output["status"], output["model_calls"]), ("answered", 3))
+        self.assertIn("相等或更大时跳过退款", output["answer"])
+
+    def test_step_anchors_accept_overlapping_windows_but_reject_a_lookalike_file(self):
+        def inspect(context):
+            response = self.reviewed(context)
+            by_path = {p["citation"]["path"]: p for p in context["source_context"]}
+            caller, worker = by_path["cash.cbl"], by_path["return.cbl"]
+            closed = {"citations": [caller["id"], worker["id"]]}
+            window = deepcopy(worker)
+            window.update(id="E" + "a" * 24, text=worker["text"].splitlines()[3], complete_line_count=1)
+            window["citation"].update(start=4, end=4)
+            noise = deepcopy(window)
+            noise.update(id="E" + "c" * 24)
+            noise["citation"].update(path="unrelated.cbl", hash="4" * 64)
+            pages = [worker, noise, caller, window]
+            review = response["deduction_review"]
+            response["citations"] += [noise["id"], window["id"]]
+            second = review["steps"][1]
+            second["citations"] = [window["id"]]
+            self.assertTrue(review_covers_answer(response, pages, closed=closed))
+            second["citations"] = [noise["id"]]
+            self.assertFalse(review_covers_answer(response, pages, closed=closed))
+
+            second["citations"] = [worker["id"]]
+            review["result_source_line"] = review["steps"][0]["source_line"]
+            self.assertFalse(review_covers_answer(response, pages, closed=closed))
+            return self.reviewed(context)
+
+        output = self.run_question([fixture.missing, inspect], question=self.case.question,
+                                   answer_instructions="Explain in prose")
+        self.assertEqual(output["status"], "answered")
 
     def test_unresolved_branches_continue_in_same_turn_with_verified_interim_visible(self):
         def partial(context):

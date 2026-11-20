@@ -72,6 +72,25 @@ class GroundedFindingsTests(unittest.TestCase):
                 self.assertIsNone(grounded_sequence_answer(question, pages, "zh-CN"))
         self.assertIsNone(grounded_preview("tax 和 penalty 的扣款次序是什么？", pages, "zh-CN"))
 
+    def test_topic_substrings_cannot_promote_an_unrelated_deduction_to_a_complete_answer(self):
+        entry = ENTRY.replace("CREDIT-VALUE", "ALLOWANCE").replace("'CREDIT'", "'1-RESERVECREDIT'")
+        worker = WORKER.replace("REBATE", "POOL")
+        entry = entry.replace("SECONDARY", "REDEEMREFUND")
+        worker = worker.replace("SECONDARY", "REDEEMREFUND")
+        pages = [page(entry), page(worker, "worker.cbl")]
+        question = "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？"
+        self.assertIsNotNone(grounded_sequence_answer(question, pages, "zh-CN"))
+        for source, fragment in [("refund", "fund"), ("reserve", "serv")]:
+            with self.subTest(fragment=fragment):
+                self.assertIsNone(grounded_sequence_answer(question.replace(source, fragment), pages, "zh-CN"))
+        self.assertIsNone(grounded_preview("fund 的扣款条件是什么？", pages, "zh-CN"))
+
+    def test_external_name_or_conditional_compilation_prevents_static_call_closure(self):
+        for worker in [WORKER.replace("SECONDARY.", 'SECONDARY AS "OTHER-ENTRY".'),
+                       "$IF DEFINED(ENABLE-FLOW)\n" + WORKER + "\nEND PROGRAM SECONDARY.\n$END"]:
+            with self.subTest(worker=worker):
+                self.assertIsNone(grounded_sequence_answer(QUESTION, [page(ENTRY), page(worker, "worker.cbl")], "zh-CN"))
+
     def test_unresolved_or_uncertain_binding_preserves_the_need_for_investigation(self):
         entry, worker = page(ENTRY), page(WORKER, "worker.cbl")
         for pages in [[entry, worker, page("DISPLAY 'secondary'.", "third.cbl")],

@@ -1694,13 +1694,11 @@ an already received response is consumed without another model request.
                             supplied = [pages[i] for i in state["request_evidence"] if "text" in pages[i]]
                             issue = answer_source_issue(question, response, supplied)
                             if not issue and response["complete"] and not response["remaining"] and deduction_review_requested(question):
-                                closed = None
-                                if not requirements["answer_instructions"] and not history_count:
-                                    closed = grounded_sequence_answer(question, _complete_sequence_sources(query, supplied),
-                                                                      requirements["answer_language"])
-                                if closed:
+                                closed = grounded_sequence_answer(question, _complete_sequence_sources(query, supplied),
+                                                                  requirements["answer_language"])
+                                if closed and not requirements["answer_instructions"] and not history_count:
                                     response = {**response, **closed}
-                                elif not review_covers_answer(response, supplied):
+                                elif not review_covers_answer(response, supplied, closed=closed):
                                     issue = {"issue": "deduction_steps_incomplete",
                                              "evidence_ids": list(response["citations"]),
                                              "instruction": REVIEW_INSTRUCTIONS.strip()}
