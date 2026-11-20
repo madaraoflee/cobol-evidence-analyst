@@ -1,0 +1,93 @@
+test_already_complete_reply_is_delivered_once_as_completed (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_already_complete_reply_is_delivered_once_as_completed) ... FAIL
+test_changed_equality_rejects_the_old_rule_and_retains_the_new_result (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_changed_equality_rejects_the_old_rule_and_retains_the_new_result) ... FAIL
+test_missing_callee_cannot_be_marked_complete (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_be_marked_complete) ... FAIL
+test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount) ... FAIL
+test_shallow_reply_is_revised_after_a_cited_interim_finding (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_shallow_reply_is_revised_after_a_cited_interim_finding) ... FAIL
+test_single_request_budget_allows_a_complete_source_proven_reply (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_allows_a_complete_source_proven_reply) ... FAIL
+test_single_request_budget_keeps_checked_findings_beside_a_partial_reply (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_keeps_checked_findings_beside_a_partial_reply) ... FAIL
+
+======================================================================
+FAIL: test_already_complete_reply_is_delivered_once_as_completed (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_already_complete_reply_is_delivered_once_as_completed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 55, in test_already_complete_reply_is_delivered_once_as_completed
+    self.assert_completed(run)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 15, in assert_completed
+    self.assertEqual(run["status"], "completed", run["stop_reason"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'partial' != 'completed'
+- partial
++ completed
+ : question_evidence_incomplete
+
+======================================================================
+FAIL: test_changed_equality_rejects_the_old_rule_and_retains_the_new_result (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_changed_equality_rejects_the_old_rule_and_retains_the_new_result)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 60, in test_changed_equality_rejects_the_old_rule_and_retains_the_new_result
+    self.assertGreaterEqual(len(run["requests"]), 2)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 not greater than or equal to 2
+
+======================================================================
+FAIL: test_missing_callee_cannot_be_marked_complete (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_be_marked_complete)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 81, in test_missing_callee_cannot_be_marked_complete
+    self.assert_preserved_partial(replay("missing_callee"))
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 74, in assert_preserved_partial
+    self.assertIn("1-RESERVECREDIT", text)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '1-RESERVECREDIT' not found in '先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754]'
+
+======================================================================
+FAIL: test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 96, in test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount
+    self.assertGreaterEqual(len(run["requests"]), 2)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 not greater than or equal to 2
+
+======================================================================
+FAIL: test_shallow_reply_is_revised_after_a_cited_interim_finding (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_shallow_reply_is_revised_after_a_cited_interim_finding)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 44, in test_shallow_reply_is_revised_after_a_cited_interim_finding
+    self.assertTrue(findings, "already supplied full original programs but had no checked rule to show")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : already supplied full original programs but had no checked rule to show
+
+======================================================================
+FAIL: test_single_request_budget_allows_a_complete_source_proven_reply (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_allows_a_complete_source_proven_reply)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 92, in test_single_request_budget_allows_a_complete_source_proven_reply
+    self.assert_completed(run)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 15, in assert_completed
+    self.assertEqual(run["status"], "completed", run["stop_reason"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'partial' != 'completed'
+- partial
++ completed
+ : request_budget
+
+======================================================================
+FAIL: test_single_request_budget_keeps_checked_findings_beside_a_partial_reply (test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_keeps_checked_findings_beside_a_partial_reply)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 86, in test_single_request_budget_keeps_checked_findings_beside_a_partial_reply
+    self.assert_preserved_partial(run)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/privateBASELINE_59a0078/poc/tests/test_local_progressive_delivery.py", line 74, in assert_preserved_partial
+    self.assertIn("1-RESERVECREDIT", text)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '1-RESERVECREDIT' not found in '先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754]'
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.889s
+
+FAILED (failures=7)

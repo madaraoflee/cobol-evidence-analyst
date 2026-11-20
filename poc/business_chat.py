@@ -34,6 +34,7 @@ from company_api import APIClientError, APIConfigurationError, OpenAICompatibleC
 from claim_ledger import review_answer_claims
 from evidence_context import EvidenceContext, page_priority
 from draft_validation import validate_answer_draft, revision_regression
+from local_deduction_review import deduction_review_requested, inspect_deduction
 from semantic_answer_review import build_semantic_review, validate_semantic_review
 from source_availability import repair_source_availability_assertions
 from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, framework_status, search_framework_context
@@ -1023,7 +1024,7 @@ def _system_for_payload(payload):
 
 
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
-                 source_fallback_builder=None, check_cancel=None, source_memory=None):
+                 source_fallback_builder=None, check_cancel=None, source_memory=None, review_builder=None):
     """Bound the actual encoded request, trimming secondary context first."""
     history = list(history)
     policy = resolve_agent_policy(policy)
@@ -1198,11 +1199,17 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             payload["question_investigation"] = investigation_builder(review_pages,
                 **({"framework_facts": payload["framework_facts"]} if "framework_facts" in payload else {}))
         if "answer_review" in payload and material_changed:
-            payload["answer_review"] = assess_business_answer(payload.get("question", ""),
-                payload.get("draft_answer", ""), payload.get("question_investigation", {}), review_pages,
-                answer_detail=payload.get("answer_detail", "detailed"), working_set=bundle.get("working_set"),
-                answer_instructions=payload.get("answer_instructions", ""),
-                framework_references=payload.get("framework_references", []))
+            draft = payload.get("draft_answer", "")
+            investigation = payload.get("question_investigation", {})
+            working_set = bundle.get("working_set")
+            references = payload.get("framework_references", [])
+            if review_builder:
+                payload["answer_review"] = review_builder(draft, investigation, review_pages, working_set, references)
+            else:
+                payload["answer_review"] = assess_business_answer(payload.get("question", ""), draft,
+                    investigation, review_pages, answer_detail=payload.get("answer_detail", "detailed"),
+                    working_set=working_set, answer_instructions=payload.get("answer_instructions", ""),
+                    framework_references=references)
         if "answer_review" in payload:
             suggestions = []
             for fact in payload.get("source_fact_suggestions", []):
@@ -1961,6 +1968,36 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     answer_source_fact_cache = {}
     draft_reviews = {}
     reviewed_answers = {}
+    checked_findings = []
+    review_deductions = deduction_review_requested(question)
+
+    def inspect_sources(supplied):
+        return inspect_deduction(question, supplied, source_session=source_session,
+                                 answer_language=answer_language)
+
+    def deduction_assessment(assessment, missing, unresolved_targets=()):
+        if unresolved_targets:
+            # A model can describe an uninspected callee fluently. A returned
+            # balance and the callee's skip conditions still need its source.
+            missing = list(dict.fromkeys([*missing, "skip_conditions", "final_receivable"]))
+        if not missing:
+            return assessment
+        return {**assessment, "status": "incomplete", "reason": "deduction_explanation_incomplete",
+                "deduction_missing": missing,
+                **({"unverified_call_targets": list(unresolved_targets)} if unresolved_targets else {}),
+                "missing_aspects": list(dict.fromkeys([*assessment.get("missing_aspects", []), *missing]))}
+
+    def review_deductions_in(assessment, text, supplied):
+        if review_deductions and inventory_state is None:
+            proof = inspect_sources(supplied)
+            return deduction_assessment(assessment, proof.missing_aspects(text), proof.unresolved_targets)
+        return assessment
+
+    def assess_reply(text, investigation, supplied, working_set, references):
+        assessment = assess_business_answer(question, text, investigation, supplied,
+            answer_detail=answer_detail, working_set=working_set, answer_instructions=answer_instructions,
+            framework_references=references)
+        return review_deductions_in(assessment, text, supplied)
 
     def source_completion(text, payload):
         supplied = (source_memory.effective_pages(payload) if source_memory else
@@ -1983,6 +2020,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 compilation_context=source_session.options.get("compilation_context") if source_session else None,
                 answer_detail=answer_detail, answer_language=answer_language, source_fact_cache=answer_source_fact_cache,
                 append_source_facts=not has_answer_instructions, answer_instructions=answer_instructions)
+            review["assessment"] = review_deductions_in(review["assessment"], review["answer"], supplied)
             draft_reviews[key] = review
         reviewed_answers[hashlib.sha256(review["answer"].encode()).hexdigest()] = review
         if audit:
@@ -2721,9 +2759,16 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         request_sizes.append(request_size)
         quality.data.setdefault("question_investigation_rounds", []).append({
             "round_id": f"round-{turns}", **payload.get("question_investigation", {})})
+        if progress and inventory_state is None and stage in {"answer", "investigate", "revise"}:
+            supplied = [p for bundle in payload.get("source_context", []) for p in bundle.get("pages", [])]
+            for finding in inspect_sources(supplied).checked_findings:
+                finding = {**finding, "text": redactor._sanitize(finding["text"])}
+                if finding not in checked_findings and len(checked_findings) < 8:
+                    checked_findings.append(finding)
         began = time.monotonic()
         emit("reviewing_answer" if stage == "semantic_review" else
              "compacting" if stage == "context_compact" else "waiting_for_model",
+             **({"checked_findings": list(checked_findings)} if checked_findings else {}),
              **({"analysis_state": latest_analysis_state} if latest_analysis_state else {}))
         streamed_text, preview_at = "", 0.0
         preview_stage = "continuation" if stage == "continue" else "revision" if payload.get("draft_answer") else "draft"
@@ -3670,11 +3715,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     payload["analysis_memory"] = continuation.prompt_memory()
                     if answer and not truncated:
                         payload["draft_answer"] = redactor._sanitize(answer)
-                        payload["answer_review"] = assess_business_answer(question, answer, current_investigation,
-                            selected_pages, answer_detail=answer_detail,
-                            answer_instructions=answer_instructions,
-                            working_set=evidence.bundle(selected_pages)[0].get("working_set"),
-                            framework_references=payload.get("framework_references", []))
+                        payload["answer_review"] = assess_reply(answer, current_investigation, selected_pages,
+                            evidence.bundle(selected_pages)[0].get("working_set"), references)
                         payload["source_fact_suggestions"] = review_draft(answer, payload,
                             current_investigation, audit=False)["fact_completion"]["suggested_facts"]
                         if not force_answer and not discovery_pending:
@@ -3718,6 +3760,10 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         "先检查 question_investigation 的必答项及本轮实际原文；"
                         "已有公式、条件、赋值或资料时直接解释，存在具体缺口时返回有效 JSON 补查动作。"
                         "外部实现缺失只限定依赖该实现的结论，简要回答当前材料支持的部分。")
+                if (payload.get("answer_review") or {}).get("deduction_missing"):
+                    payload["task"] += (" 核对扣减顺序、跳过条件、最终应收。逐步说明实际使用的金额、进入和跳过的条件"
+                        "（包括等额边界）及各步对剩余应收的影响。已有原文时直接补全；"
+                        "仍缺决定性分支时，按本轮额度读取它或指出具体未知项。")
                 if markup_protocol_recovery_pending:
                     payload["task"] += (" 上一轮返回的标签调用格式无效，其中的动作未执行。"
                         "补查必须使用本系统支持的 JSON 动作对象，不使用标签调用格式。"
@@ -3753,7 +3799,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 trim_events = selection_events()
                 messages, request_size = _fit_request(config, payload, history_context, policy,
                     trim_events=trim_events, investigation_builder=question_investigation,
-                    source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+                    source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
+                    review_builder=assess_reply)
                 if resume_response is not None and resume_checkpoint.get("request_payload"):
                     payload = resume_checkpoint["request_payload"]
                     messages = [{"role": "system", "content": _system_for_payload(payload)}, *history_context,
@@ -3778,7 +3825,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "analysis_compaction_source_count": len(pending_compaction_ids)})
                     messages, request_size = _fit_request(config, payload, history_context, policy,
                         trim_events=trim_events, investigation_builder=question_investigation,
-                        source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+                        source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
+                        review_builder=assess_reply)
                 if adaptive:
                     continuation.observe([page for bundle in payload.get("source_context", [])
                         for page in bundle.get("pages", [])], payload.get("framework_references", []),
@@ -3795,7 +3843,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "保留业务细节与引用；只说明具体未知事项，不再请求补查。")
                         messages, request_size = _fit_request(config, payload, history_context, policy,
                             trim_events=trim_events, investigation_builder=question_investigation,
-                            source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+                            source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
+                            review_builder=assess_reply)
                 visible = _request_manifest(payload, source_memory)
                 current_investigation = payload["question_investigation"]
                 last_investigation = current_investigation
@@ -4193,10 +4242,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     answer_investigation = current_investigation
                     if adaptive and not force_answer and not truncated and policy.answer_revision_limit:
                         supplied = source_memory.effective_pages(payload) if source_memory else payload["source_context"][0]["pages"]
-                        assessment = assess_business_answer(question, answer, current_investigation, supplied,
-                            answer_detail=answer_detail, working_set=visible.get("working_set"),
-                            answer_instructions=answer_instructions,
-                            framework_references=payload.get("framework_references", []))
+                        assessment = assess_reply(answer, current_investigation, supplied, visible.get("working_set"),
+                                                  payload.get("framework_references", []))
                         review_needed = needs_synthesis_review(question, answer, current_investigation,
                             source_available=bool(supplied), source_pages=supplied,
                             answer_detail=answer_detail, assessment=assessment,
@@ -4221,6 +4268,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 # The next ordinary investigation turn can still
                                 # read/search. A revision is not a closed tool phase.
                                 recovery_reason = "依据原问题补全尚未解释的业务要点"
+                                targets = assessment.get("unverified_call_targets", [])
+                                if targets:
+                                    searched = {term for row in completed_actions for term in row.get("search", [])}
+                                    remaining = max(0, policy.max_searches_per_turn - automatic_turn_usage["search"])
+                                    targets = [target for target in targets if target not in searched][:remaining]
+                                    if targets:
+                                        apply_navigation_actions({"search": targets})
                                 for identifier in reversed(_REFERENCE.findall(answer)):
                                     if identifier in sent_pages and identifier not in priority_targets:
                                         priority_targets.append(identifier)
@@ -4348,7 +4402,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     continuation_messages, continuation_size = _fit_request(config, continuation_payload,
                         history_context, policy, trim_events=continuation_trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
+                        review_builder=assess_reply)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 continuation_visible = _request_manifest(continuation_payload, source_memory)
@@ -4470,10 +4525,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     task.state = "stalled"
             answer_source_pages = [sent_pages[identifier]
                 for identifier in _bound_source_ids(answer_manifest)]
-            draft_completion = assess_business_answer(question, answer, answer_investigation or {}, answer_source_pages,
-                answer_detail=answer_detail, working_set=(answer_manifest or {}).get("working_set"),
-                answer_instructions=answer_instructions,
-                framework_references=[sent_framework[i] for i in (answer_manifest or {}).get("framework_ids", [])])
+            draft_completion = assess_reply(answer, answer_investigation or {}, answer_source_pages,
+                (answer_manifest or {}).get("working_set"),
+                [sent_framework[i] for i in (answer_manifest or {}).get("framework_ids", [])])
             review_synthesis = needs_synthesis_review(question, answer, answer_investigation or {},
                 source_available=bool((answer_manifest or {}).get("source_ids")), source_pages=answer_source_pages,
                 answer_instructions=answer_instructions,
@@ -4517,7 +4571,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     revision_messages, revision_size = _fit_request(config, revised_payload,
                         history_context, policy, trim_events=trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
+                        review_builder=assess_reply)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 revised_material = _supplied_answer_material(revised_payload)
@@ -4559,19 +4614,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                                 revised_payload["question_investigation"])
                             regression = revision_regression(previous, candidate)
                             revised_reply = replace(revised_reply, text=candidate["answer"])
-                            revised_completion = assess_business_answer(question, revised_reply.text,
-                                revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
-                                answer_detail=answer_detail, answer_instructions=answer_instructions,
-                                working_set=revised_payload["source_context"][0].get("working_set"),
-                                framework_references=revised_payload.get("framework_references", []))
+                            revised_completion = candidate["assessment"]
                             # Compare both candidates against the actual revision
                             # context, which can gain or lose source during fitting.
                             # Coverage signals do not establish semantic correctness.
-                            draft_in_revision_context = assess_business_answer(question, answer,
-                                revised_payload["question_investigation"], revised_payload["source_context"][0]["pages"],
-                                answer_detail=answer_detail, answer_instructions=answer_instructions,
-                                working_set=revised_payload["source_context"][0].get("working_set"),
-                                framework_references=revised_payload.get("framework_references", []))
+                            draft_in_revision_context = assess_reply(answer, revised_payload["question_investigation"],
+                                revised_payload["source_context"][0]["pages"], revised_payload["source_context"][0].get("working_set"),
+                                revised_payload.get("framework_references", []))
                             lost_aspects = sorted(set(revised_completion["missing_aspects"])
                                 - set(draft_in_revision_context["missing_aspects"]))
                             revised_answer_completion = source_completion(revised_reply.text, revised_payload)
@@ -4646,13 +4695,25 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if failure and answer and not any(item.get("reason") == "usable_draft_retained" for item in boundaries):
         boundaries.append({"reason": "usable_draft_retained", "followup_error": failure})
 
-    # Long explanations have claims that syntax checks cannot decide. Review
-    # them independently against the exact supplied material, without history
-    # or retrieval summaries. Short factual replies retain their direct path.
+    # An ordinary answer may be derived from a complete, version-bound path.
+    # An unrelated attachment, a follow-up, a custom brief or a model failure
+    # still needs the normal delivery and verification semantics.
+    proven_sequence = None
+    if (review_deductions and inventory_state is None and answer and not failure and not truncated
+            and not has_answer_instructions and not history_context and not semantic_review_state
+            and not (answer_manifest or {}).get("framework_ids")
+            and not identity_blocks_analysis(business_map.get("source_identity", {}))):
+        original_ids = (answer_manifest or {}).get("source_ids", [])
+        if set(_REFERENCE.findall(answer)) <= set(original_ids):
+            proof = inspect_sources([sent_pages[identifier] for identifier in original_ids])
+            proven_sequence = proof.closed_answer
+            if proven_sequence:
+                answer = proven_sequence
+    # Free-form long explanations still need independent semantic review.
     semantic_review_report = semantic_review_state.get("report")
     answer_prose_characters = _answer_prose_characters(answer, answer_manifest)
     semantic_review_required = bool(inventory_state is not None and inventory_state.get("paged") or semantic_review_state or (
-        answer and detail_requested and
+        answer and not proven_sequence and detail_requested and
         (answer_prose_characters >= 600 or answer_prose_characters >= 300 and
          (answer_manifest or {}).get("framework_ids"))))
 
@@ -4955,7 +5016,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 break
 
     if answer.strip():
-        answer_origin = "model"
+        answer_origin = "verified_source_sequence" if proven_sequence else "model"
     elif (not identity_blocks_analysis(business_map.get("source_identity", {}))
             and not (failure and resume_checkpoint.get("answer_language_changed"))):
         from evidence_answer import build_evidence_answer
@@ -5000,7 +5061,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     # Stop spending investigation time, but always validate a retained answer
     # against its captured version before showing it. This phase performs no
     # provider requests and must not re-enter discovery.
-    if adaptive and answer_origin == "model" and not failure:
+    if adaptive and answer_origin in {"model", "verified_source_sequence"} and not failure:
         remember_draft()
         checkpoint = quality.run_store.load(quality.data["run_id"])["checkpoint"]
         quality.run_store.checkpoint(quality.data["run_id"], {**checkpoint,
@@ -5055,6 +5116,37 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         return match[0]
 
     retained_review = reviewed_answers.get(hashlib.sha256(answer.encode()).hexdigest())
+    unfinished_deductions = []
+    if review_deductions and inventory_state is None and answer and not proven_sequence and not truncated:
+        # Only show interim facts whose exact original pages still belong to
+        # the accepted answer. The correction prompt is not itself a result.
+        partial_proof = inspect_sources([sent_pages[i] for i in sorted(final_source_ids)])
+        unfinished_deductions = partial_proof.missing_aspects(answer)
+        if partial_proof.unresolved_targets:
+            unfinished_deductions = list(dict.fromkeys([*unfinished_deductions, "skip_conditions", "final_receivable"]))
+        if (unfinished_deductions and partial_proof.checked_findings
+                and (partial_proof.unresolved_targets or not has_answer_instructions)):
+            facts = []
+            for finding in partial_proof.checked_findings:
+                text = redactor._sanitize(finding["text"])
+                if partial_proof.unresolved_targets or text not in answer:
+                    references = " ".join(f"[{source['evidence_id']}]" for source in finding["sources"])
+                    facts.append(f"{text} {references}")
+            labels = {"processing_sequence": local("扣减执行顺序", "the order in which deductions execute"),
+                      "skip_conditions": local("各步跳过条件及等额时的处理", "the skip conditions, including equality"),
+                      "final_receivable": local("最终应收如何确定", "the final receivable")}
+            remaining = local("、", ", ").join(labels[key] for key in unfinished_deductions)
+            if partial_proof.unresolved_targets:
+                # The caller does not authorize a callee formula or a numeric
+                # result. Keep only verified rules and the exact missing target.
+                answer = ""
+                answer_origin = "local_source_facts"
+            if facts:
+                answer = "\n\n".join(filter(None, (answer, local("已经从源码查实", "Verified from the source"), *facts)))
+            if partial_proof.unresolved_targets:
+                targets = ", ".join(f"`{name}`" for name in partial_proof.unresolved_targets)
+                answer += "\n\n" + local(f"尚未核实被调程序 {targets} 的实现。", f"The implementation of {targets} is still unverified.")
+            answer += "\n\n" + local(f"仍待核实的内容包括{remaining}。", f"The remaining questions concern {remaining}.")
     display_answer = strip_incomplete_source_citation(answer, truncated=truncated,
                                                      evidence_ids=final_source_ids)
     if display_answer != answer:
@@ -5116,11 +5208,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                            "unsupported_citation_ids": unsupported})
     answer = _REFERENCE.sub(citation, answer)
     usable = bool(answer.strip())
-    answer_completion = assess_business_answer(question, answer, answer_investigation or {},
-        [sent_pages[identifier] for identifier in final_source_ids], answer_detail=answer_detail,
-        answer_instructions=answer_instructions,
-        working_set=(answer_manifest or {}).get("working_set"),
-        framework_references=[sent_framework[i] for i in final_framework_ids])
+    answer_completion = assess_reply(answer, answer_investigation or {},
+        [sent_pages[identifier] for identifier in final_source_ids], (answer_manifest or {}).get("working_set"),
+        [sent_framework[i] for i in final_framework_ids])
+    if unfinished_deductions:
+        # Naming a missing result in the status note cannot discharge that gap.
+        answer_completion = deduction_assessment(answer_completion, unfinished_deductions)
     if semantic_review_required:
         semantic_review_report = dict(semantic_review_report or {"status": "not_reviewed",
             "reason": "answer_not_complete", "semantic_verification": False})
@@ -5226,6 +5319,15 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     quality.data["repository_boundaries"] = repository_boundaries
     open_question_gaps, runtime_limitations = _answer_scope_gaps(
         question, final_investigation, answer_detail=answer_detail, answer_instructions=answer_instructions)
+    delivered_proven_sequence = bool(proven_sequence and answer == proven_sequence)
+    if delivered_proven_sequence:
+        # This proven path explains the transformation given the input amounts.
+        # Their upstream origins were never requested. Keep those unresolved
+        # provenance records in the investigation and distinguish them from
+        # missing evidence required for this particular answer.
+        open_question_gaps = [gap for gap in open_question_gaps if not (
+            gap.get("kind") == "inputs" and gap.get("reason") == "input_source_not_located"
+            and not gap.get("obligation_batch_key"))]
     quality.data["runtime_limitations"] = runtime_limitations
     incomplete_reads = any(task.material_to_question and task.state != "complete"
                            for task in evidence.tasks.values())
@@ -5261,6 +5363,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     if final_working_set is not None:
         quality.data["working_set"] = final_working_set
     answer_incomplete = usable and answer_completion["status"] == "incomplete"
+    draft_retained = not delivered_proven_sequence and any(
+        item.get("reason") == "usable_draft_retained" for item in boundaries)
     if failure:
         stop_reason = failure
     elif truncated:
@@ -5273,7 +5377,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
         stop_reason = material_gap
     elif adaptive and continuation.stop_reason and (open_question_gaps or answer_incomplete):
         stop_reason = continuation.stop_reason
-    elif any(item.get("reason") == "usable_draft_retained" for item in boundaries):
+    elif draft_retained:
         stop_reason = "usable_draft_retained"
     else:
         stop_reason = "sufficient_material"
@@ -5368,7 +5472,6 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     business_review["answer_completion"] = answer_completion
     business_review["claim_support"] = {key: ledger_record[key] for key in
         ("ledger_version", "scope", "counts", "revised_claim_count", "all_claims_supported")}
-    draft_retained = any(item.get("reason") == "usable_draft_retained" for item in boundaries)
     result = {"status": "PARTIAL" if usable and (failure or truncated or material_gap or draft_retained or answer_incomplete) else "ANALYZED" if usable else "ABSTAINED",
               "answer_completion": answer_completion, "material_gap": material_gap,
               "runtime_limitations": runtime_limitations,

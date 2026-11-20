@@ -36,6 +36,36 @@ class WorkbenchProgressSnapshotTests(unittest.TestCase):
     def publish(self, **event):
         self.app._progress(self.job_id, {"phase": "writing_answer", **event})
 
+    def test_checked_findings_keep_verified_locations_during_the_job_only(self):
+        ref = {"evidence_id": "ev_page_" + "a" * 24, "relative_path": "rules/credit.cbl",
+               "start_line": 4, "end_line": 6}
+        finding = {"text": "Credit applies only for the specified type.", "sources": [ref]}
+        self.publish(phase="reading_relevant_sources", checked_findings=[
+            {**finding, "provider_response": "private", "sources": [{**ref, "raw_bytes": "private"}]}])
+        self.publish(phase="waiting_for_model")
+        self.assertEqual(self.app.get_job(self.job_id)["progress"]["checked_findings"], [finding])
+        for invalid_ref in [{**ref, "relative_path": "../other.cbl"}, {**ref, "end_line": 2},
+                            {**ref, "evidence_id": "unverified"}]:
+            self.publish(checked_findings=[{**finding, "sources": [invalid_ref]}])
+        self.publish(answer_preview=self.preview)
+        progress = self.app.get_job(self.job_id)["progress"]
+        self.assertEqual(progress["checked_findings"], [finding])
+        self.assertEqual(progress["answer_preview"], self.preview)
+        self.assertNotIn("private", json.dumps(progress))
+
+        def analyzer(source, output, **options):
+            (output / "programs.json").write_text(json.dumps({"programs": []}))
+            (output / "agent-result.json").write_text("{}")
+            return {"runner_status": "COMPLETED", "source_manifest_verified": False}
+
+        self.app.analyzer = analyzer
+        self.app._run(self.job_id, {"source": self.source, "output": self.output,
+                                   "question": "", "allow_network": False})
+        job = self.app.get_job(self.job_id)
+        self.assertEqual(job["status"], "COMPLETED", job.get("error"))
+        self.assertNotIn("checked_findings", job["progress"])
+        self.assertNotIn(finding["text"], json.dumps(job["result"]))
+
     def test_phase_updates_preserve_independent_latest_snapshots_without_a_countdown(self):
         self.publish(analysis_update=self.summary)
         self.publish(answer_preview=self.preview)

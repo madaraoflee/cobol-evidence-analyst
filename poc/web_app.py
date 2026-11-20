@@ -41,6 +41,7 @@ from runtime_settings import load_agent_policy
 from agent_policy import resolve_agent_policy
 from api_error_details import build_diagnostic, build_local_diagnostic, format_diagnostic, sanitize_diagnostic
 from source_versions import record_version, versions
+from source_reading import _relative_path
 from source_update import SourceUpdateBackup
 from remote_source import (RemoteSourceError, fetch_remote_source, parse_remote_source,
                            resolve_remote_source, validate_remote_token, validate_remote_username)
@@ -100,6 +101,37 @@ def _answer_preview(value):
             or value.get("stage") not in {"draft", "revision", "continuation", "answer", "verifying"}):
         return None
     return {"text": value["text"][:24000], "round": value["round"], "stage": value["stage"]}
+
+
+def _checked_findings(value):
+    """Expose checked business text and its source locations while this question runs."""
+    if not isinstance(value, list) or not 1 <= len(value) <= 16:
+        return None
+    rows = []
+    for finding in value:
+        if not isinstance(finding, dict):
+            return None
+        text, sources = finding.get("text"), finding.get("sources")
+        if (not isinstance(text, str) or not text.strip() or len(text) > 4000
+                or not isinstance(sources, list) or not 1 <= len(sources) <= 8):
+            return None
+        locations = []
+        for ref in sources:
+            if not isinstance(ref, dict):
+                return None
+            page, path = ref.get("evidence_id"), ref.get("relative_path")
+            first, last = ref.get("start_line"), ref.get("end_line")
+            if (not isinstance(page, str) or not re.fullmatch(r"ev_page_[0-9a-f]{24}", page)
+                    or not isinstance(path, str) or not path.isprintable() or len(path) > 4096
+                    or type(first) is not int or type(last) is not int or not 1 <= first <= last <= 2**53 - 1):
+                return None
+            try:
+                _relative_path(path)
+            except ValueError:
+                return None
+            locations.append({"evidence_id": page, "relative_path": path, "start_line": first, "end_line": last})
+        rows.append({"text": text, "sources": locations})
+    return rows
 
 
 def _analysis_state(value):
@@ -486,7 +518,7 @@ def _has_business_answer(value, *, runner_completed=False):
             or value.get("answer_origin") == "diagnostic"):
         return False
     return (value.get("answer_available") is True or value.get("model_answer_recorded") is True
-        or value.get("answer_origin") in {"model", "local_source_facts"}
+        or value.get("answer_origin") in {"model", "local_source_facts", "verified_source_sequence"}
         or runner_completed and value.get("model_answer_recorded") is not False)
 
 
@@ -2220,7 +2252,8 @@ class WorkbenchState:
             current = self.job["progress"]
             # Summary and preview snapshots belong to the job rather than its
             # current stage. A phase-only event must not erase useful updates.
-            for key, validate in (("analysis_update", _analysis_update), ("answer_preview", _answer_preview)):
+            for key, validate in (("analysis_update", _analysis_update), ("answer_preview", _answer_preview),
+                                  ("checked_findings", _checked_findings)):
                 snapshot = validate(event.get(key))
                 if snapshot is not None:
                     current[key] = snapshot
@@ -2479,6 +2512,7 @@ class WorkbenchState:
                     project["recent_conversations"] = self.recent_conversations()
                     project["recent_conversations_truncated"] = self._history_truncated or self._recent_history_truncated
                     self.job["progress"].pop("answer_preview", None)
+                    self.job["progress"].pop("checked_findings", None)
                     self.job.update(status="COMPLETED", result=copy.deepcopy(project))
                     remote_retained = True
         except AnalysisCancelled:

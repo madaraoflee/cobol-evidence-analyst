@@ -172,6 +172,8 @@ Bitbucket 源碼快照|Bitbucket 源码快照|Bitbucket source snapshot
 僅進度|仅进度|Progress only
 只調整顯示，不影響後台調查。|只调整显示，不影响后台调查。|Display preference only; background investigation is unchanged.
 階段發現（待核）|阶段发现（待核）|Stage findings (provisional)
+已查實的結論|已查实的结论|Verified findings
+已核對扣減路徑|已核对扣减路径|Verified deduction sequence
 待查事項|待查事项|Open questions
 摘要中的待查事項|摘要中的待查事项|Open questions in summary
 全局待查記錄|全局待查记录|Global pending records

@@ -1,0 +1,674 @@
+{
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "product_sha256": "4c39f70cb4b1ff8460f9d4b895ea5c2ff4d1ff289b92a41a4aeedf6d0d68d094",
+  "scenarios": {
+    "shallow_then_complete": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          },
+          {
+            "text": "`APPLYREFUND` 的第 5 行受以下条件控制。 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_e1a252b0fa6986574fd8f393",
+                "relative_path": "return.cbl",
+                "start_line": 1,
+                "end_line": 7
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "processing_sequence",
+            "skip_conditions",
+            "final_receivable"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "answer_origin": "verified_source_sequence",
+      "answer": "按 `CASHENTRY` 调用所示 `APPLYREFUND` 实现、参数布局相容且金额可准确表示、正常返回的路径，扣减依次如下。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n2. 若`NET-DUE` 大于 `0`，将当前的 `NET-DUE` 传给 `APPLYREFUND`。 [ev_page_6a866fe1c5da260065388754] 这是前一步结束后独立检查的条件。若`NET-DUE` 小于或等于 `0`，跳过整个子程序，保留此时的金额。 [ev_page_6a866fe1c5da260065388754]\n3. 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。 [ev_page_e1a252b0fa6986574fd8f393]\n\n最终 `NET-DUE` 等于进入流程时的金额，减去各步实际生效的扣减额。子程序按引用接收的 `DUE` 对应调用方的 `NET-DUE`。若所有扣减均跳过，则保留进入时的金额。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "already_complete": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          },
+          {
+            "text": "`APPLYREFUND` 的第 5 行受以下条件控制。 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_e1a252b0fa6986574fd8f393",
+                "relative_path": "return.cbl",
+                "start_line": 1,
+                "end_line": 7
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "answer_origin": "verified_source_sequence",
+      "answer": "按 `CASHENTRY` 调用所示 `APPLYREFUND` 实现、参数布局相容且金额可准确表示、正常返回的路径，扣减依次如下。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n2. 若`NET-DUE` 大于 `0`，将当前的 `NET-DUE` 传给 `APPLYREFUND`。 [ev_page_6a866fe1c5da260065388754] 这是前一步结束后独立检查的条件。若`NET-DUE` 小于或等于 `0`，跳过整个子程序，保留此时的金额。 [ev_page_6a866fe1c5da260065388754]\n3. 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。 [ev_page_e1a252b0fa6986574fd8f393]\n\n最终 `NET-DUE` 等于进入流程时的金额，减去各步实际生效的扣减额。子程序按引用接收的 `DUE` 对应调用方的 `NET-DUE`。若所有扣减均跳过，则保留进入时的金额。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "changed_equality": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          },
+          {
+            "text": "`APPLYREFUND` 的第 5 行受以下条件控制。 若`REFUND-BALANCE` 小于或等于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于 `DUE`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_50ed062cd3109a5d2cd65702",
+                "relative_path": "return.cbl",
+                "start_line": 1,
+                "end_line": 7
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4",
+              "evidence_id": "ev_page_50ed062cd3109a5d2cd65702"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4",
+              "evidence_id": "ev_page_50ed062cd3109a5d2cd65702"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "processing_sequence",
+            "skip_conditions"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "answer_origin": "verified_source_sequence",
+      "answer": "按 `CASHENTRY` 调用所示 `APPLYREFUND` 实现、参数布局相容且金额可准确表示、正常返回的路径，扣减依次如下。 [ev_page_6a866fe1c5da260065388754] [ev_page_50ed062cd3109a5d2cd65702]\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n2. 若`NET-DUE` 大于 `0`，将当前的 `NET-DUE` 传给 `APPLYREFUND`。 [ev_page_6a866fe1c5da260065388754] 这是前一步结束后独立检查的条件。若`NET-DUE` 小于或等于 `0`，跳过整个子程序，保留此时的金额。 [ev_page_6a866fe1c5da260065388754]\n3. 若`REFUND-BALANCE` 小于或等于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于 `DUE`，跳过这笔扣减。 [ev_page_50ed062cd3109a5d2cd65702]\n\n最终 `NET-DUE` 等于进入流程时的金额，减去各步实际生效的扣减额。子程序按引用接收的 `DUE` 对应调用方的 `NET-DUE`。若所有扣减均跳过，则保留进入时的金额。 [ev_page_6a866fe1c5da260065388754] [ev_page_50ed062cd3109a5d2cd65702]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4",
+          "evidence_id": "ev_page_50ed062cd3109a5d2cd65702"
+        }
+      ],
+      "network_connections": 0
+    },
+    "missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "skip_conditions",
+            "final_receivable"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "skip_conditions",
+            "final_receivable"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "answer_incomplete",
+      "answer_origin": "local_source_facts",
+      "answer": "已经从源码查实\n\n`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n\n尚未核实被调程序 `APPLYREFUND` 的实现。\n\n仍待核实的内容包括各步跳过条件及等额时的处理、最终应收如何确定。",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    },
+    "one_request_complete_sources": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          },
+          {
+            "text": "`APPLYREFUND` 的第 5 行受以下条件控制。 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_e1a252b0fa6986574fd8f393",
+                "relative_path": "return.cbl",
+                "start_line": 1,
+                "end_line": 7
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "answer_origin": "verified_source_sequence",
+      "answer": "按 `CASHENTRY` 调用所示 `APPLYREFUND` 实现、参数布局相容且金额可准确表示、正常返回的路径，扣减依次如下。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n2. 若`NET-DUE` 大于 `0`，将当前的 `NET-DUE` 传给 `APPLYREFUND`。 [ev_page_6a866fe1c5da260065388754] 这是前一步结束后独立检查的条件。若`NET-DUE` 小于或等于 `0`，跳过整个子程序，保留此时的金额。 [ev_page_6a866fe1c5da260065388754]\n3. 若`REFUND-BALANCE` 小于 `DUE`，从 `DUE` 中减去 `REFUND-BALANCE`。若`REFUND-BALANCE` 大于或等于 `DUE`，跳过这笔扣减。 [ev_page_e1a252b0fa6986574fd8f393]\n\n最终 `NET-DUE` 等于进入流程时的金额，减去各步实际生效的扣减额。子程序按引用接收的 `DUE` 对应调用方的 `NET-DUE`。若所有扣减均跳过，则保留进入时的金额。 [ev_page_6a866fe1c5da260065388754] [ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "one_request_missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "answer_incomplete",
+      "answer_origin": "local_source_facts",
+      "answer": "已经从源码查实\n\n`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n\n尚未核实被调程序 `APPLYREFUND` 的实现。\n\n仍待核实的内容包括各步跳过条件及等额时的处理、最终应收如何确定。",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    },
+    "unsupported_refund_missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_6a866fe1c5da260065388754",
+                "relative_path": "cash.cbl",
+                "start_line": 1,
+                "end_line": 10
+              }
+            ]
+          }
+        ],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "skip_conditions",
+            "final_receivable"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。"
+        },
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": true,
+          "deduction_missing": [
+            "skip_conditions",
+            "final_receivable"
+          ],
+          "requests_order_skips_and_result": true,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "answer_incomplete",
+      "answer_origin": "local_source_facts",
+      "answer": "已经从源码查实\n\n`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_6a866fe1c5da260065388754]\n\n尚未核实被调程序 `APPLYREFUND` 的实现。\n\n仍待核实的内容包括各步跳过条件及等额时的处理、最终应收如何确定。",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    }
+  }
+}

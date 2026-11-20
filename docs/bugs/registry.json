@@ -9663,6 +9663,138 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "验证同题在自定义表达要求下的已证步骤覆盖。任意复杂业务语义及企业真实模型表现仍须现场复核。"
+    },
+    {
+      "id": "BUG-20261121-012",
+      "title": "本地工作台已读到可证业务条件，等待作答时只显示进度",
+      "symptom": "同题两份完整源码已被送入首轮请求，暂扣模型响应时只有一条用户消息和笼统进度。",
+      "root_cause": "此前只发布候选摘要及模型流式草稿。现从本次捕获且内容匹配的源码提取相关结论和位置，随任务发布。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/before.json",
+        "docs/reports/2026-11-21-local-progressive-answer/after.json",
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_shallow_reply_is_revised_after_a_cited_interim_finding"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_workbench_progress_snapshots.WorkbenchProgressSnapshotTests.test_checked_findings_keep_verified_locations_during_the_job_only"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_review.LocalDeductionReviewTests.test_named_paragraph_operation_is_scoped_to_its_real_source"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_review.LocalDeductionReviewTests.test_redacted_prefixes_extra_sources_and_stale_citations_never_close_the_path"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_investigation_progress.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本地工作台受控模型与中性源码复测。公司环境的等待时长、真实模型表现及目标设备仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-013",
+      "title": "本地扣减回答漏讲跳过条件和最终应收后立即结束",
+      "symptom": "浅答只提先准备金再看退款，原文包含两次扣减和中间调用，工作台仍在第一次模型响应后停下。",
+      "root_cause": "原复核无法把题目和实际正文对应到扣减先后、独立条件及最终结果。现评估原文及草稿，遗漏交回本轮继续查证。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/before.json",
+        "docs/reports/2026-11-21-local-progressive-answer/after.json",
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_shallow_reply_is_revised_after_a_cited_interim_finding"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_changed_equality_rejects_the_old_rule_and_retains_the_new_result"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_review.LocalDeductionReviewTests.test_missing_each_skip_boundary_order_or_result_is_reviewed"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本地工作台受控模型与中性源码复测。公司环境的等待时长、真实模型表现及目标设备仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-014",
+      "title": "本地明确的扣减路径已经解释完整仍被标为部分回答",
+      "symptom": "同一题首轮完全讲明顺序、跳过条件、等额与最终金额，仍出现部分状态。",
+      "root_cause": "通用输入来源未定位被当成本题必答缺口。现仅在题意命中且原文证明完整调用和金额变化时，交付有可验证出处的最终结果并忽略这项无关来源提示。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/before.json",
+        "docs/reports/2026-11-21-local-progressive-answer/after.json",
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_already_complete_reply_is_delivered_once_as_completed"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_be_marked_complete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_review.LocalDeductionReviewTests.test_redacted_prefixes_extra_sources_and_stale_citations_never_close_the_path"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_investigation_progress.test.cjs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_allows_a_complete_source_proven_reply"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_conversation_store.ConversationStoreTests.test_partial_verified_deductions_remain_in_history_only_when_available"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本地工作台受控模型与中性源码复测。公司环境的等待时长、真实模型表现及目标设备仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-015",
+      "title": "本地部分答复可能丢失已查实的条件，或交付未经查实的退款金额",
+      "symptom": "缺失退款程序且受控模型只讲调用时，部分答案遗漏主程序的类型条件。换成模型编造完整退款结果的答复，甚至会将缺乏依据的金额写入部分答案。",
+      "root_cause": "原交付逻辑用整体状态提示证据不足，但没有把最终可说的规则限制到实际已读程序，也没有指出缺少的具体目标。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/before.json",
+        "docs/reports/2026-11-21-local-progressive-answer/after.json",
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_be_marked_complete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_single_request_budget_keeps_checked_findings_beside_a_partial_reply"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_missing_callee_cannot_publish_an_invented_refund_rule_or_amount"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证中性静态调用路径及受控回答，企业源程序、真实模型和运行绑定仍未现场验证。"
     }
   ],
   "updated_at": "2026-11-21"

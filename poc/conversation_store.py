@@ -152,7 +152,7 @@ def _model_history_rows(db, identifier, max_messages, before_position, *, legacy
         "WHERE a.conversation_id=messages.conversation_id AND a.run_id=messages.run_id "
         "AND a.role='assistant' AND a.status='partial' AND CASE WHEN json_valid(a.details) THEN "
         "json_extract(a.details,'$.answer_available')=1 AND "
-        "(json_extract(a.details,'$.answer_origin') IN ('model','local_source_facts') OR "
+        "(json_extract(a.details,'$.answer_origin') IN ('model','local_source_facts','verified_source_sequence') OR "
         "json_extract(a.details,'$.model_answer_recorded')=1 OR "
         "(json_extract(a.details,'$.answer_origin') IS NULL AND "
         "json_extract(a.details,'$.model_answer_recorded') IS NULL)) ELSE 0 END))) "

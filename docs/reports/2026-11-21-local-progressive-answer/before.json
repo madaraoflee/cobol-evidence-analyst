@@ -1,0 +1,423 @@
+{
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "product_sha256": "f37c44546baa80282d6b4d7b8f6b61341518bf1fff1ecb56859c168308ecab6b",
+  "scenarios": {
+    "shallow_then_complete": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "answer_origin": "model",
+      "answer": "先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754][ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "already_complete": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "answer_origin": "model",
+      "answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。[ev_page_6a866fe1c5da260065388754][ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "changed_equality": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4",
+              "evidence_id": "ev_page_50ed062cd3109a5d2cd65702"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "answer_origin": "model",
+      "answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 严格小于 DUE 时减去退款余额，相等或更大则保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 仍为 80。[ev_page_6a866fe1c5da260065388754][ev_page_50ed062cd3109a5d2cd65702]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "35ad7b1f55ba174182215abb99a76bf45e1231c935f4cdee3fa394fb119d0bc4",
+          "evidence_id": "ev_page_50ed062cd3109a5d2cd65702"
+        }
+      ],
+      "network_connections": 0
+    },
+    "missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "answer_origin": "model",
+      "answer": "先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    },
+    "one_request_complete_sources": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            },
+            {
+              "relative_path": "return.cbl",
+              "start_line": 1,
+              "end_line": 7,
+              "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "request_budget",
+      "answer_origin": "model",
+      "answer": "先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754][ev_page_e1a252b0fa6986574fd8f393]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        },
+        {
+          "relative_path": "return.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+          "evidence_id": "ev_page_e1a252b0fa6986574fd8f393"
+        }
+      ],
+      "network_connections": 0
+    },
+    "one_request_missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "先使用准备金，剩余应收大于零时调用退款处理。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "request_budget",
+      "answer_origin": "model",
+      "answer": "先使用准备金，剩余应收大于零时调用退款处理。[ev_page_6a866fe1c5da260065388754]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    },
+    "unsupported_refund_missing_callee": {
+      "originals": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae"
+      },
+      "while_first_reply_held": {
+        "phase": "waiting_for_model",
+        "checked_findings": [],
+        "update": "已补充相关源码，正在核对处理条件与结果。",
+        "model_draft": null,
+        "message_roles": [
+          "user"
+        ]
+      },
+      "requests": [
+        {
+          "pages": [
+            {
+              "relative_path": "cash.cbl",
+              "start_line": 1,
+              "end_line": 10,
+              "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "evidence_id": "ev_page_6a866fe1c5da260065388754"
+            }
+          ],
+          "has_revision_draft": false,
+          "deduction_missing": [],
+          "requests_order_skips_and_result": false,
+          "scripted_answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "remaining_interim_findings": false,
+      "message_roles": [
+        "user",
+        "assistant"
+      ],
+      "status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "answer_origin": "model",
+      "answer": "现金应收处理分两步。只有 ITEM-TYPE 等于 1-RESERVECREDIT，才从 NET-DUE 扣减 CREDIT-AMT，其他类型跳过准备金。随后独立判断当前 NET-DUE；若大于 0，CASHENTRY 将其传给 APPLYREFUND，否则跳过退款并保留当时应收。即使跳过准备金，应收为正仍检查退款。子程序只在 REFUND-BALANCE 小于或等于 DUE 时减去退款余额，只有更大才保留 DUE。按引用返回后，最终应收是初始应收减去实际扣掉的准备金和退款；两步都跳过时保持初始金额。例如应收 100、准备金 20 时，退款 30 得 50，退款 80 得 0。[ev_page_6a866fe1c5da260065388754]",
+      "citations": [
+        {
+          "relative_path": "cash.cbl",
+          "start_line": 1,
+          "end_line": 10,
+          "source_sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+          "evidence_id": "ev_page_6a866fe1c5da260065388754"
+        }
+      ],
+      "network_connections": 0
+    }
+  }
+}

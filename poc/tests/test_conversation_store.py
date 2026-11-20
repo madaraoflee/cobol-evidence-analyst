@@ -371,6 +371,22 @@ class ConversationStoreTests(unittest.TestCase):
         self.assertEqual(history[-1]["investigation_state"], {"analysis_plan": {"entities": ["CAPACITY"]}})
         self.assertEqual(history[-1]["evidence_refs"][0]["evidence_id"], "ev-saved")
 
+    def test_partial_verified_deductions_remain_in_history_only_when_available(self):
+        reference = {"evidence_id": "ev_page_" + "a" * 24, "relative_path": "credit.cbl"}
+        for status, available, run in (("partial", True, "checked"), ("partial", False, "unavailable"),
+                                       ("failed", True, "failed")):
+            self.store.append(self.identifier, "user", "Check " + run, status=status, run_id=run)
+            self.store.append(self.identifier, "assistant", "Result " + run, status=status, run_id=run,
+                details={"answer_available": available, "model_answer_recorded": False,
+                         "answer_origin": "verified_source_sequence", "evidence_refs": [reference]})
+        restored = ConversationStore(self.root / "output", self.root / "source")
+        rows = restored.model_history(self.identifier)
+        self.assertEqual([row["content"] for row in rows], ["Check checked", "Result checked"])
+        self.assertEqual(rows[-1]["analysis_status"], "PARTIAL")
+        self.assertEqual(rows[-1]["answer_origin"], "verified_source_sequence")
+        self.assertEqual(rows[-1]["evidence_refs"], [reference])
+        self.assertIs(rows[-1]["model_answer_recorded"], False)
+
     def test_retry_rejects_other_sources_and_nonfailed_messages(self):
         user_id = self.store.append(self.identifier, "user", "A completed question")
         assistant_id = self.store.append(self.identifier, "assistant", "A completed answer")

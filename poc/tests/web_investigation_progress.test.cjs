@@ -35,6 +35,42 @@ function snapshot(revision=3){
 }
 const publish=(h,value,extra={})=>h.run(`rememberProgress(${JSON.stringify({phase:'answering',analysis_state:value,...extra})});updateLiveAnalysis();`);
 
+test('checked local rules show source lines before drafting and stay scoped to the current question',()=>{
+  const first={text:'Apply credit only to a matching <type>.',sources:[{
+    evidence_id:'ev_page_'+'1'.repeat(24),relative_path:'lib/cash.cbl',start_line:4,end_line:6}]};
+  const second={text:'Refund is conditional.',sources:[{
+    evidence_id:'ev_page_'+'2'.repeat(24),relative_path:'lib/refund.cbl',start_line:9,end_line:9}]};
+  for(const [language,heading] of [['en','Verified findings'],['zh-CN','已查实的结论'],['zh-HK','已查實的結論']]){
+    const h=harness(language);
+    h.run("state.jobId='current-job';");
+    publish(h,snapshot(),{checked_findings:[first]});
+    let html=h.get('conversation-analysis-live').innerHTML;
+    assert.ok(html.includes(heading));
+    assert.match(html,/Apply credit only to a matching &lt;type&gt;/);
+    assert.match(html,/lib\/cash\.cbl · L4–6/);
+    assert.doesNotMatch(html,/ev_page_|<type>/);
+    publish(h,snapshot(),{checked_findings:[first,second]});
+    publish(h,snapshot(),{answer_preview:{text:'A draft answer.',round:2,stage:'draft'}});
+    html=h.get('conversation-analysis-live').innerHTML;
+    assert.equal(html.split('Apply credit only').length,2);
+    assert.match(html,/lib\/refund\.cbl · L9/);
+    assert.ok(html.includes('A draft answer.'));
+    h.events.change({target:{id:'analysis-display-mode',value:'progress'}});
+    assert.equal(h.get('conversation-analysis-live').innerHTML,'');
+    h.events.change({target:{id:'analysis-display-mode',value:'summary'}});
+    assert.ok(h.get('conversation-analysis-live').innerHTML.includes('Refund is conditional.'));
+    h.run("state.jobId='another-job'; rememberProgress({phase:'preparing'});");
+    assert.doesNotMatch(h.run('liveAnalysisView()'),/lib\/cash|Refund is conditional/);
+  }
+});
+
+test('a completed source-derived answer stays readable without a model-authored draft',()=>{
+  const h=harness(),answer={status:'ANSWERED',answer:'The returned balance is 80.',
+    answer_origin:'verified_source_sequence',model_answer_recorded:false,answer_available:true};
+  assert.equal(h.run(`narrativeText(${JSON.stringify(answer)})`),answer.answer);
+  assert.equal(h.run(`diagnosticOnlyAnswer(${JSON.stringify(answer)})`),false);
+});
+
 test('snapshot renders candidate records and structural preservation boundaries in every locale',()=>{
   for(const locale of ['en','zh-CN','zh-HK']){
     const h=harness(locale),value=snapshot();
