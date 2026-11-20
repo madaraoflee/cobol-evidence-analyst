@@ -8973,6 +8973,19 @@
         "docs/reports/2026-11-20-source-investigation/local-cache-gap.json"
       ],
       "limitations": "仅在合成测试中主动制造派生缓存不完整。相关旧条目 BUG-20261024-102 的刷新及精确读取回归继续保留；公司索引是否出现此状态仍待验证。"
+    },
+    {
+      "id": "BUG-20261120-006",
+      "title": "英文句末句号导致本地“只分析指定文件”的限制失效",
+      "symptom": "同一健康资料库，明确指定只分析 fees.cbl，以句号结束该句时原文供给还选入 unused.cbl。逗号、反引号或连成一句时只取指定文件。",
+      "root_cause": "限定文件匹配排除紧随文件名的点，未区分额外扩展名与句末标点。",
+      "status": "open",
+      "verification_scope": "source_offline",
+      "regressions": [],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/local-exclusive-scope.json"
+      ],
+      "limitations": "独立合成复现，涉及冻结的本地范围识别。此条尚未修复。"
     }
   ],
   "updated_at": "2026-11-20"
