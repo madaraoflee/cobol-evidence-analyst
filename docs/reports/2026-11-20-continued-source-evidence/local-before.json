@@ -1,0 +1,107 @@
+[
+  {
+    "layout": "single",
+    "lexical_hits": 1,
+    "retrieved_paths": [
+      "z-rule.cbl",
+      "a-notice.cbl"
+    ],
+    "literal_search": {
+      "scope": "complete_saved_original_pages",
+      "checked_pages": 2,
+      "reached_end_of_scope": true,
+      "retained_matches": 1,
+      "cache_reused": false,
+      "selected_pages": 1,
+      "selected_files": 1
+    },
+    "model_requests": [
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "z-rule.cbl",
+          "a-notice.cbl"
+        ],
+        "rule_received": true,
+        "calculation_received": true
+      },
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "z-rule.cbl",
+          "a-notice.cbl"
+        ],
+        "rule_received": true,
+        "calculation_received": true
+      }
+    ]
+  },
+  {
+    "layout": "split",
+    "lexical_hits": 1,
+    "retrieved_paths": [
+      "a-notice.cbl"
+    ],
+    "literal_search": {
+      "scope": "complete_saved_original_pages",
+      "checked_pages": 2,
+      "reached_end_of_scope": true,
+      "retained_matches": 0,
+      "cache_reused": false,
+      "selected_pages": 0,
+      "selected_files": 0
+    },
+    "model_requests": [
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "a-notice.cbl"
+        ],
+        "rule_received": false,
+        "calculation_received": false
+      },
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "a-notice.cbl"
+        ],
+        "rule_received": false,
+        "calculation_received": false
+      }
+    ]
+  },
+  {
+    "layout": "and",
+    "lexical_hits": 1,
+    "retrieved_paths": [
+      "a-notice.cbl"
+    ],
+    "literal_search": {
+      "scope": "complete_saved_original_pages",
+      "checked_pages": 2,
+      "reached_end_of_scope": true,
+      "retained_matches": 0,
+      "cache_reused": false,
+      "selected_pages": 0,
+      "selected_files": 0
+    },
+    "model_requests": [
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "a-notice.cbl"
+        ],
+        "rule_received": false,
+        "calculation_received": false
+      },
+      {
+        "mode": "business_analysis",
+        "paths": [
+          "a-notice.cbl"
+        ],
+        "rule_received": false,
+        "calculation_received": false
+      }
+    ]
+  }
+]

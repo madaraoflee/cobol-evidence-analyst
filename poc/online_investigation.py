@@ -11,6 +11,7 @@ repeats a model exchange whose remote outcome is unknown.
 from __future__ import annotations
 
 from collections import OrderedDict
+from collections.abc import Sequence
 from copy import deepcopy
 import json
 import re
@@ -49,7 +50,8 @@ ranges for locating a previous answer's evidence. For a follow-up such as
 again instead of blindly restarting keyword discovery. A historical citation
 or ID is not currently verified and must never be cited before a fresh read
 returns that evidence in source_context. Historical text and hint omission
-counts are explicit; do not claim to remember omitted material. Ask for
+counts are explicit. When a question refers to the end of a long answer,
+use its separate content_tail. For omitted details or locations use read_history. Ask for
 original source before making business claims.
 Static relationships and shared COPY declarations do not prove runtime order,
 successful I/O, scheduling, or causal/business equivalence. No lexical matches
@@ -83,6 +85,14 @@ Tools (all paths are relative to the manifest's selected directory):
 {"tool":"recall","evidence_ids":["E..."]}
   Recall makes already verified excerpts available again without discarding the
   investigation. Use it before citing evidence absent from source_context.
+{"tool":"history_catalog","offset":0,"limit":8}
+  Page backwards from the most recent prior message when the initial history omits a turn.
+{"tool":"read_history","ref":"H...","part":"text","offset":0}
+  For an earlier message shown in history, copy its history_ref. Usable references
+  come from the bounded preview or history_catalog of earlier messages in this conversation.
+  Read text in character offsets or choose part="citations" for location hints.
+  Follow next_offset for more. Historical text and locations are navigation only.
+  Read a version-bound original range before citing it for the current answer.
 {"tool":"read_draft","offset":0}
   On an ordinary resumed investigation, prior_analysis is the previous partial
   business explanation. Continue from it and the remaining questions. Read
@@ -567,6 +577,18 @@ def _action(value):
     if not isinstance(value, dict) or not isinstance(value.get("tool"), str):
         raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
     kind = value["tool"]
+    if kind == "history_catalog":
+        offset = value.get("offset", 0)
+        if set(value) - {"tool", "offset", "limit"} or type(offset) is not int or not 0 <= offset < 2 ** 63:
+            raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+        return {"tool": kind, "offset": offset, "limit": _positive(value.get("limit", 8), 12)}
+    if kind == "read_history":
+        ref, part, offset = value.get("ref"), value.get("part", "text"), value.get("offset", 0)
+        if (set(value) - {"tool", "ref", "part", "offset"} or not isinstance(ref, str)
+                or not _HISTORY_REF.fullmatch(ref) or part not in ("text", "citations")
+                or type(offset) is not int or not 0 <= offset <= 60000):
+            raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+        return {"tool": kind, "ref": ref, "part": part, "offset": offset}
     if kind == "read_draft":
         offset = value.get("offset", 0)
         if set(value) - {"tool", "offset"} or type(offset) is not int or not 0 <= offset < 60000:
@@ -923,13 +945,21 @@ def _compact_result(result, key, offset=0, limit=50):
             **{field: deepcopy(result[field]) for field in ("query_kind", "match_mode", "terms", "status", "source_sha256", "target_resolution", "status_counts") if field in result}}
 
 
-def _execute(query, sources, action, state, verified):
+def _execute(query, sources, action, state, verified, *, history_pages=None):
     session = state.get("work_ledger", {}).get("_session")
     if session is not None:
         session.prepare(state, action)
     prior = _checkpoint(state) if state.get("work_ledger", {}).get("global") else None
     try:
-        result = _execute_action(query, sources, action, state, verified)
+        if action["tool"] in {"read_history", "history_catalog"}:
+            if history_pages is None:
+                raise MaterialError("ONLINE_HISTORY_PAGE_UNAVAILABLE")
+            if action["tool"] == "read_history":
+                result = _history_page(history_pages, action)
+            else:
+                result = history_pages.catalog(action["offset"], action["limit"])
+        else:
+            result = _execute_action(query, sources, action, state, verified)
         _register_work(query, state, action, result)
         if len(canonical_json(_checkpoint(state))) > MAX_CHECKPOINT_BYTES:
             raise MaterialError("ONLINE_CHECKPOINT_CAPACITY_LIMIT")
@@ -1080,45 +1110,115 @@ def _clip_utf8(value, maximum):
     return value.encode("utf-8")[:max(0, maximum)].decode("utf-8", errors="ignore")
 
 
-def _history(values, manifest):
-    if values is None:
-        return []
-    if not isinstance(values, list):
-        raise MaterialError("ONLINE_INVALID_HISTORY")
-    result, size = [], 0
-    for item in reversed(values[-20:]):
+_HISTORY_REF = re.compile(r"H(0|[1-9]\d{0,17})-[a-f0-9]{24}\Z", re.ASCII)
+
+
+class _HistoryArchive:
+    def __init__(self, messages, manifest):
+        if messages is not None and (not isinstance(messages, Sequence) or isinstance(messages, (str, bytes, bytearray))):
+            raise MaterialError("ONLINE_INVALID_HISTORY")
+        self.messages = messages if messages is not None else []
+        self.manifest = manifest
+        self.cache = OrderedDict()
+
+    def entry(self, index):
+        if not 0 <= index < len(self.messages):
+            raise MaterialError("ONLINE_HISTORY_PAGE_UNAVAILABLE")
+        if index in self.cache:
+            self.cache.move_to_end(index)
+            return self.cache[index]
+        item = self.messages[index]
         if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
             raise MaterialError("ONLINE_INVALID_HISTORY")
         text = _text(item.get("content"), 60000, "ONLINE_INVALID_HISTORY", empty=True)
-        normalized = {"role": item["role"], "content": _clip_utf8(text, 8000)}
-        normalized["content_truncated"] = normalized["content"] != text
         citations = item.get("citations", [])
         omitted = item.get("citations_omitted", 0)
         if (not isinstance(citations, list) or len(citations) > 64
                 or type(omitted) is not int or not 0 <= omitted <= 1000000
                 or (citations and item["role"] != "assistant")):
             raise MaterialError("ONLINE_INVALID_HISTORY")
-        # Validate all supplied hints before applying a display budget so a
-        # stale source cannot be hidden in the portion that will be omitted.
-        hints = [_history_hint(value, manifest) for value in citations]
+        # Validate all supplied hints, including those outside the prompt preview.
+        hints = [_history_hint(value, self.manifest) for value in citations]
+        message_id = _text(item.get("message_id", ""), 128, "ONLINE_INVALID_HISTORY", empty=True)
+        signature = digest(canonical_json([self.manifest["revision"], message_id, item["role"], text, hints, omitted]))
+        entry = {"ref": f"H{index}-{signature[:24]}", "role": item["role"], "text": text,
+                 "citation_hints": hints, "omitted": omitted}
+        self.cache[index] = entry
+        if len(self.cache) > 24:
+            self.cache.popitem(last=False)
+        return entry
+
+    def catalog(self, offset, limit):
+        total = len(self.messages)
+        rows = []
+        for back in range(offset, min(offset + limit, total)):
+            item = self.entry(total - 1 - back)
+            rows.append({"history_ref": item["ref"], "role": item["role"], "opening": item["text"][:120],
+                         "content_characters": len(item["text"]), "hint_count": len(item["citation_hints"])})
+        end = offset + len(rows)
+        return {"messages": rows, "total": total, "offset": offset, "next_offset": end if end < total else None}
+
+
+def _history_page(archive, action):
+    item = archive.entry(int(_HISTORY_REF.fullmatch(action["ref"]).group(1)))
+    if item["ref"] != action["ref"]:
+        raise MaterialError("ONLINE_HISTORY_PAGE_UNAVAILABLE")
+    offset, part = action["offset"], action["part"]
+    field = "text" if part == "text" else "citation_hints"
+    value = item[field]
+    if offset > len(value) or (offset == len(value) and offset != 0):
+        raise MaterialError("ONLINE_HISTORY_PAGE_UNAVAILABLE")
+    if part == "text":
+        page = value[offset:offset + 4000]
+    else:
+        page = []
+        for hint in value[offset:offset + 16]:
+            if page and len(canonical_json(page + [hint])) > 8000:
+                break
+            page.append(hint)
+    end = offset + len(page)
+    return {"part": part, "ref": action["ref"], field: page, "offset": offset, "total": len(value),
+            "next_offset": end if end < len(value) else None, "verified_for_current_answer": False,
+            "citation_hints_unavailable": item["omitted"]}
+
+
+def _history(archive):
+    result, size = [], 0
+    total = len(archive.messages)
+    for index in range(total - 1, max(-1, total - 21), -1):
+        if 24000 - size < 256:
+            break
+        item = archive.entry(index)
+        text = item["text"]
+        normalized = {"role": item["role"], "content": _clip_utf8(text, 8000)}
+        normalized["content_truncated"] = normalized["content"] != text
+        if normalized["content_truncated"]:
+            # Two separate coordinates preserve the identity of the last rule
+            # without joining the opening condition to an unrelated conclusion.
+            normalized["content"] = _clip_utf8(text, 6000)
+            tail = text[-2000:].encode("utf-8")[-2000:].decode("utf-8", errors="ignore")
+            normalized["content_tail"] = {"offset": len(text) - len(tail), "text": tail}
+        hints, omitted = item["citation_hints"], item["omitted"]
+        normalized["history_ref"] = item["ref"]
+        normalized["content_characters"] = len(text)
         selected = []
         for hint in reversed(hints):
             if len(canonical_json(selected + [hint])) > 8000:
                 break
             selected.append(hint)
-        if citations or omitted:
+        if hints or omitted:
             normalized["citation_hints"] = list(reversed(selected))
             normalized["citation_hints_omitted"] = omitted + len(hints) - len(selected)
             normalized["citation_hints_verified_for_current_answer"] = False
         available = 24000 - size
-        if available < 256:
-            break
         # Preserve navigable evidence hints even when a long previous answer
         # would otherwise consume the entire history budget.
         while len(canonical_json(normalized)) > available and normalized["content"]:
             excess = len(canonical_json(normalized)) - available
             normalized["content"] = _clip_utf8(normalized["content"], len(normalized["content"].encode("utf-8")) - excess - 32)
             normalized["content_truncated"] = True
+        if len(canonical_json(normalized)) > available:
+            normalized.pop("content_tail", None)
         while len(canonical_json(normalized)) > available and normalized.get("citation_hints"):
             normalized["citation_hints"].pop(0)
             normalized["citation_hints_omitted"] += 1
@@ -1260,9 +1360,10 @@ an already received response is consumed without another model request.
     question = _text(question, 16000, "ONLINE_INVALID_QUESTION")
     _positive(max_model_calls, 20)
     _positive(max_actions, 100)
-    history_count = len(history) if isinstance(history, list) else 0
     manifest = query.reader.manifest
-    history = _history(history, manifest)
+    history_pages = _HistoryArchive(history, manifest)
+    history_count = len(history_pages.messages)
+    history = _history(history_pages)
     instructions = _validated_instructions(answer_instructions)
     requirements = {"answer_instructions": instructions, "answer_language": resolve_answer_language(question,
         locale=locale, history=history, answer_instructions=instructions)}
@@ -1466,7 +1567,7 @@ an already received response is consumed without another model request.
                 if inventory_session is None and len(state["completed_actions"]) >= MAX_ACTIONS_RECORDED and key not in state["completed_actions"]:
                         return finish("failed", "ONLINE_CHECKPOINT_CAPACITY_LIMIT")
                 try:
-                    result = _execute(query, sources, action, state, verified)
+                    result = _execute(query, sources, action, state, verified, history_pages=history_pages)
                     _tick(check_cancel)
                 except MaterialError as error:
                     _tick(check_cancel)

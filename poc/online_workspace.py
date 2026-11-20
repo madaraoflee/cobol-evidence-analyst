@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
@@ -21,6 +22,28 @@ from online_source_client import PinnedSourceClient, _authorization
 from online_state import OnlineState
 from online_inventory_store import OnlineInventoryStore
 from repository_scope import repository_inventory_requested
+
+
+class _PriorMessages(Sequence):
+    """Lazily project saved messages before the current question, including on resume."""
+    def __init__(self, conversation, load):
+        self.messages = conversation["messages"]
+        current = conversation["pending"]["user_message_id"]
+        for index in range(len(self.messages) - 1, -1, -1):
+            if self.messages[index]["id"] == current:
+                self.indices = range(index)
+                break
+        else:
+            raise MaterialError("ONLINE_INVALID_CONVERSATION")
+        self.load = load
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return [self.load(self.messages[i]) for i in self.indices[index]]
+        return self.load(self.messages[self.indices[index]])
 
 
 _ID = re.compile(r"[a-f0-9]{32}\Z")
@@ -637,11 +660,8 @@ class OnlineWorkbench:
                     from online_investigation import run_investigation
                     runner = run_investigation
                 config = self.config_provider() if self.config_provider is not None else None
-                history = []
-                for message in conversation["messages"]:
-                    if message["id"] == conversation["pending"]["user_message_id"]:
-                        break
-                    item = {"role": message["role"], "content": message["content"]}
+                def load_message(message):
+                    item = {"role": message["role"], "content": message["content"], "message_id": message["id"]}
                     citations = message.get("citations", [])
                     if message.get("inventory_answer_preview") and message.get("inventory_result"):
                         publication = self.inventory_store.publication(message["inventory_result"]["id"],
@@ -653,7 +673,8 @@ class OnlineWorkbench:
                                               for key in ("path", "start", "end", "commit", "revision", "hash")}
                                              for citation in citations[-64:]]
                         item["citations_omitted"] = max(0, len(citations) - 64)
-                    history.append(item)
+                    return item
+                history = _PriorMessages(conversation, load_message)
                 inventory_options = {}
                 if repository_inventory_requested(question):
                     session_id = checkpoint.get("inventory_session", {}).get("id") if isinstance(checkpoint, dict) else None

@@ -18,6 +18,7 @@ import sys
 from threading import RLock
 
 from dependency_sources import dependency_source_availability
+from statement_facts import COBOL_VERBS, SCOPE_TERMINATORS, CobolLexError, clean_cobol_line, lex_cobol
 from repository_scope import repository_inventory_requested
 from repository_identity import identity_blocks_analysis, identity_boundaries, identity_sql_scope, resolve_source_identity
 from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
@@ -1597,9 +1598,8 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
     return result, report
 
 
-_RULE_LINE = re.compile(
-    r"^\s*(?:(?:\d{6}\s*)|(?:ELSE\s+))?(?:IF|WHEN|EVALUATE|PERFORM|CALL|COMPUTE|"
-    r"ADD|SUBTRACT|MULTIPLY|DIVIDE|READ|WRITE|REWRITE|EXEC)\b", re.IGNORECASE | re.ASCII)
+_LITERAL_RULE_VERBS = frozenset("IF WHEN EVALUATE PERFORM CALL COMPUTE ADD SUBTRACT MULTIPLY DIVIDE READ WRITE REWRITE EXEC".split())
+_LITERAL_BOUNDARIES = COBOL_VERBS | SCOPE_TERMINATORS | {"ELSE", "WHEN"}
 
 
 def _literal_leads(question, search_terms):
@@ -1630,18 +1630,62 @@ def _literal_leads(question, search_terms):
     return result
 
 
-def _literal_witness(lines, literal):
-    """Prefer a condition or operation over a caption, comment or declaration."""
+def _literal_witness(lines, literal, source_format, *, first_line=0):
+    """Return strength, actual hit, owning statement line, and need for prior context.
+
+    Only COBOL tokens can start/end a statement. Screen text, fixed-format
+    sequence columns and inline comments still count as lexical clues only.
+    """
+    owner = None  # Unknown until a statement/sentence boundary has been observed.
     first = None
-    for offset, line in enumerate(lines):
-        if literal not in line:
+    needs_prior = False
+    last = next((i for i in range(len(lines) - 1, first_line - 1, -1) if literal in lines[i].casefold()), -1)
+    for index in range(last + 1):
+        raw = lines[index]
+        is_hit = index >= first_line and literal in raw.casefold()
+        if is_hit and first is None:
+            first = index
+        # Debugging lines execute only under the corresponding compile option.
+        if raw[6:7] in {"D", "d"} and (source_format == "fixed" or source_format == "auto" and (
+                raw[:6].isdigit() or not raw[:6].strip())):
+            owner = -1
             continue
-        if first is None:
-            first = offset
-        if (line[6:7] not in {"*", "/"} and literal in line.partition("*>")[0]
-                and _RULE_LINE.match(line)):
-            return 2, offset
-    return (1, first) if first is not None else (0, 0)
+        code, source_format, _ = clean_cobol_line(raw, source_format)
+        if not code:
+            continue
+        try:
+            tokens = lex_cobol(code)
+        except CobolLexError as exc:
+            # An open quoted literal can legitimately continue on a fixed
+            # source line. Its contents must not introduce a statement verb.
+            if exc.reason != "unterminated_literal":
+                owner = -1
+                continue
+            tokens = lex_cobol(code[:exc.offset])
+        start = 0
+        for token in tokens:
+            if not (token.kind == "word" and token.value in _LITERAL_BOUNDARIES
+                    or token.kind == "symbol" and token.value == "."):
+                continue
+            if is_hit and literal in code[start:token.start].casefold():
+                if owner is not None and owner >= 0:
+                    return 2, index, owner, needs_prior
+                needs_prior |= owner is None
+            owner = index if token.value in _LITERAL_RULE_VERBS else -1
+            start = token.start
+        if is_hit and literal in code[start:].casefold():
+            if owner is not None and owner >= 0:
+                return 2, index, owner, needs_prior
+            needs_prior |= owner is None
+    return (1, first, None, needs_prior) if first is not None else (0, 0, None, False)
+
+
+def _adjacent_literal_page(connection, row, *, before):
+    field, line = ("end_line", row["start_line"] - 1) if before else ("start_line", row["end_line"] + 1)
+    return connection.execute(
+        "SELECT p.*,e.text FROM repo_pages p JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+        f"WHERE p.relative_path=? AND p.source_sha256=? AND p.{field}=? AND p.span_truncated=0 LIMIT 1",
+        (row["relative_path"], row["source_sha256"], line)).fetchone()
 
 
 def _literal_source_matches(connection, literals, ranked, scope_sql, scope_values, max_pages,
@@ -1654,17 +1698,19 @@ def _literal_source_matches(connection, literals, ranked, scope_sql, scope_value
     _cancel(check_cancel)
     strength = dict.fromkeys(literals, 0)
     for row in ranked[:max_pages]:
-        evidence = connection.execute("SELECT text FROM evidence_spans WHERE evidence_id=?",
-                                      (row["evidence_id"],)).fetchone()
+        evidence = connection.execute(
+            "SELECT e.text,f.format_hint FROM evidence_spans e JOIN source_files f "
+            "ON f.relative_path=e.relative_path AND f.sha256=e.source_sha256 WHERE e.evidence_id=?",
+            (row["evidence_id"],)).fetchone()
         if evidence:
             folded = evidence[0].casefold()
             for literal in literals:
                 if strength[literal] < 2 and literal in folded:
-                    lines = folded.split("\n")
-                    score, offset = _literal_witness(lines, literal)
+                    lines = evidence[0].split("\n")
+                    score, offset, origin, _ = _literal_witness(lines, literal, evidence[1])
                     # A hit on a different word may rank this page while the
                     # matching embedded code lies outside its eventual crop.
-                    if score == 2 and not _contains_identifier(lines[offset], {literal}):
+                    if score == 2 and (origin != offset or not _contains_identifier(lines[offset], {literal})):
                         score = 1
                     strength[literal] = max(strength[literal], score)
     wanted = {term: score for term, score in strength.items() if score < 2}
@@ -1682,7 +1728,7 @@ def _literal_source_matches(connection, literals, ranked, scope_sql, scope_value
     # primary key suffices. Neither route sorts original text before yielding.
     order = "p.relative_path,p.page_id" if scope_values else "p.page_id"
     candidates = connection.execute(
-        "SELECT p.*,e.text FROM repo_pages p CROSS JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
+        "SELECT p.*,e.text,f.format_hint FROM repo_pages p CROSS JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
         "CROSS JOIN source_files f ON f.relative_path=p.relative_path AND f.sha256=p.source_sha256 "
         "WHERE p.span_truncated=0" + scope_sql + " ORDER BY " + order, scope_values)
     found = {literal: [] for literal in wanted}
@@ -1694,12 +1740,27 @@ def _literal_source_matches(connection, literals, ranked, scope_sql, scope_value
         checked += 1
         folded = candidate["text"].casefold()
         lines = None
+        previous = None
         for literal, prior in wanted.items():
             if literal not in folded or (best[literal] == 2 and len(found[literal]) >= max_pages):
                 continue
             if lines is None:
-                lines = folded.split("\n")
-            score, offset = _literal_witness(lines, literal)
+                lines = candidate["text"].split("\n")
+            score, offset, origin, needs_prior = _literal_witness(lines, literal, candidate["format_hint"])
+            anchor = None
+            if needs_prior and score < 2 and candidate["start_line"] > 1:
+                # Consult only the immediately adjacent complete page of this
+                # exact imported file. Never join across a missing evidence span.
+                if previous is None:
+                    previous = _adjacent_literal_page(connection, candidate, before=True)
+                if previous:
+                    prefix = previous["text"].split("\n")
+                    score, offset, origin, _ = _literal_witness(prefix + lines, literal, candidate["format_hint"], first_line=len(prefix))
+                    offset -= len(prefix)
+                    if origin is not None and origin < len(prefix):
+                        anchor = {k: previous[k] for k in previous.keys() if k != "text"}
+                        anchor["focus_line"] = previous["start_line"] + origin
+                    origin = None if origin is None else origin - len(prefix)
             if score <= prior or score < best[literal]:
                 continue
             if score > best[literal]:
@@ -1707,7 +1768,18 @@ def _literal_source_matches(connection, literals, ranked, scope_sql, scope_value
                 best[literal] = score
             if len(found[literal]) < max_pages:
                 row = {k: candidate[k] for k in candidate.keys() if k != "text"}
-                found[literal].append({**row, "selection_reason": "literal_source_match",
+                if anchor is None and origin is not None and origin != offset:
+                    anchor = {"focus_line": row["start_line"] + origin}
+                crops = [anchor] if anchor else []
+                if origin is not None and origin != offset and offset == len(lines) - 1:
+                    # A wrapped condition at the very end of a page may guard
+                    # the operation starting on the next physical line.
+                    following = _adjacent_literal_page(connection, candidate, before=False)
+                    if following:
+                        adjacent = {k: following[k] for k in following.keys() if k != "text"}
+                        adjacent["focus_line"] = following["start_line"]
+                        crops.insert(0 if origin >= 0 else len(crops), adjacent)
+                found[literal].append({**row, "selection_reason": "literal_source_match", "context_crops": crops,
                     "retrieval_terms": (literal,), "focus_line": row["start_line"] + offset})
         if all(best[term] == 2 and len(rows) == max_pages for term, rows in found.items()):
             exhausted = False
@@ -1722,8 +1794,9 @@ def _literal_source_matches(connection, literals, ranked, scope_sql, scope_value
     for row in rows:
         page = by_page.setdefault(row["page_id"], {**row, "retrieval_leads": []})
         lead = {field: row[field] for field in ("focus_line", "retrieval_terms")}
-        if lead not in page["retrieval_leads"]:
-            page["retrieval_leads"].append(lead)
+        for crop in (lead, *row["context_crops"]):
+            if crop and crop not in page["retrieval_leads"]:
+                page["retrieval_leads"].append(crop)
     rows = list(by_page.values())
     if generation:
         cache[key] = (rows, report)

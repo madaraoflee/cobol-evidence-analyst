@@ -9198,6 +9198,83 @@
         "poc/tests/test_cross_file_literal_retrieval.py"
       ],
       "limitations": "合成题核对全部已知公式位置、续查进度、自定义回答要求和显式追加的搜索线索。公司系统是否存在资料库外公式仍待现场确认。"
+    },
+    {
+      "id": "BUG-20261120-011",
+      "title": "多行条件中的业务标识会被同词屏幕文案遮住",
+      "symptom": "同一业务代码在显示文案中独立出现，业务判断在另一个文件，匹配值嵌在更长的代码里。把条件值换至次行、或放在次行 AND 条件后，普通问答只发送显示文案。",
+      "root_cause": "原文字面命中的优先级只识别物理行起始的动作词；续行与屏幕文案同级，已有显示命中时被过滤。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-20-continued-source-evidence/local-before.json",
+        "docs/reports/2026-11-20-continued-source-evidence/local-after.json",
+        "docs/reports/2026-11-20-continued-source-evidence/README.md",
+        "poc/tests/test_literal_condition_continuations.py",
+        "poc/tests/test_literal_continuation_boundaries.py",
+        "docs/reports/2026-11-20-continued-source-evidence/page-boundary-before.json",
+        "docs/reports/2026-11-20-continued-source-evidence/page-boundary-after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_literal_condition_continuations.LiteralConditionContinuationTests.test_fixed_operand_and_free_conjunction_reach_first_model_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_literal_condition_continuations.LiteralConditionContinuationTests.test_display_after_if_and_a_quoted_keyword_cannot_own_the_next_literal"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_literal_continuation_boundaries.LiteralContinuationBoundaryTests.test_first_business_request_contains_both_halves_of_a_condition_split_by_search_pages"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_literal_continuation_boundaries.LiteralContinuationBoundaryTests.test_first_business_request_contains_deduction_immediately_after_search_page_boundary"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_literal_continuation_boundaries.LiteralContinuationBoundaryTests.test_display_operand_and_commented_condition_on_previous_page_do_not_displace_exact_hit"
+        }
+      ],
+      "limitations": "普通问答首轮、定长和自由格式、相邻完整原文页、显示和注释反例。未导入、缺页、超出问答预算或取决于运行时配置的路径仍有原有边界。"
+    },
+    {
+      "id": "BUG-20261120-012",
+      "title": "在线长答后新追问取不回上一答超出前缀的业务指代",
+      "symptom": "同一源码的两段长答仅末尾业务字段不同。用户追问最后一项的条件时，两次送给模型的上下文完全相同，已保存的不同末项均不可见。",
+      "root_cause": "跨题历史只发送每条回答的限长前缀和定位提示；同题续查可以分页取回草稿，新问题却不能重新读取完整的上一答。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-20-continued-source-evidence/online-before.json",
+        "docs/reports/2026-11-20-continued-source-evidence/online-after.json",
+        "docs/reports/2026-11-20-continued-source-evidence/README.md",
+        "poc/tests/test_online_followup_history_pages.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_followup_history_pages.FollowupHistoryPagesTests.test_last_branch_from_persisted_long_answer_is_visible_on_first_new_question_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_followup_history_pages.FollowupHistoryPagesTests.test_paging_recovers_every_character_and_displaced_citation_without_granting_evidence"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_followup_history_pages.FollowupHistoryPagesTests.test_receipt_cannot_resolve_to_a_changed_or_unrelated_message_on_resume"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_followup_history_pages.FollowupHistoryPagesTests.test_catalog_recovers_an_older_turn_without_loading_unrelated_messages_or_future_turns"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_followup_history_pages.FollowupHistoryPagesTests.test_other_conversation_and_revision_cannot_supply_prior_text_or_stale_source"
+        }
+      ],
+      "limitations": "已验证同一会话和快照的历史末项、中段与窗口外的消息可按需寻回；引用须在本题核验原件。历史中未保存的线索、真实模型回答和目标设备仍待现场复核。"
     }
   ],
   "updated_at": "2026-11-20"
