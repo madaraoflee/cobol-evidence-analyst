@@ -1,0 +1,18 @@
+{
+  "before": {
+    "lines": 8192,
+    "pages": 8,
+    "matches_delivered": 160,
+    "full_decode_calls": 8,
+    "bytes_decoded": 1179648,
+    "source_reads": 8
+  },
+  "after": {
+    "lines": 8192,
+    "pages": 8,
+    "matches_delivered": 160,
+    "full_decode_calls": 1,
+    "bytes_decoded": 147456,
+    "source_reads": 8
+  }
+}

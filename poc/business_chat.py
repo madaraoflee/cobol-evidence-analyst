@@ -520,7 +520,17 @@ def _history_messages(history, policy=None, *, question=None):
 def _retrieval_found_source(context):
     """A verified original-text fallback is also a usable retrieval result."""
     return bool(context.get("pages") and (context.get("matched_file_count", 0)
-                or (context.get("raw_fallback") or {}).get("matched_pages", 0)))
+                or (context.get("raw_fallback") or {}).get("matched_pages", 0)
+                or (context.get("literal_search") or {}).get("selected_pages", 0)))
+
+
+def _search_record(query, context):
+    record = {"query": query, "matched_files": context.get("matched_file_count", 0),
+              "matched_pages": context.get("matched_page_count", 0)}
+    if context.get("literal_search"):
+        record.update(literal_source_files=context["literal_search"]["selected_files"],
+                      literal_source_pages=context["literal_search"]["selected_pages"])
+    return record
 
 
 def _compact_prompt_payload(payload):
@@ -2673,8 +2683,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                    for item in (investigation or {}).get("required_items", []))
 
     discovery_pending = can_discover()
-    initial_search = {"query": question, "matched_files": initial.get("matched_file_count", 0),
-                      "matched_pages": initial.get("matched_page_count", 0)}
+    initial_search = _search_record(question, initial)
     if initial_search not in searches:
         searches.append(initial_search)
     history_context = _history_messages(history, policy, question=question)
@@ -3112,9 +3121,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             if source_match_observed:
                 discovery_pending = False
             completed_actions.append({"search": search_terms, "added_pages": added})
-            searches.append({"query": " / ".join(search_terms),
-                             "matched_files": context.get("matched_file_count", 0),
-                             "matched_pages": context.get("matched_page_count", 0)})
+            searches.append(_search_record(" / ".join(search_terms), context))
         if action.get("list_impact"):
             try:
                 impact_result = list_impact(database_path, action["list_impact"], page_size=20)

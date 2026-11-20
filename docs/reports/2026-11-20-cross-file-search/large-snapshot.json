@@ -1,0 +1,127 @@
+{
+  "input": {
+    "files": 10001,
+    "source_format": "fixed",
+    "needle": "REMITKEY",
+    "condition_file": "member09999.cbl",
+    "condition_line": 4,
+    "scope": "synthetic_offline"
+  },
+  "local_before": [
+    {
+      "question": "请解释 REMITKEY 业务条件",
+      "seconds": 0.0727,
+      "source_hits": [],
+      "selected_pages": 8,
+      "verified_files": 8,
+      "scanned_repository_files": false,
+      "raw_fallback_status": "budget_exhausted",
+      "repository_complete": false
+    },
+    {
+      "question": "请解释 REMITKEY 业务条件",
+      "seconds": 0.0247,
+      "source_hits": [],
+      "selected_pages": 8,
+      "verified_files": 8,
+      "scanned_repository_files": false,
+      "raw_fallback_status": "budget_exhausted",
+      "repository_complete": false
+    }
+  ],
+  "local_after": [
+    {
+      "question": "请解释 REMITKEY 业务条件",
+      "seconds": 0.0752,
+      "source_hits": [
+        [
+          "member09999.cbl",
+          1,
+          9
+        ]
+      ],
+      "selected_pages": 1,
+      "verified_files": 1,
+      "scanned_repository_files": false,
+      "raw_fallback_status": "budget_exhausted",
+      "repository_complete": false
+    },
+    {
+      "question": "请解释 REMITKEY 业务条件",
+      "seconds": 0.0181,
+      "source_hits": [
+        [
+          "member09999.cbl",
+          1,
+          9
+        ]
+      ],
+      "selected_pages": 1,
+      "verified_files": 1,
+      "scanned_repository_files": false,
+      "raw_fallback_status": "budget_exhausted",
+      "repository_complete": false
+    }
+  ],
+  "online_before": {
+    "ordinary_word_hits": 0,
+    "cross_file_tool": false,
+    "locations": [],
+    "steps": 0,
+    "pending_cursor": false,
+    "source_files_opened": 0,
+    "unique_sources_opened": 0,
+    "material_bytes_read": 97171,
+    "material_objects_read": 1,
+    "seconds": 0.004,
+    "coverage": {}
+  },
+  "online_after_new_material": {
+    "ordinary_word_hits": 0,
+    "cross_file_tool": true,
+    "locations": [
+      {
+        "path": "member09999.cbl",
+        "line": 4
+      }
+    ],
+    "steps": 1,
+    "pending_cursor": false,
+    "source_files_opened": 1,
+    "unique_sources_opened": 1,
+    "material_bytes_read": 191319,
+    "material_objects_read": 18,
+    "seconds": 0.01,
+    "coverage": {
+      "absence_established": false,
+      "scope": "indexed_snapshot"
+    }
+  },
+  "online_after_legacy_material": {
+    "ordinary_word_hits": 0,
+    "cross_file_tool": true,
+    "locations": [
+      {
+        "path": "member09999.cbl",
+        "line": 4
+      }
+    ],
+    "steps": 1,
+    "pending_cursor": false,
+    "source_files_opened": 1,
+    "unique_sources_opened": 1,
+    "material_bytes_read": 723936,
+    "material_objects_read": 257,
+    "seconds": 0.063,
+    "coverage": {
+      "absence_established": false,
+      "scope": "indexed_snapshot"
+    }
+  },
+  "online_material": {
+    "old_bytes": 11052967,
+    "new_bytes": 11471411,
+    "old_objects": 10873,
+    "new_objects": 11205
+  }
+}

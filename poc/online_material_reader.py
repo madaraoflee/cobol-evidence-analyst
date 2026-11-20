@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from bisect import bisect_right
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -10,10 +12,12 @@ from functools import wraps
 import os
 from pathlib import Path
 import stat
+import zlib
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from online_material_format import (MAX_MANIFEST_BYTES, MAX_OBJECT_BYTES, MaterialError,
-    INLINE_POSTING_BYTES, INLINE_POSTING_PATHS, canonical_json,
+    INLINE_POSTING_BYTES, INLINE_POSTING_PATHS, LITERAL_DIRECTORY_KEY, LITERAL_FILTER_BYTES,
+    LITERAL_GROUP_FILES, LITERAL_LANE_BYTES, canonical_json,
     bucket, decode_json, digest, relative_path, valid_commit, valid_hash,
     validate_manifest, validate_reference)
 from online_source_client import _authorization, _https_read, _limit
@@ -227,7 +231,8 @@ class MaterialReader:
         elif len(raw) != reference["size"]:
             raise MaterialError("MATERIAL_SIZE_MISMATCH")
         value = decode_json(raw)
-        if not isinstance(value, dict) or value.get("kind") not in {"files", "terms", "references", "facts", "postings"}:
+        if not isinstance(value, dict) or value.get("kind") not in {"files", "terms", "references", "facts", "postings",
+                "literal_groups", "literal_paths", "literal_lane"}:
             raise MaterialError("MATERIAL_INVALID_OBJECT")
         if kind is not None and value["kind"] != kind:
             raise MaterialError("MATERIAL_KIND_MISMATCH")
@@ -242,9 +247,11 @@ class MaterialReader:
         return value
 
     def _route(self, key, route):
+        return self._route_bucket(bucket(key), route)
+
+    def _route_bucket(self, prefix, route):
         self._tick()
         routing = self._manifest["routes"][route]
-        prefix = bucket(key)
         reference = routing.get(prefix)
         if reference is None:
             return None
@@ -353,7 +360,9 @@ class MaterialReader:
         entries = self._route(key, route)
         if entries is None or key not in entries:
             return []
-        descriptor = entries[key]
+        return self._posting_paths(key, entries[key])
+
+    def _posting_paths(self, key, descriptor):
         if not isinstance(descriptor, dict) or set(descriptor) not in ({"count", "pages"}, {"count", "paths"}) or not _count(descriptor["count"]):
             raise MaterialError("MATERIAL_INVALID_POSTINGS")
         if "paths" in descriptor:
@@ -389,3 +398,79 @@ class MaterialReader:
         if len(result) != descriptor["count"]:
             raise MaterialError("MATERIAL_POSTINGS_COUNT_MISMATCH")
         return result
+
+    @_bounded_operation
+    def literal_directory(self):
+        entries = self._route(LITERAL_DIRECTORY_KEY, "references")
+        if not entries or LITERAL_DIRECTORY_KEY not in entries:
+            return None
+        descriptor = entries[LITERAL_DIRECTORY_KEY]
+        if not isinstance(descriptor, dict) or set(descriptor) != {"directory"}:
+            raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+        value = self.read_object(descriptor["directory"], kind="literal_groups")
+        groups = value.get("groups")
+        if set(value) != {"kind", "groups"} or not isinstance(groups, list):
+            raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+        total = 0
+        for group in groups:
+            if (not isinstance(group, dict) or set(group) != {"count", "paths", "lanes"}
+                    or type(group["count"]) is not int or not 1 <= group["count"] <= LITERAL_GROUP_FILES
+                    or not isinstance(group["lanes"], list)
+                    or len(group["lanes"]) != LITERAL_FILTER_BYTES // LITERAL_LANE_BYTES):
+                raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+            validate_reference(group["paths"])
+            for ref in group["lanes"]:
+                validate_reference(ref)
+            total += group["count"]
+        if total != self._manifest["coverage"].get("indexed_files"):
+            raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+        return groups
+
+    @_bounded_operation
+    def literal_group_paths(self, group, probes):
+        count = group["count"]
+        surviving = list(range(count))
+        lanes = {}
+        for bit in probes:
+            number, position = divmod(bit, LITERAL_LANE_BYTES * 8)
+            lanes.setdefault(number, []).append(position)
+        for number, positions in lanes.items():
+            value = self.read_object(group["lanes"][number], kind="literal_lane")
+            try:
+                expected = count * LITERAL_LANE_BYTES
+                encoded = value["data"]
+                if not isinstance(encoded, str) or len(encoded) > (expected + 128) * 2:
+                    raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+                compressed = base64.b64decode(encoded, validate=True)
+                decoder = zlib.decompressobj()
+                data = decoder.decompress(compressed, expected + 1)
+            except (binascii.Error, ValueError, TypeError, KeyError, zlib.error):
+                raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX") from None
+            if (set(value) != {"kind", "data"} or len(data) != expected or not decoder.eof
+                    or decoder.unused_data or decoder.unconsumed_tail):
+                raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+            masks = [(pos // 8, 1 << (pos % 8)) for pos in positions]
+            surviving = [i for i in surviving if all(data[i * LITERAL_LANE_BYTES + pos] & mask
+                                                      for pos, mask in masks)]
+            if not surviving:
+                return []
+        value = self.read_object(group["paths"], kind="literal_paths")
+        paths = value.get("paths")
+        if set(value) != {"kind", "paths"} or not isinstance(paths, list) or len(paths) != count:
+            raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+        for path in paths:
+            relative_path(path)
+        if paths != sorted(set(paths)):
+            raise MaterialError("MATERIAL_INVALID_LITERAL_INDEX")
+        return [paths[i] for i in surviving]
+
+    @_bounded_operation
+    def legacy_literal_candidates(self, term):
+        """Expand a fragment in existing token routes, fetching no originals."""
+        paths = set()
+        if term:
+            for prefix in sorted(self._manifest["routes"]["terms"]):
+                for key, descriptor in self._route_bucket(prefix, "terms").items():
+                    if term in key:
+                        paths.update(self._posting_paths(key, descriptor))
+        return sorted(paths)

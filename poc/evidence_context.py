@@ -100,7 +100,7 @@ def page_priority(page):
         return 1
     if reasons & {"agent_requested_read", "business_rule", "conversation_context"}:
         return 1
-    if "question_match" in reasons:
+    if reasons & {"question_match", "literal_source_match"}:
         return 2
     return 3
 
