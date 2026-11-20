@@ -1,0 +1,188 @@
+{
+  "application_commit": "97231568836ab4ae5e9e7cc6f58d4be19abfab5f",
+  "question": "输入金额满足什么条件才会处理，异常分支是什么？",
+  "fixture": "existing local online_http_fixture; fixed scripted evidence requests and answer",
+  "surface": "OnlineWorkbench public question, state, jobs and resume routes via dispatch",
+  "real_model_calls": 0,
+  "socket_connect_calls": 0,
+  "scenarios": [
+    {
+      "scenario": "delayed_answer",
+      "max_requests_per_job": 2,
+      "scripted_client_request_source_files": [
+        [],
+        [
+          "main.cbl",
+          "records.cpy",
+          "worker.cbl"
+        ]
+      ],
+      "observations": [
+        {
+          "step": "answer_request_held_after_three_reads",
+          "job_status": "running",
+          "phase": "model_request_started",
+          "error": null,
+          "resume_available": false,
+          "retry_confirmation_required": true,
+          "conversation_status": "running",
+          "message_roles": [
+            "user"
+          ],
+          "assistant_body_count": 0,
+          "cited_files": [],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ]
+        },
+        {
+          "step": "after_release",
+          "job_status": "answered",
+          "phase": "answered",
+          "error": null,
+          "resume_available": false,
+          "retry_confirmation_required": false,
+          "conversation_status": "answered",
+          "message_roles": [
+            "user",
+            "assistant"
+          ],
+          "assistant_body_count": 1,
+          "cited_files": [
+            "main.cbl",
+            "records.cpy",
+            "worker.cbl"
+          ],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": "continuation",
+      "max_requests_per_job": 1,
+      "scripted_client_request_source_files": [
+        [],
+        [
+          "main.cbl",
+          "records.cpy",
+          "worker.cbl"
+        ]
+      ],
+      "observations": [
+        {
+          "step": "one_request_budget_exhausted",
+          "job_status": "needs_continuation",
+          "phase": "needs_continuation",
+          "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+          "resume_available": true,
+          "retry_confirmation_required": false,
+          "conversation_status": "needs_continuation",
+          "message_roles": [
+            "user"
+          ],
+          "assistant_body_count": 0,
+          "cited_files": [],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ],
+          "prior_source_files_read": [
+            "main.cbl",
+            "records.cpy",
+            "worker.cbl"
+          ]
+        },
+        {
+          "step": "after_resume",
+          "job_status": "answered",
+          "phase": "answered",
+          "error": null,
+          "resume_available": false,
+          "retry_confirmation_required": false,
+          "conversation_status": "answered",
+          "message_roles": [
+            "user",
+            "assistant"
+          ],
+          "assistant_body_count": 1,
+          "cited_files": [
+            "main.cbl",
+            "records.cpy",
+            "worker.cbl"
+          ],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": "unknown_timeout",
+      "max_requests_per_job": 2,
+      "scripted_client_request_source_files": [
+        [],
+        [
+          "main.cbl",
+          "records.cpy",
+          "worker.cbl"
+        ]
+      ],
+      "observations": [
+        {
+          "step": "answer_request_held_after_three_reads",
+          "job_status": "running",
+          "phase": "model_request_started",
+          "error": null,
+          "resume_available": false,
+          "retry_confirmation_required": true,
+          "conversation_status": "running",
+          "message_roles": [
+            "user"
+          ],
+          "assistant_body_count": 0,
+          "cited_files": [],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ]
+        },
+        {
+          "step": "after_release",
+          "job_status": "retry_confirmation_required",
+          "phase": "retry_confirmation_required",
+          "error": "REQUEST_TIMEOUT",
+          "resume_available": true,
+          "retry_confirmation_required": true,
+          "conversation_status": "retry_confirmation_required",
+          "message_roles": [
+            "user"
+          ],
+          "assistant_body_count": 0,
+          "cited_files": [],
+          "source_activity": [
+            {
+              "count": 2,
+              "tool": "read"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "boundary": "Controlled states only; no elapsed-time estimate, browser, device or enterprise validation."
+}

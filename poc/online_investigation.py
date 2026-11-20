@@ -23,6 +23,8 @@ from response_language import SUPPORTED_LANGUAGES, answer_language_instruction, 
 from online_source_recovery import follow_locations, history_reads, named_scope, question_terms
 from repository_scope import repository_inventory_requested
 from online_answer_checks import answer_source_issue, retain_checked_location
+from online_grounded_findings import grounded_preview, grounded_sequence_answer
+from online_deduction_review import deduction_review_requested, review_covers_answer, REVIEW_INSTRUCTIONS
 from online_material_format import (MaterialError, canonical_json, decode_json, digest,
                                     relative_path, valid_hash)
 
@@ -61,6 +63,15 @@ does not prove absence. Dynamic calls and ambiguous names remain unresolved.
 
 To investigate return {"actions":[one or more tool objects],"remaining":[short
 descriptions of business questions still to verify]}. At most eight actions.
+For an ordinary investigation you may include finding_sources alongside actions:
+an array of original page IDs supplied in this request that already establish a
+useful rule. The application extracts verifiable statements from these sources
+for early display. Keep investigating in the same turn. Use remaining to name
+the particular branch, handoff or result that you still need to establish.
+If the relevant verified window begins inside a longer procedure, you can
+also include finding_quotes: [{"id":"E...","quote":"one exact complete source line"}].
+Choose a decisive condition, operation or call. These are shown as source
+excerpts while their enclosing conditions are investigated.
 Tools (all paths are relative to the manifest's selected directory):
 {"tool":"search","text":"source vocabulary/program/field","limit":20,"offset":0}
 {"tool":"locate_global","text":"literal or part of an identifier","limit":10,"cursor":null}
@@ -724,28 +735,54 @@ class _UncitedAnswer(MaterialError):
         self.remaining = remaining
 
 
+def _cited_text(result):
+    if not isinstance(result, dict) or set(result) != {"answer", "citations"}:
+        raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
+    answer = _text(result["answer"], 60000, "ONLINE_INVALID_MODEL_RESPONSE")
+    citations = result["citations"]
+    if (not isinstance(citations, list) or not 1 <= len(citations) <= 64
+            or any(not isinstance(item, str) or not _IDENTIFIER.fullmatch(item) for item in citations)
+            or set(_CITATION.findall(answer)) != set(citations)):
+        raise MaterialError("ONLINE_INVALID_MODEL_CITATIONS")
+    return {"answer": answer, "citations": list(dict.fromkeys(citations))}
+
+
 def _parsed_response(result):
     if not isinstance(result, dict):
         raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
     if "actions" in result:
-        if set(result) - {"actions", "remaining"} or not isinstance(result["actions"], list) or not 1 <= len(result["actions"]) <= 8:
+        if set(result) - {"actions", "remaining", "finding_sources", "finding_quotes"} or not isinstance(result["actions"], list) or not 1 <= len(result["actions"]) <= 8:
             raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
-        return {"actions": [_action(item) for item in result["actions"]],
-                "remaining": _remaining(result.get("remaining", []))}
-    if set(result) != {"answer", "citations", "complete", "remaining"}:
+        parsed = {"actions": [_action(item) for item in result["actions"]],
+                  "remaining": _remaining(result.get("remaining", []))}
+        if "finding_sources" in result:
+            ids = result["finding_sources"]
+            if (not isinstance(ids, list) or not 1 <= len(ids) <= 8
+                    or any(not isinstance(i, str) or not _IDENTIFIER.fullmatch(i) for i in ids)):
+                raise MaterialError("ONLINE_INVALID_MODEL_CITATIONS")
+            parsed["finding_sources"] = list(dict.fromkeys(ids))
+        if "finding_quotes" in result:
+            quotes = result["finding_quotes"]
+            if (not isinstance(quotes, list) or not 1 <= len(quotes) <= 4
+                    or any(not isinstance(q, dict) or set(q) != {"id", "quote"} or not isinstance(q["id"], str)
+                           or not _IDENTIFIER.fullmatch(q["id"]) for q in quotes)):
+                raise MaterialError("ONLINE_INVALID_MODEL_CITATIONS")
+            parsed["finding_quotes"] = [{"id": q["id"], "quote": _text(q["quote"], 400, "ONLINE_INVALID_MODEL_RESPONSE")}
+                                        for q in quotes]
+        return parsed
+    if set(result) - {"deduction_review"} != {"answer", "citations", "complete", "remaining"}:
         raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
     answer = _text(result["answer"], 60000, "ONLINE_INVALID_MODEL_RESPONSE")
     citations = result["citations"]
     if type(result["complete"]) is bool and citations == [] and not _CITATION.search(answer):
         raise _UncitedAnswer(_remaining(result["remaining"]))
-    if (type(result["complete"]) is not bool or not isinstance(citations, list)
-            or not 1 <= len(citations) <= 64
-            or any(not isinstance(item, str) or not _IDENTIFIER.fullmatch(item) for item in citations)):
-        raise MaterialError("ONLINE_INVALID_MODEL_CITATIONS")
-    if set(_CITATION.findall(answer)) != set(citations):
-        raise MaterialError("ONLINE_INVALID_MODEL_CITATIONS")
-    return {"answer": answer, "citations": list(dict.fromkeys(citations)),
-            "complete": result["complete"], "remaining": _remaining(result["remaining"])}
+    if type(result["complete"]) is not bool:
+        raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
+    parsed = _cited_text({"answer": answer, "citations": citations})
+    parsed.update(complete=result["complete"], remaining=_remaining(result["remaining"]))
+    if "deduction_review" in result:
+        parsed["deduction_review"] = result["deduction_review"]
+    return parsed
 
 
 def _new_state(manifest, question):
@@ -757,7 +794,7 @@ def _new_state(manifest, question):
             "model_calls_total": 0, "actions_total": 0, "protocol_failures": 0,
             "no_progress_rounds": 0, "observations_total": 0, "error": None,
             "answer_requirements": None, "revision_draft": None, "diagnostic": None, "source_recovery": None,
-            "work_ledger": _new_work(question), "archived_evidence": []}
+            "work_ledger": _new_work(question), "archived_evidence": [], "progressive_answer": None}
 
 
 def _restore(manifest, question, checkpoint, inventory_session=None):
@@ -770,7 +807,7 @@ def _restore(manifest, question, checkpoint, inventory_session=None):
     if external is not None and (inventory_session is None or external != {"id": inventory_session.id}):
         raise MaterialError("ONLINE_INVENTORY_NOT_FOUND")
     # Only the explicitly added fields may be absent in older online checkpoints.
-    for key in ("answer_requirements", "revision_draft", "diagnostic", "source_recovery"):
+    for key in ("answer_requirements", "revision_draft", "diagnostic", "source_recovery", "progressive_answer"):
         state.setdefault(key, None)
     recovery = state["source_recovery"]
     if recovery is not None and (not isinstance(recovery, dict) or set(recovery) != {"phase", "terms"}
@@ -861,6 +898,15 @@ def _restore(manifest, question, checkpoint, inventory_session=None):
         _positive(item["max_characters"], 60000, "ONLINE_INVALID_CHECKPOINT")
     if evidence_bytes > MAX_EVIDENCE_BYTES:
         raise MaterialError("ONLINE_CHECKPOINT_CAPACITY_LIMIT")
+    preview = state["progressive_answer"]
+    if preview is not None:
+        if (not isinstance(preview, dict) or set(preview) != {"answer", "citations", "remaining"}
+                or not isinstance(state["work_ledger"], dict) or state["work_ledger"].get("global") is not False):
+            raise MaterialError("ONLINE_INVALID_CHECKPOINT")
+        _cited_text({"answer": preview["answer"], "citations": preview["citations"]})
+        _remaining(preview["remaining"])
+        if not set(preview["citations"]) <= active_ids:
+            raise MaterialError("ONLINE_INVALID_CHECKPOINT")
     for key in ("focus_evidence", "request_evidence", "answer_citations"):
         if any(not isinstance(item, str) or item not in (active_ids if key == "focus_evidence" else seen) for item in state[key]):
             raise MaterialError("ONLINE_INVALID_CHECKPOINT")
@@ -885,6 +931,44 @@ def _observe(state, action, result):
     state["observations"] = state["observations"][-96:]
     while len(state["observations"]) > 1 and len(canonical_json(state["observations"])) > 512000:
         state["observations"].pop(0)
+
+
+def _publish_checked_finding(state, early):
+    previous = state["progressive_answer"]
+    if not early:
+        return
+    if previous:
+        if set(early["citations"]) <= set(previous["citations"]):
+            return
+        if len(previous["citations"]) + len(early["citations"]) > 8:
+            return
+        early = {"answer": previous["answer"] + "\n\n" + early["answer"],
+                 "citations": list(dict.fromkeys(previous["citations"] + early["citations"]))}
+    if len(canonical_json(early)) <= 16000:
+        state["progressive_answer"] = {**early, "remaining": list(state["remaining"])}
+
+
+def _quoted_source_line(page, quote, language):
+    # A mid-procedure window cannot establish the outer branch. Only attest
+    # to the physical source line, including capitalization and punctuation.
+    quote = quote.strip()
+    if (not re.match(r"^(?:IF|WHEN|EVALUATE|CALL|COMPUTE|SUBTRACT|ADD|MOVE|WRITE|REWRITE|PERFORM)\s", quote, re.I)
+            or any(c in quote for c in ("`", "\n", "\r", "[", "]"))
+            or quote not in {line.strip() for line in page["text"].splitlines()[:page["complete_line_count"]]}):
+        return None
+    heading = localized_text(language, "已核对以下源码语句，其适用范围仍在调查。",
+                             "This source statement is verified. Its scope is still under investigation.",
+                             "已核對以下源碼語句，其適用範圍仍在調查。")
+    return {"answer": f"{heading}\n\n`{quote}` [{page['id']}]", "citations": [page["id"]]}
+
+
+def _complete_sequence_sources(query, supplied):
+    paths = {p["citation"]["path"] for p in supplied}
+    if len(paths) != 2:
+        return []
+    lengths = {path: query.reader.file(path)["line_count"] for path in paths}
+    return [p for p in supplied if p["citation"]["start"] == 1 and not p["truncated"]
+            and p["citation"]["end"] == lengths[p["citation"]["path"]]]
 
 
 def _previous_action_failed(state, action):
@@ -1357,6 +1441,8 @@ def _messages(query, sources, state, history, verified, history_omitted=0):
     if state["revision_draft"] is not None:
         context["revision_draft"] = deepcopy(state["revision_draft"])
     system = _answer_system(state["answer_requirements"])
+    if not state["work_ledger"]["global"] and deduction_review_requested(state["question"]):
+        system += REVIEW_INSTRUCTIONS
     if state["work_ledger"]["global"]:
         work = state["work_ledger"]
         pending = _work_pending(work)
@@ -1517,6 +1603,7 @@ an already received response is consumed without another model request.
                 revised["revision_draft"] = {"answer": revised["answer"], "citations": deepcopy(revised["answer_citations"]),
                     "complete": revised["status"] == "answered", "remaining": deepcopy(revised["remaining"])}
             revised["answer"], revised["answer_citations"] = "", []
+            revised["progressive_answer"] = None
             revised["status"] = "needs_continuation"
             revised["answer_requirements"] = requirements
             if revised["work_ledger"]["global"]:
@@ -1575,6 +1662,20 @@ an already received response is consumed without another model request.
                 if "actions" in response:
                     state["pending_actions"] = response["actions"]
                     state["remaining"] = response["remaining"]
+                    if state["progressive_answer"]:
+                        state["progressive_answer"]["remaining"] = list(state["remaining"])
+                    nominated = response.get("finding_sources", [])
+                    quotes = response.get("finding_quotes", [])
+                    if (nominated or quotes) and not work["global"]:
+                        pages = {p["id"]: p for p in state["evidence"] if p["id"] in state["request_evidence"]}
+                        used = set(nominated) | {q["id"] for q in quotes}
+                        if used <= pages.keys():
+                            for identifier in used:
+                                _verify_page(query, sources, pages[identifier], verified)
+                            language = requirements["answer_language"]
+                            _publish_checked_finding(state, grounded_preview(question, [pages[i] for i in nominated], language))
+                            for q in quotes:
+                                _publish_checked_finding(state, _quoted_source_line(pages[q["id"]], q["quote"], language))
                     duplicate = all((inventory_session.action_done(digest(canonical_json(item))) if inventory_session else
                                      digest(canonical_json(item)) in state["completed_actions"])
                                     or _previous_action_failed(state, item) for item in response["actions"])
@@ -1592,11 +1693,30 @@ an already received response is consumed without another model request.
                         if not state["work_ledger"]["global"]:
                             supplied = [pages[i] for i in state["request_evidence"] if "text" in pages[i]]
                             issue = answer_source_issue(question, response, supplied)
+                            if not issue and response["complete"] and not response["remaining"] and deduction_review_requested(question):
+                                closed = None
+                                if not requirements["answer_instructions"] and not history_count:
+                                    closed = grounded_sequence_answer(question, _complete_sequence_sources(query, supplied),
+                                                                      requirements["answer_language"])
+                                if closed:
+                                    response = {**response, **closed}
+                                elif not review_covers_answer(response, supplied):
+                                    issue = {"issue": "deduction_steps_incomplete",
+                                             "evidence_ids": list(response["citations"]),
+                                             "instruction": REVIEW_INSTRUCTIONS.strip()}
                             if issue:
                                 repeated = any(o["action"] == {"tool": "answer_check"} and
                                                o["result"] == issue for o in state["observations"])
                                 _observe(state, {"tool": "answer_check"}, issue)
-                                retain_checked_location(state, issue, pages[issue["evidence_ids"][0]])
+                                if issue["issue"] == "deduction_steps_incomplete":
+                                    gap = localized_text(requirements["answer_language"],
+                                        "核对各次扣费的先后、跳过条件和最终金额。",
+                                        "Verify deduction order, skip conditions and the final amount.",
+                                        "核對各次扣費的先後、略過條件和最終金額。")
+                                    if gap not in state["remaining"] and len(state["remaining"]) < 32:
+                                        state["remaining"].append(gap)
+                                else:
+                                    retain_checked_location(state, issue, pages[issue["evidence_ids"][0]])
                                 if repeated:
                                     return finish("needs_continuation")
                                 if issue["issue"] == "display_only_sequence":
@@ -1611,6 +1731,16 @@ an already received response is consumed without another model request.
                         state["answer_citations"] = response["citations"]
                         state["remaining"] = response["remaining"]
                         status = "answered" if response["complete"] and not response["remaining"] else "needs_continuation"
+                        if (status == "needs_continuation" and not work["global"] and state["progressive_answer"]
+                                and response["remaining"] and deduction_review_requested(question)):
+                            # A first partial answer is a checkpoint. While there
+                            # is budget, keep investigating in this same user turn.
+                            state["progressive_answer"]["remaining"] = list(response["remaining"])
+                            marker = {"tool": "continue_deduction", "evidence": digest(canonical_json(sorted(state["request_evidence"])))}
+                            if calls < max_model_calls and not any(o["action"] == marker for o in state["observations"]):
+                                _observe(state, marker, {"instruction": "Follow outstanding branches. Use source actions or give the completed business answer."})
+                                _emit(progress, state, "investigating")
+                                continue
                         if status == "answered" and state["work_ledger"]["global"] and not _work_summary(state["work_ledger"])["complete"]:
                             state["status"] = "needs_continuation"
                             pending = _work_pending(state["work_ledger"])
@@ -1658,6 +1788,9 @@ an already received response is consumed without another model request.
                 state["pending_actions"].pop(0)
                 actions += 1
                 state["actions_total"] += 1
+                if not work["global"] and action["tool"] == "read" and "id" in result:
+                    page = next(p for p in reversed(state["evidence"]) if p["id"] == result["id"])
+                    _publish_checked_finding(state, grounded_preview(question, [page], requirements["answer_language"]))
                 _emit(progress, state, "source_action_completed", action=action["tool"], completed=actions)
             recovery = state["source_recovery"]
             if recovery is not None and recovery["phase"] in ("locating", "paging"):

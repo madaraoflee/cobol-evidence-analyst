@@ -211,3 +211,39 @@ test('online failed actions refresh status without retrying the mutation',async(
   assert.equal(h.timers.size,1);
   assert.equal(h.element('error').hidden,false);
 });
+
+test('checked findings appear before the final answer with scoped citations and remaining work', async () => {
+  const owner = 'd'.repeat(32);
+  const citation = 'E' + '3'.repeat(24);
+  const pending = {
+    status: 'running', user_message_id: 'question',
+    progressive_answer: {answer: 'First checked conclusion', remaining: ['Check <next> condition'],
+      citations: [{id:citation, path:'entry.cbl', start:4, end:6}]}
+  };
+  const conversation = {id:owner, status:'running', messages:[{id:'question',role:'user',content:'Which deductions?'}],pending};
+  const job = {job_id:'e'.repeat(32),kind:'question',conversation_id:owner,status:'running'};
+  const body = {conversation,current_conversation_id:owner,active_job:job};
+  const endpoint = '/api/online/evidence?conversation_id=' + owner + '&citation_id=' + citation;
+  let releaseEvidence;
+  const reply = new Promise(resolve => { releaseEvidence = resolve; });
+  const h = harness(body, {[endpoint]:() => reply});
+  await h.ready();
+  let html = h.element('messages').innerHTML;
+  assert.match(html,/已查实的阶段结论/);
+  assert.match(html,/First checked conclusion/);
+  assert.match(html,/Check &lt;next&gt; condition/);
+  assert.ok(html.includes(`data-citation="${citation}"`));
+  h.events.get('messages:click')({target:{closest:() => ({dataset:{citation}})}});
+  await h.ready();
+  assert.ok(h.requests.some(r=>r.url===endpoint));
+  assert.equal(h.timers.size,1,'reading partial evidence must leave the investigation polling');
+  releaseEvidence({citation:{path:'entry.cbl',start:4,end:6},text:'Verified branch'});
+  await h.ready();
+  assert.equal(h.element('evidence-text').textContent,'Verified branch');
+  h.setState({...body, active_job:{...job,status:'answered'},conversation:{...conversation,status:'answered',pending:null,
+    messages:[...conversation.messages,{role:'assistant',status:'answered',content:'Final deduction sequence'}]}});
+  h.fireTimer(); await h.ready();
+  html=h.element('messages').innerHTML;
+  assert.match(html,/Final deduction sequence/);
+  assert.doesNotMatch(html,/First checked conclusion|已查实的阶段结论/);
+});

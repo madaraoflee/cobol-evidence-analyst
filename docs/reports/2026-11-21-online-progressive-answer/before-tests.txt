@@ -1,0 +1,44 @@
+test_changed_names_threshold_and_inclusive_comparison_change_final_rule (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_changed_names_threshold_and_inclusive_comparison_change_final_rule) ... FAIL
+test_explicit_resume_preserves_early_finding_and_delivers_once (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_explicit_resume_preserves_early_finding_and_delivers_once) ... FAIL
+test_first_visible_finding_then_complete_deduction_answer (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_first_visible_finding_then_complete_deduction_answer) ... FAIL
+
+======================================================================
+FAIL: test_changed_names_threshold_and_inclusive_comparison_change_final_rule (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_changed_names_threshold_and_inclusive_comparison_change_final_rule)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 81, in test_changed_names_threshold_and_inclusive_comparison_change_final_rule
+    self.assert_first_finding(states["after_first_verified_read"])
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 22, in assert_first_finding
+    self.assertTrue(state["has_pending_preview"], "first original was read but no interim business text")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : first original was read but no interim business text
+
+======================================================================
+FAIL: test_explicit_resume_preserves_early_finding_and_delivers_once (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_explicit_resume_preserves_early_finding_and_delivers_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 71, in test_explicit_resume_preserves_early_finding_and_delivers_once
+    self.assert_first_finding(states["after_first_verified_read"])
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 22, in assert_first_finding
+    self.assertTrue(state["has_pending_preview"], "first original was read but no interim business text")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : first original was read but no interim business text
+
+======================================================================
+FAIL: test_first_visible_finding_then_complete_deduction_answer (test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_first_visible_finding_then_complete_deduction_answer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 65, in test_first_visible_finding_then_complete_deduction_answer
+    self.assert_first_finding(states["after_first_verified_read"])
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private<frozen-checkout>/poc/tests/test_online_progressive_delivery.py", line 22, in assert_first_finding
+    self.assertTrue(state["has_pending_preview"], "first original was read but no interim business text")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : first original was read but no interim business text
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.536s
+
+FAILED (failures=3)

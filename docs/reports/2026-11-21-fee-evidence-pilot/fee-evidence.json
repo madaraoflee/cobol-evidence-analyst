@@ -1,0 +1,359 @@
+{
+  "fixture": "neutral-fee-call-scope-v1",
+  "commit": "81b91c76e8f657de871cb6a7f675dcd628d0a3ad",
+  "scope": "docs/reports/2026-10-20-live-ui/source",
+  "material_revision": "fe61bcd8ee89300b8db1419889e9e0d3a677d63953ae6febaeaabf8ce74f0309",
+  "oracle_sha256": "faf182207a4f00aee011994f5d370d0e9da89fd13eab66608f9c3ceadca45875",
+  "sources": {
+    "fee.cbl": {
+      "sha256": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+      "lines": 22
+    },
+    "entry.cbl": {
+      "sha256": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+      "lines": 314
+    }
+  },
+  "method": "Investigator-selected actions on the pinned online query API, using local Git-verified material.",
+  "navigation": {
+    "question_searches": [
+      {
+        "input": "fee.cbl 的手续费如何计算？请按执行顺序说明基础公式、ROUNDED 舍入、最低/最高收费和 REVIEW 的后续覆盖；本金为 100、500、2000，费率均为 1.25% 时各收多少？再说明本金 201.20 的舍入结果。",
+        "status": "matches",
+        "matches": [
+          {
+            "file": "fee.cbl",
+            "matched_terms": [
+              "1",
+              "100",
+              "25",
+              "cbl",
+              "fee",
+              "review",
+              "rounded"
+            ],
+            "score": 7
+          },
+          {
+            "file": "entry.cbl",
+            "matched_terms": [
+              "500",
+              "cbl",
+              "fee"
+            ],
+            "score": 3
+          }
+        ]
+      },
+      {
+        "input": "ENTRY-RULE 在什么条件下调用 FEE-RULE？请说明三个参数怎样传入、手续费怎样返回；不是 STANDARD 时，FINAL-FEE 会怎样变化？",
+        "status": "matches",
+        "matches": [
+          {
+            "file": "entry.cbl",
+            "matched_terms": [
+              "entry",
+              "entry-rule",
+              "fee",
+              "fee-rule",
+              "final",
+              "final-fee",
+              "rule",
+              "standard"
+            ],
+            "score": 8
+          },
+          {
+            "file": "fee.cbl",
+            "matched_terms": [
+              "fee",
+              "fee-rule",
+              "final",
+              "final-fee",
+              "rule"
+            ],
+            "score": 5
+          }
+        ]
+      },
+      {
+        "input": "手续费如何计算",
+        "status": "no_lexical_matches",
+        "matches": []
+      }
+    ],
+    "global_literal_anchors": {
+      "FINAL-FEE": [
+        {
+          "path": "entry.cbl",
+          "line": 6
+        },
+        {
+          "path": "entry.cbl",
+          "line": 311
+        },
+        {
+          "path": "fee.cbl",
+          "line": 8
+        },
+        {
+          "path": "fee.cbl",
+          "line": 10
+        },
+        {
+          "path": "fee.cbl",
+          "line": 11
+        },
+        {
+          "path": "fee.cbl",
+          "line": 13
+        },
+        {
+          "path": "fee.cbl",
+          "line": 14
+        },
+        {
+          "path": "fee.cbl",
+          "line": 16
+        },
+        {
+          "path": "fee.cbl",
+          "line": 17
+        },
+        {
+          "path": "fee.cbl",
+          "line": 20
+        }
+      ],
+      "RATE": [
+        {
+          "path": "fee.cbl",
+          "line": 5
+        },
+        {
+          "path": "fee.cbl",
+          "line": 11
+        }
+      ],
+      "REQUEST-STATE": [
+        {
+          "path": "entry.cbl",
+          "line": 7
+        },
+        {
+          "path": "entry.cbl",
+          "line": 311
+        },
+        {
+          "path": "fee.cbl",
+          "line": 9
+        },
+        {
+          "path": "fee.cbl",
+          "line": 10
+        },
+        {
+          "path": "fee.cbl",
+          "line": 19
+        }
+      ],
+      "STANDARD": [
+        {
+          "path": "entry.cbl",
+          "line": 8
+        },
+        {
+          "path": "entry.cbl",
+          "line": 10
+        }
+      ]
+    },
+    "fee_arithmetic_candidates": [
+      {
+        "candidate_id": "C2fd13ebca613caa24b644033",
+        "path": "fee.cbl",
+        "start_line": 11,
+        "end_line": 11,
+        "rule_id": "rule_6068d63e3605_adc0e45bd3b19285b1194108",
+        "rule_kind": "COMPUTE",
+        "occurrence_count": 1,
+        "reads": [
+          "BASE-AMOUNT",
+          "RATE"
+        ],
+        "writes": [
+          "FINAL-FEE"
+        ],
+        "condition": []
+      },
+      {
+        "candidate_id": "Cb9128346f49c873969ed3df5",
+        "path": "fee.cbl",
+        "start_line": 14,
+        "end_line": 14,
+        "rule_id": "rule_6068d63e3605_edb22441b4fccb2d13f9bf69",
+        "rule_kind": "MOVE",
+        "occurrence_count": 1,
+        "reads": [],
+        "writes": [
+          "FINAL-FEE"
+        ],
+        "condition": []
+      },
+      {
+        "candidate_id": "C98a1e9d27d98557145709d81",
+        "path": "fee.cbl",
+        "start_line": 17,
+        "end_line": 17,
+        "rule_id": "rule_6068d63e3605_1484dfba0b5f43393033da94",
+        "rule_kind": "MOVE",
+        "occurrence_count": 1,
+        "reads": [],
+        "writes": [
+          "FINAL-FEE"
+        ],
+        "condition": []
+      },
+      {
+        "candidate_id": "C515953b9efae8f9358b23dec",
+        "path": "fee.cbl",
+        "start_line": 20,
+        "end_line": 20,
+        "rule_id": "rule_6068d63e3605_ffa3105ade5d19d75a437d44",
+        "rule_kind": "MOVE",
+        "occurrence_count": 1,
+        "reads": [],
+        "writes": [
+          "FINAL-FEE"
+        ],
+        "condition": []
+      }
+    ],
+    "entry_call_relations": [
+      {
+        "target": "FEE-RULE",
+        "line": 311,
+        "status": "confirmed"
+      }
+    ]
+  },
+  "assessor_selected_source_reads": [
+    {
+      "citation": {
+        "revision": "fe61bcd8ee89300b8db1419889e9e0d3a677d63953ae6febaeaabf8ce74f0309",
+        "commit": "81b91c76e8f657de871cb6a7f675dcd628d0a3ad",
+        "path": "fee.cbl",
+        "hash": "b4e9478031dadf5450151010ab7f66552850abedc939a3544bf37c57b2285994",
+        "start": 1,
+        "end": 22
+      },
+      "complete_line_count": 22
+    },
+    {
+      "citation": {
+        "revision": "fe61bcd8ee89300b8db1419889e9e0d3a677d63953ae6febaeaabf8ce74f0309",
+        "commit": "81b91c76e8f657de871cb6a7f675dcd628d0a3ad",
+        "path": "entry.cbl",
+        "hash": "0933fc6ea7e32261beaeb67cebc949086df70a3a638ff09c61fe1c9685441d72",
+        "start": 1,
+        "end": 314
+      },
+      "complete_line_count": 314
+    }
+  ],
+  "target_field_only_comparison": [
+    {
+      "path": "fee.cbl",
+      "line": 5,
+      "source": "01 RATE PIC 9V99 VALUE 1.25.",
+      "role": "rate value",
+      "in_result_literal_hits": false,
+      "found_with_literal": "RATE"
+    },
+    {
+      "path": "fee.cbl",
+      "line": 19,
+      "source": "IF REQUEST-STATE = 'REVIEW'",
+      "role": "review override guard",
+      "in_result_literal_hits": false,
+      "found_with_literal": "REQUEST-STATE"
+    },
+    {
+      "path": "entry.cbl",
+      "line": 10,
+      "source": "IF REQUEST-KIND = 'STANDARD'",
+      "role": "call guard",
+      "in_result_literal_hits": false,
+      "found_with_literal": "STANDARD"
+    }
+  ],
+  "checked_decimal_oracle_examples": [
+    {
+      "base_amount": "100.00",
+      "request_state": "NORMAL",
+      "rounded_formula_result": "1.25",
+      "after_minimum_maximum": "2.00",
+      "final_fee": "2.00"
+    },
+    {
+      "base_amount": "500.00",
+      "request_state": "NORMAL",
+      "rounded_formula_result": "6.25",
+      "after_minimum_maximum": "6.25",
+      "final_fee": "6.25"
+    },
+    {
+      "base_amount": "2000.00",
+      "request_state": "NORMAL",
+      "rounded_formula_result": "25.00",
+      "after_minimum_maximum": "15.00",
+      "final_fee": "15.00"
+    },
+    {
+      "base_amount": "100.00",
+      "request_state": "REVIEW",
+      "rounded_formula_result": "1.25",
+      "after_minimum_maximum": "2.00",
+      "final_fee": "0.00"
+    },
+    {
+      "base_amount": "500.00",
+      "request_state": "REVIEW",
+      "rounded_formula_result": "6.25",
+      "after_minimum_maximum": "6.25",
+      "final_fee": "0.00"
+    },
+    {
+      "base_amount": "2000.00",
+      "request_state": "REVIEW",
+      "rounded_formula_result": "25.00",
+      "after_minimum_maximum": "15.00",
+      "final_fee": "0.00"
+    },
+    {
+      "base_amount": "201.20",
+      "request_state": "NORMAL",
+      "rounded_formula_result": "2.52",
+      "after_minimum_maximum": "2.52",
+      "final_fee": "2.52"
+    }
+  ],
+  "call_semantics": {
+    "guard": "entry.cbl:10, closed at 313, conditions the call at 311; lines 11-310 are CONTINUE.",
+    "writeback": "Ordinary default BY REFERENCE; second caller argument matches second callee parameter.",
+    "skip": "A non-STANDARD request skips the call and retains the existing fee.",
+    "assumptions": [
+      "Valid nonnegative numeric input matching the declared PIC fields; normal arithmetic and storage conversion.",
+      "RATE is 1.25 in the supplied working-storage source and is never modified.",
+      "The receiving FINAL-FEE field has two decimal places; ROUNDED applies to the COMPUTE assignment before the minimum and maximum checks.",
+      "CALL USING omits a passing mode, so these arguments are passed BY REFERENCE under ordinary COBOL semantics; actual runtime linkage and compilation are not exercised here.",
+      "Fresh initialization of ENTRY-RULE gives BASE-AMOUNT=500, FINAL-FEE=0, REQUEST-STATE=NORMAL, REQUEST-KIND=STANDARD.",
+      "A hypothetical nonstandard request skips the call and leaves FINAL-FEE unchanged. It equals 0 only if the starting value is the shown initial value; retained working storage from an earlier invocation must not be assumed reset."
+    ]
+  },
+  "new_real_model_requests": 0,
+  "automatic_model_selected_source": "not measured",
+  "business_answer_pair": "not generated or scored",
+  "cobol_execution": "not performed",
+  "enterprise_case": "not measured"
+}

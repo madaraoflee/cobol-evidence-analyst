@@ -1,0 +1,213 @@
+{
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "fixture_commit": "97231568836ab4ae5e9e7cc6f58d4be19abfab5f",
+  "fixture_file": "poc/tests/test_online_automatic_source_search.py",
+  "fixture_sha256": "75b22fe3fec74477467de596bd7a44244db3278b71e04f33f6e41b966b620b17",
+  "source_snapshot": "fixture-declared bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "selection": "自动组从零原文启动。内存接口在未见原文时返回原测试的无引用答复，见到原文后使用同一固定回复。人工对照组独立从应收扣减语句确定下列行段，仅比较原文覆盖。",
+  "criteria": {
+    "准备金扣减须满足指定类型，才从应收中减去该金额": [
+      [
+        "cash.cbl",
+        4,
+        6
+      ]
+    ],
+    "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": [
+      [
+        "cash.cbl",
+        4,
+        9
+      ]
+    ],
+    "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": [
+      [
+        "cash.cbl",
+        7,
+        9
+      ],
+      [
+        "return.cbl",
+        3,
+        3
+      ]
+    ],
+    "退款余额严格小于应收才扣减，相等或更大时直接返回": [
+      [
+        "return.cbl",
+        3,
+        7
+      ]
+    ]
+  },
+  "automatic_runs": [
+    {
+      "tool_commit": "81b91c76e8f657de871cb6a7f675dcd628d0a3ad",
+      "material_revision": "f4140c5f6a33ae4fec6cfd2ddc059819119ec7f92206d43cb958bdc4853316b1",
+      "status": "failed",
+      "error": "ONLINE_MODEL_PROTOCOL_FAILED",
+      "delivered_answer": "",
+      "completed_actions": [
+        "protocol",
+        "protocol",
+        "protocol"
+      ],
+      "source_reads": [],
+      "outgoing_requests": [
+        {
+          "round": 1,
+          "source_context": [],
+          "covered": {
+            "准备金扣减须满足指定类型，才从应收中减去该金额": false,
+            "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": false,
+            "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": false,
+            "退款余额严格小于应收才扣减，相等或更大时直接返回": false
+          }
+        },
+        {
+          "round": 2,
+          "source_context": [],
+          "covered": {
+            "准备金扣减须满足指定类型，才从应收中减去该金额": false,
+            "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": false,
+            "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": false,
+            "退款余额严格小于应收才扣减，相等或更大时直接返回": false
+          }
+        },
+        {
+          "round": 3,
+          "source_context": [],
+          "covered": {
+            "准备金扣减须满足指定类型，才从应收中减去该金额": false,
+            "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": false,
+            "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": false,
+            "退款余额严格小于应收才扣减，相等或更大时直接返回": false
+          }
+        }
+      ]
+    },
+    {
+      "tool_commit": "97231568836ab4ae5e9e7cc6f58d4be19abfab5f",
+      "material_revision": "f4140c5f6a33ae4fec6cfd2ddc059819119ec7f92206d43cb958bdc4853316b1",
+      "status": "answered",
+      "error": null,
+      "delivered_answer": "先使用准备金，剩余应收大于零时调用退款处理。 [E57444cf4e1519cfbff6c0528] [E8f6fb91cfaa2eb008ba2ceb6]",
+      "completed_actions": [
+        "source_recovery",
+        "locate_global",
+        "locate_global",
+        "locate_global",
+        "read",
+        "read"
+      ],
+      "source_reads": [
+        "cash.cbl",
+        "return.cbl"
+      ],
+      "outgoing_requests": [
+        {
+          "round": 1,
+          "source_context": [],
+          "covered": {
+            "准备金扣减须满足指定类型，才从应收中减去该金额": false,
+            "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": false,
+            "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": false,
+            "退款余额严格小于应收才扣减，相等或更大时直接返回": false
+          }
+        },
+        {
+          "round": 2,
+          "source_context": [
+            {
+              "path": "return.cbl",
+              "start": 1,
+              "end": 7,
+              "sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. APPLYREFUND.\nPROCEDURE DIVISION USING DUE.\nIF REFUND-BALANCE < DUE\n SUBTRACT REFUND-BALANCE FROM DUE\nEND-IF.\nGOBACK.",
+              "evidence_id": "E57444cf4e1519cfbff6c0528"
+            },
+            {
+              "path": "cash.cbl",
+              "start": 1,
+              "end": 10,
+              "sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "text": "IDENTIFICATION DIVISION.\nPROGRAM-ID. CASHENTRY.\nPROCEDURE DIVISION.\nIF ITEM-TYPE = \"1-RESERVECREDIT\"\n SUBTRACT CREDIT-AMT FROM NET-DUE\nEND-IF.\nIF NET-DUE > 0\n CALL \"APPLYREFUND\" USING NET-DUE\nEND-IF.\nGOBACK.",
+              "evidence_id": "E8f6fb91cfaa2eb008ba2ceb6"
+            }
+          ],
+          "covered": {
+            "准备金扣减须满足指定类型，才从应收中减去该金额": true,
+            "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": true,
+            "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": true,
+            "退款余额严格小于应收才扣减，相等或更大时直接返回": true
+          }
+        }
+      ],
+      "synthesis_pair": {
+        "status": "prepared_not_sent",
+        "synthesis_prompt_version": "business-final-synthesis-v1",
+        "shared_system_prompt_sha256": "84b96c1d552a139e56cda753eb72af2aa9c1ed6896d9f07e2921d28503654777",
+        "shared_question_sha256": "eb376c8d1e0c2384d8e4a3548132f9b13cac7a5afd7a1fb7e895747cc928f4bc",
+        "history": [],
+        "source_order": "path_then_start_line",
+        "branches": {
+          "automatic": {
+            "ranges": [
+              [
+                "cash.cbl",
+                1,
+                10
+              ],
+              [
+                "return.cbl",
+                1,
+                7
+              ]
+            ],
+            "messages_sha256": "8662294ef37551b8828e739b8f1a77330167e910be4720cc90e8f03329dcf40a"
+          },
+          "reviewed": {
+            "ranges": [
+              [
+                "cash.cbl",
+                4,
+                9
+              ],
+              [
+                "return.cbl",
+                3,
+                7
+              ]
+            ],
+            "messages_sha256": "323f882950e5b7c4d4d9d5fe7d4adb982bf51cccabad96961840c35b108bef70"
+          }
+        }
+      }
+    }
+  ],
+  "reviewed_evidence": {
+    "source_context": [
+      {
+        "path": "cash.cbl",
+        "start": 4,
+        "end": 9,
+        "sha256": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "text": "IF ITEM-TYPE = \"1-RESERVECREDIT\"\n SUBTRACT CREDIT-AMT FROM NET-DUE\nEND-IF.\nIF NET-DUE > 0\n CALL \"APPLYREFUND\" USING NET-DUE\nEND-IF."
+      },
+      {
+        "path": "return.cbl",
+        "start": 3,
+        "end": 7,
+        "sha256": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+        "text": "PROCEDURE DIVISION USING DUE.\nIF REFUND-BALANCE < DUE\n SUBTRACT REFUND-BALANCE FROM DUE\nEND-IF.\nGOBACK."
+      }
+    ],
+    "covered": {
+      "准备金扣减须满足指定类型，才从应收中减去该金额": true,
+      "准备金分支结束后，独立检查应收是否大于零，再决定是否调用退款程序": true,
+      "传给退款程序的是处理到此时的应收，调用实参与子程序入口对应": true,
+      "退款余额严格小于应收才扣减，相等或更大时直接返回": true
+    }
+  },
+  "limits": "覆盖表示实际请求中有足以查验该条件的原文行。每个程序只用中性合成夹具，两个版本均使用同一内存接口。未调用真实模型、未执行 COBOL、未向人工对照组生成模型答复。固定答复无法衡量真实模型水平、公司扣费顺序、实际记账或最终应用质量。"
+}

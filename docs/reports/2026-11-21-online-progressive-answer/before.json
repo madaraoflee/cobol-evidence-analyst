@@ -1,0 +1,172 @@
+{
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "scripted_final_draft": "先使用准备金，剩余应收大于零时调用退款处理。",
+  "model_requests_over_network": 0,
+  "measurement": "Public workbench state and individually reopened source citations; synthetic replies.",
+  "online_modules_sha256": "5299e4e126c9c1dd75e737a36ee50c775e13390e475bed394f215141e86a06bf",
+  "runs": {
+    "historical_question": {
+      "continued_after_budget": false,
+      "files_sha256": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+        "notice.cbl": "235c9e373577e9ff98fe29b6b4550cdf30cd282760b810c927a8c64e1999aaff"
+      },
+      "revision": "f4140c5f6a33ae4fec6cfd2ddc059819119ec7f92206d43cb958bdc4853316b1",
+      "source_files_in_each_request": [
+        [],
+        [
+          "cash.cbl",
+          "return.cbl"
+        ]
+      ],
+      "states": {
+        "after_first_verified_read": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "waiting_for_final_reply": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "delivered": {
+          "status": "answered",
+          "assistant_messages": 1,
+          "has_pending_preview": false,
+          "answer": "先使用准备金，剩余应收大于零时调用退款处理。 [E57444cf4e1519cfbff6c0528] [E8f6fb91cfaa2eb008ba2ceb6]",
+          "sources": [
+            {
+              "path": "return.cbl",
+              "hash": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "start": 1,
+              "end": 7
+            },
+            {
+              "path": "cash.cbl",
+              "hash": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "start": 1,
+              "end": 10
+            }
+          ]
+        }
+      }
+    },
+    "resume_same_question": {
+      "continued_after_budget": true,
+      "files_sha256": {
+        "cash.cbl": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+        "return.cbl": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+        "notice.cbl": "235c9e373577e9ff98fe29b6b4550cdf30cd282760b810c927a8c64e1999aaff"
+      },
+      "revision": "f4140c5f6a33ae4fec6cfd2ddc059819119ec7f92206d43cb958bdc4853316b1",
+      "source_files_in_each_request": [
+        [],
+        [
+          "cash.cbl",
+          "return.cbl"
+        ]
+      ],
+      "states": {
+        "after_first_verified_read": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "budget_reached": {
+          "status": "needs_continuation",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "waiting_for_final_reply": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "delivered": {
+          "status": "answered",
+          "assistant_messages": 1,
+          "has_pending_preview": false,
+          "answer": "先使用准备金，剩余应收大于零时调用退款处理。 [E57444cf4e1519cfbff6c0528] [E8f6fb91cfaa2eb008ba2ceb6]",
+          "sources": [
+            {
+              "path": "return.cbl",
+              "hash": "f1add39ab8cc1fa01bca5bd6321ad575682b6086de3859e9775fcc53cce6ce24",
+              "start": 1,
+              "end": 7
+            },
+            {
+              "path": "cash.cbl",
+              "hash": "29e47638142e07afcc71bdd0d4e7d5b57edc23e0379886be7a9aa4a3ad132aae",
+              "start": 1,
+              "end": 10
+            }
+          ]
+        }
+      }
+    },
+    "changed_conditions": {
+      "continued_after_budget": false,
+      "files_sha256": {
+        "bill.cbl": "227b2b2d05a1577f839e360fd6def51a0c1cc4013b2bd183dae863e1c3fccce1",
+        "rebate.cbl": "d875f6d1bb6a505a8728b94016b003bc4094fa74516fe9d322df42d050038353",
+        "notice.cbl": "235c9e373577e9ff98fe29b6b4550cdf30cd282760b810c927a8c64e1999aaff"
+      },
+      "revision": "735cfebdf9136320a82473b5b567f5896e80fde04972ef7d7004d09b86c5e86a",
+      "source_files_in_each_request": [
+        [],
+        [
+          "bill.cbl",
+          "rebate.cbl"
+        ]
+      ],
+      "states": {
+        "after_first_verified_read": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "waiting_for_final_reply": {
+          "status": "running",
+          "assistant_messages": 0,
+          "has_pending_preview": false,
+          "answer": "",
+          "sources": []
+        },
+        "delivered": {
+          "status": "answered",
+          "assistant_messages": 1,
+          "has_pending_preview": false,
+          "answer": "先使用准备金，剩余应收大于零时调用退款处理。 [E68dccb13aa9e90bca6a4f758] [E2c9226c17705fbed9cbb2f24]",
+          "sources": [
+            {
+              "path": "rebate.cbl",
+              "hash": "d875f6d1bb6a505a8728b94016b003bc4094fa74516fe9d322df42d050038353",
+              "start": 1,
+              "end": 7
+            },
+            {
+              "path": "bill.cbl",
+              "hash": "227b2b2d05a1577f839e360fd6def51a0c1cc4013b2bd183dae863e1c3fccce1",
+              "start": 1,
+              "end": 10
+            }
+          ]
+        }
+      }
+    }
+  }
+}

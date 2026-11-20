@@ -105,6 +105,21 @@ def _source_activity(checkpoint):
     return list(reversed(steps.values()))
 
 
+def _progressive_answer(pending):
+    """Project the current turn's checked findings without exposing checkpoint source text."""
+    checkpoint = pending.get("checkpoint") if pending else None
+    preview = checkpoint.get("progressive_answer") if isinstance(checkpoint, dict) else None
+    if not preview:
+        return None
+    identifiers = preview["citations"]
+    pages = {page["id"]: page["citation"] for group in ("evidence", "archived_evidence")
+             for page in checkpoint.get(group, [])}
+    if not identifiers or any(identifier not in pages for identifier in identifiers):
+        return None
+    return {"answer": preview["answer"], "remaining": list(preview["remaining"]),
+            "citations": [{"id": identifier, **pages[identifier]} for identifier in identifiers]}
+
+
 def _inventory_coverage(value):
     if not isinstance(value, dict) or value.get("active") is not True or value.get("scope") != "indexed_snapshot":
         return None
@@ -423,10 +438,15 @@ class OnlineWorkbench:
     def _public_conversation(conversation):
         if conversation is None:
             return None
-        result = deepcopy(conversation)
-        pending = result.get("pending")
+        result = {key: deepcopy(value) for key, value in conversation.items() if key != "pending"}
+        stored = conversation.get("pending")
+        pending = {key: deepcopy(value) for key, value in stored.items() if key != "checkpoint"} if stored else None
+        result["pending"] = pending
         if pending:
-            checkpoint = pending.pop("checkpoint", None)
+            checkpoint = stored.get("checkpoint")
+            preview = _progressive_answer(stored)
+            if preview:
+                pending["progressive_answer"] = preview
             pending["can_resume"] = pending.get("status") != "running"
             pending["retry_confirmation_required"] = (isinstance(checkpoint, dict)
                 and checkpoint.get("request_status") in {"in_flight", "unknown"})
@@ -943,7 +963,10 @@ class OnlineWorkbench:
             conversation = self._conversation(db, query.get("conversation_id"))
             workspace = self._workspace(db, conversation["workspace_id"])
         public = self._public_conversation(conversation)
-        public.pop("pending", None)
+        pending = public.pop("pending", None)
+        preview = pending.get("progressive_answer") if pending else None
+        if preview:
+            public["progressive_answer"] = {"user_message_id": pending["user_message_id"], **preview}
         inventories = {}
         for message in public["messages"]:
             descriptor = message.get("inventory_result")
@@ -966,6 +989,12 @@ class OnlineWorkbench:
                 lines.extend(["Citations:", "", "```json", json.dumps(message["citations"], ensure_ascii=False, indent=2), "```", ""])
             if message.get("coverage"):
                 lines.extend(["Coverage:", "", "```json", json.dumps(message["coverage"], ensure_ascii=False, indent=2), "```", ""])
+        if preview:
+            lines.extend(["## Verified findings so far", "", preview["answer"], ""])
+            if preview["remaining"]:
+                lines.extend(["Open questions", "", *["- " + item for item in preview["remaining"]], ""])
+            lines.extend(["Citations:", "", "```json", json.dumps(preview["citations"], ensure_ascii=False, indent=2),
+                          "```", ""])
         for identifier, inventory in inventories.items():
             lines.extend(["## " + identifier, "", inventory["answer"], "", "```json",
                           json.dumps(inventory, ensure_ascii=False, indent=2), "```", ""])
@@ -981,6 +1010,9 @@ class OnlineWorkbench:
             credentials = dict(self._credentials[workspace["id"]])
             matches = [citation for message in conversation["messages"] for citation in message.get("citations", [])
                        if citation_id in (citation.get("key"), citation.get("id"))]
+            preview = _progressive_answer(conversation.get("pending"))
+            if preview:
+                matches.extend(item for item in preview["citations"] if item["id"] == citation_id)
         unique = {canonical_json({key: value for key, value in item.items() if key != "key"}): item for item in matches}
         if len(unique) != 1:
             raise MaterialError("ONLINE_CITATION_NOT_FOUND")

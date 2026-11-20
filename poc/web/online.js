@@ -16,6 +16,8 @@
     ["当前显示说明预览，完整内容已保存。", "目前顯示說明預覽，完整內容已保存。", "This is an explanation preview. The complete text is saved."],
     ["已记录内容完整保存；分页只控制本页显示。", "已記錄內容完整保存；分頁只控制本頁顯示。", "All recorded results are saved. Pagination only controls this view."],
     ["仍有范围待核对", "仍有範圍待核對", "Some scope still needs review"],
+    ["已查实的阶段结论", "已查實的階段結論", "Verified findings so far"],
+    ["仍待核对", "仍待核對", "Still to verify"],
     ["查看源码依据", "查看源碼依據", "View source evidence"],
     ["当前显示", "目前顯示", "Showing"],
     ["公式清单分页", "公式清單分頁", "Formula inventory pages"],
@@ -571,6 +573,24 @@
       state.evidence=result;renderEvidence();$('evidence-dialog').showModal();
     });
   }
+  function citationButtons(citations, inventoryMessageId) {
+    if (!citations.length) return '';
+    const buttons = citations.map(item => {
+      const value = item.citation || item;
+      const id = escape(item.key || item.id || item.citation_id || value.id || '');
+      const attr = inventoryMessageId
+        ? `data-inventory-message="${escape(inventoryMessageId)}" data-inventory-source="${id}"` : `data-citation="${id}"`;
+      return `<button ${attr}>${escape(value.path || value.relative_path || t('源码依据'))} · ${escape(value.start ?? value.start_line ?? '')}–${escape(value.end ?? value.end_line ?? '')}</button>`;
+    });
+    return `<div class="citations">${buttons.join('')}</div>`;
+  }
+  function progressiveMarkup(preview) {
+    if (!preview?.answer || !preview.citations?.length) return '';
+    const body = typeof answerMarkdown !== 'undefined' ? answerMarkdown.render(preview.answer) : `<p>${escape(preview.answer)}</p>`;
+    const remaining = (preview.remaining || []).map(item => `<li>${escape(item)}</li>`).join('');
+    return `<article class="message assistant"><div class="message-label">${t('已查实的阶段结论')}</div><div class="answer">${body}</div>${citationButtons(preview.citations)}${remaining ? `<p>${t('仍待核对')}</p><ul>${remaining}</ul>` : ''}</article>`;
+  }
+  let renderedTranscript;
   function render() {
     const workspace = currentWorkspace(), selected = conversation(), isBusy = busy();
     $('source-title').textContent = workspace?.label || workspace?.repository?.identity || t('从业务问题开始');
@@ -613,16 +633,22 @@
     $('model-diagnostic').textContent = [diagnosticText(selectedDiagnosticJob?.diagnostic) || diagnosticText(selected?.pending?.diagnostic), storageError].filter(Boolean).join(' · ');
     $('model-diagnostic').hidden = !$('model-diagnostic').textContent;
     const list = selected?.messages || [];
+    let transcript;
     if (list.length) {
-      $('messages').innerHTML = list.map(message => {
+      transcript = list.map(message => {
         const full=inventoryAnswers.get(inventoryKey(message));
         const isUser = message.role === 'user', citations = full ? full.answer_citations : (Array.isArray(message.citations) ? message.citations : []);
         const text = full?.answer ?? message.content ?? message.answer ?? '';
         const html = isUser ? escape(text) : (typeof answerMarkdown !== 'undefined' ? answerMarkdown.render(text) : `<p>${escape(text)}</p>`);
-        return `<article class="message ${isUser ? 'user' : 'assistant'}"><div class="message-label"><span>${isUser ? t('业务问题') : t('业务分析')}</span><span>${escape(statusText(message.status))}</span></div><div class="answer">${html || `<p class="muted">${t('本次调查还没有形成回答。')}</p>`}</div>${isUser?'':inventoryAnswerControl(message)+inventoryMarkup(message)}${citations.length ? `<div class="citations">${citations.map(item => { const value=item.citation || item; const id=escape(item.key || item.id || item.citation_id || value.id || ''); return `<button ${full?`data-inventory-message="${escape(message.id)}" data-inventory-source="${id}"`:`data-citation="${id}"`}>${escape(value.path || value.relative_path || t('源码依据'))} · ${escape(value.start ?? value.start_line ?? '')}–${escape(value.end ?? value.end_line ?? '')}</button>`; }).join('')}</div>` : ''}${message.coverage ? `<p class="coverage">${t('结论以本次已核对资料为依据；未解析关系与未读取范围仍需确认。')}</p>` : ''}</article>`;
-      }).join('');
+        return `<article class="message ${isUser ? 'user' : 'assistant'}"><div class="message-label"><span>${isUser ? t('业务问题') : t('业务分析')}</span><span>${escape(statusText(message.status))}</span></div><div class="answer">${html || `<p class="muted">${t('本次调查还没有形成回答。')}</p>`}</div>${isUser?'':inventoryAnswerControl(message)+inventoryMarkup(message)}${citationButtons(citations, full ? message.id : null)}${message.coverage ? `<p class="coverage">${t('结论以本次已核对资料为依据；未解析关系与未读取范围仍需确认。')}</p>` : ''}</article>`;
+      }).join('') + progressiveMarkup(selected.pending?.progressive_answer);
     } else {
-      $('messages').innerHTML = `<div class="empty"><div class="empty-mark">⌕</div><h2>${t('开始一次业务调查')}</h2><p>${t('当前对话固定在所选源码版本。可以描述业务目标，也可以从已知程序或字段开始。')}</p></div>`;
+      transcript = `<div class="empty"><div class="empty-mark">⌕</div><h2>${t('开始一次业务调查')}</h2><p>${t('当前对话固定在所选源码版本。可以描述业务目标，也可以从已知程序或字段开始。')}</p></div>`;
+    }
+    // Keep focus on source buttons and avoid repeating live announcements on unchanged polls.
+    if (transcript !== renderedTranscript) {
+      $('messages').innerHTML = transcript;
+      renderedTranscript = transcript;
     }
     const last = [...list].reverse().find(item => item.role === 'assistant');
     const status = String(selected?.status || last?.status || '').toLowerCase();
@@ -759,12 +785,19 @@
       link.href = url; link.download = result.filename || `online-analysis.${format === 'json' ? 'json' : 'md'}`; link.click(); URL.revokeObjectURL(url);
     });
   }
+  let evidenceRequest = 0;
   async function openEvidence(id) {
-    if (!id || !conversation()) return;
-    await perform(async () => {
-      const result = await api(`/evidence?conversation_id=${encodeURIComponent(state.data.current_conversation_id)}&citation_id=${encodeURIComponent(id)}`);
-      state.evidence = result; renderEvidence(); $('evidence-dialog').showModal();
-    });
+    const owner = conversation()?.id;
+    if (!id || !owner) return;
+    const request = ++evidenceRequest;
+    try {
+      const result = await api(`/evidence?conversation_id=${encodeURIComponent(owner)}&citation_id=${encodeURIComponent(id)}`);
+      if (conversation()?.id !== owner || request !== evidenceRequest) return;
+      state.evidence = result; renderEvidence();
+      if (!$('evidence-dialog').open) $('evidence-dialog').showModal();
+    } catch (error) {
+      if (conversation()?.id === owner && request === evidenceRequest) showError(error);
+    }
   }
 
   function renderConnectState() {

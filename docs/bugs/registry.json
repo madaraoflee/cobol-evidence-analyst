@@ -5432,7 +5432,8 @@
       "status": "open",
       "evidence": [
         "docs/bugs/audit-notes.md",
-        "docs/reports/2026-11-09-open-defects/README.md"
+        "docs/reports/2026-11-09-open-defects/README.md",
+        "docs/reports/2026-11-21-fee-evidence-pilot/README.md"
       ],
       "regressions": [],
       "verification_scope": "field_revalidation",
@@ -9476,6 +9477,131 @@
         }
       ],
       "limitations": "验证一次中断与继续调查保存业务待办，不代替公司历史会话复核。"
+    },
+    {
+      "id": "BUG-20261121-901",
+      "title": "提交业务问题后久等并停下时没有首份业务答案",
+      "symptom": "用户报告提交扣费题后等待很久，一直没有收到答案，并选中“进度停了、报错或提示继续调查，但没有答案”。具体属于其中哪一种状态尚待确认。",
+      "root_cause": "现场原因未定位。尚缺同一次任务的入口、版本、起止时间、最后阶段和结束原因，无法从用户可见现象确定源码读取、模型响应、续查或界面交付中的故障点。",
+      "status": "open",
+      "evidence": [
+        "docs/reports/2026-11-21-fee-evidence-pilot/README.md"
+      ],
+      "regressions": [],
+      "verification_scope": "field_revalidation",
+      "limitations": "离线实验仅验证已读原文后的界面状态及不同结束路径。需核对现场同次任务从提交、首次可见业务正文到结束的记录。没有原任务标识或对应复现时，不能认定属于已知超时、协议故障或某一产品版本。"
+    },
+    {
+      "id": "BUG-20261121-007",
+      "title": "在线普通问答已核对业务条件后等待或暂停仍无阶段正文",
+      "symptom": "已读取可解释的原文时，等待最终响应或在一轮额度后继续调查，对话只有用户问题。",
+      "root_cause": "原线上状态仅保留源码动作和断点，直到最终响应才投递正文。现根据已核对原文生成阶段说明并随断点保存和展示。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-online-progressive-answer/README.md",
+        "docs/reports/2026-11-21-online-progressive-answer/before.json",
+        "docs/reports/2026-11-21-online-progressive-answer/after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_workspace.OnlineWorkspaceTests.test_checked_findings_survive_pause_and_restart_and_are_replaced_on_completion"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_first_visible_finding_then_complete_deduction_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_explicit_resume_preserves_early_finding_and_delivers_once"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_changed_names_threshold_and_inclusive_comparison_change_final_rule"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_mid_procedure_progress_shows_only_the_exact_cited_source_line"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online.test.cjs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "同题经真实在线入口、固定中性原文和受控响应重放。公司现场时长、真实模型解释、真实部署及目标设备仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-008",
+      "title": "扣费顺序回答带引用却遗漏跳过条件和最终应收",
+      "symptom": "同一问题已供应两份程序原文，固定浅答遗漏类型门槛、等额边界和最终结果，仍标为已回答。",
+      "root_cause": "原完整标志依赖模型自报和宽泛的来源检查。现可从有界调用和算术语句归纳可证路径，同时要求复杂顺序回答的逐步和最终结果能对应正文及原文。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-online-progressive-answer/README.md",
+        "docs/reports/2026-11-21-online-progressive-answer/before.json",
+        "docs/reports/2026-11-21-online-progressive-answer/after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_same_order_when_retrieval_finds_worker_first_and_pages_overlap"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_preview_can_report_one_branch_but_not_final_result_or_cross_file_order"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_unrelated_question_or_extra_requirements_cannot_be_replaced_by_the_flow"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_unresolved_or_uncertain_binding_preserves_the_need_for_investigation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_no_findings_from_clipped_control_compiler_directives_or_display_only"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_grounded_findings.GroundedFindingsTests.test_regular_call_and_move_preview_needs_verifiable_matching_evidence"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_cited_checklist_must_describe_the_answer_delivered_to_the_reader"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_unresolved_branches_continue_in_same_turn_with_verified_interim_visible"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_repeated_incomplete_final_has_visible_evidence_but_is_not_marked_complete"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_source_derived_complete_result_corrects_a_contradictory_self_review"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_deduction_review.OnlineDeductionReviewTests.test_mid_procedure_progress_shows_only_the_exact_cited_source_line"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_first_visible_finding_then_complete_deduction_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_explicit_resume_preserves_early_finding_and_delivers_once"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_progressive_delivery.OnlineProgressiveDeliveryTests.test_changed_names_threshold_and_inclusive_comparison_change_final_rule"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "同题经真实在线入口、固定中性原文和受控响应重放。公司现场时长、真实模型解释、真实部署及目标设备仍待验证。"
     }
   ],
   "updated_at": "2026-11-21"

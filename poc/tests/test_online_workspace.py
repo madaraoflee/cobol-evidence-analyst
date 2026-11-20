@@ -381,6 +381,73 @@ class OnlineWorkspaceTests(unittest.TestCase):
         started = self.post("resume", {"conversation_id": conversation["id"], "allow_source_transfer": True, "approve_retry": True}, 202, app=restarted)
         self.assertEqual(self.wait(started["job_id"], app=restarted)["status"], "answered")
 
+    def test_checked_findings_survive_pause_and_restart_and_are_replaced_on_completion(self):
+        connected = self.connect()
+        other = self.conversation(connected["workspace_id"])["id"]
+        owner = self.conversation(connected["workspace_id"])["id"]
+        held, release = threading.Event(), threading.Event()
+        self.addCleanup(release.set)
+        finding = "The program displays the ready status."
+        evidence_id = "E" + "3" * 24
+
+        def pause(query, source, question, **options):
+            page = query.evidence("main.cbl", 5, 5, source)
+            checkpoint = {"request_status": "not_sent", "question": question,
+                          "evidence": [{"id": evidence_id, **page}],
+                          "progressive_answer": {"answer": finding, "citations": [evidence_id],
+                                                 "remaining": ["Which program uses the status?"]}}
+            options["progress"]({"phase": "source_action_completed", "checkpoint": checkpoint})
+            held.set()
+            if not release.wait(8):
+                raise AssertionError("Test did not release the request")
+            return {"status": "needs_continuation", "answer": "", "checkpoint": checkpoint}
+
+        self.app.investigator = pause
+        started = self.post("question", {"conversation_id": owner, "question": "Explain the status.",
+                                          "allow_source_transfer": True}, 202)
+        try:
+            self.assertTrue(held.wait(5))
+            current = self.app.state()
+            self.assertEqual(current["active_job"]["status"], "running")
+            preview = current["conversation"]["pending"]["progressive_answer"]
+            self.assertEqual(preview["answer"], finding)
+            self.assertEqual(preview["remaining"], ["Which program uses the status?"])
+            self.assertEqual([citation["id"] for citation in preview["citations"]], [evidence_id])
+            self.assertEqual([m["role"] for m in current["conversation"]["messages"]], ["user"])
+            self.assertNotIn("checkpoint", current["conversation"]["pending"])
+            self.assertNotIn("STATUS-READY", json.dumps(current))
+            self.assertNotIn(finding, json.dumps(current["active_job"]))
+            def evidence(conversation):
+                return self.app.dispatch("GET", "/api/online/evidence",
+                                         query={"conversation_id": conversation, "citation_id": evidence_id})
+            status, inspected = evidence(owner)
+            self.assertEqual(status, 200, inspected)
+            self.assertEqual(inspected["text"], 'DISPLAY "STATUS-READY".')
+            self.assertEqual(inspected["citation"]["commit"], self.manifests["first"]["repository"]["commit"])
+            self.assertEqual(evidence(other)[0], 404)
+            self.assertNotIn(finding, json.dumps(self.app.dispatch("GET", "/api/online/conversations/" + other)))
+        finally:
+            release.set()
+        self.assertEqual(self.wait(started["job_id"])["status"], "needs_continuation")
+        self.app.close()
+        restarted = self.make_app()
+        self.assertEqual(restarted.state()["conversation"]["pending"]["progressive_answer"], preview)
+        query = {"conversation_id": owner, "format": "json"}
+        exported = json.loads(restarted.export(query)["content"])["conversation"]
+        self.assertEqual(exported["progressive_answer"]["answer"], finding)
+        self.assertNotIn("pending", exported)
+        markdown = restarted.export({**query, "format": "markdown"})["content"]
+        self.assertIn("Verified findings so far", markdown)
+        self.assertIn(finding, markdown)
+        self.assertIn("Which program uses the status?", markdown)
+        self.post("credentials", {"workspace_id": connected["workspace_id"], "credentials": {}}, app=restarted)
+        resumed = self.post("resume", {"conversation_id": owner, "allow_source_transfer": True}, 202, app=restarted)
+        self.assertEqual(self.wait(resumed["job_id"], app=restarted)["status"], "answered")
+        messages = restarted.state()["conversation"]
+        self.assertIsNone(messages["pending"])
+        self.assertEqual([m["role"] for m in messages["messages"]], ["user", "assistant"])
+        self.assertNotIn(finding, restarted.export(query)["content"])
+
     def test_export_is_version_bound_and_delete_does_not_change_other_conversations(self):
         connected = self.connect()
         first = self.conversation(connected["workspace_id"])
