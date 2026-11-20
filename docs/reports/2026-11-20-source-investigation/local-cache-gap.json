@@ -1,0 +1,38 @@
+{
+  "before": {
+    "matched_files": 1,
+    "matches_requested_target": true,
+    "pages": [
+      [
+        355,
+        505
+      ],
+      [
+        1,
+        151
+      ]
+    ],
+    "boundaries": [],
+    "raw": null,
+    "identity": "resolved"
+  },
+  "degraded": {
+    "matched_files": 1,
+    "matches_requested_target": false,
+    "pages": [
+      [
+        1,
+        151
+      ]
+    ],
+    "boundaries": [],
+    "raw": null,
+    "identity": "resolved"
+  },
+  "retained_pages": 1,
+  "deleted_range": [
+    302,
+    505
+  ],
+  "direct_original": "CALL \"PAIDDISPATCH\"."
+}

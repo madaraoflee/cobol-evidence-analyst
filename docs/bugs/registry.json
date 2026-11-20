@@ -8864,7 +8864,116 @@
       "status": "fixed",
       "verification_scope": "source_offline",
       "limitations": "独立校验只接受已核对编译器版本与同目录诊断，ZIP 中应只有实际应用 EXE。真实 Windows 直接启动及模块加载路径、文件散列和三件原始附件已核对。应用 ZIP 字节与原 Windows 发布门禁保持。"
+    },
+    {
+      "id": "BUG-20261120-001",
+      "title": "在线普通问答在业务词无命中后缺少原文发现路径",
+      "symptom": "合成问题使用中文业务词，索引返回零结果。普通问答请求浏览文件被拒，不能据此找到调用方及被调用程序。",
+      "root_cause": "文件目录浏览只开放给全库清单，普通调查也缺少在一份固定版本原文内定位字面量行号的操作。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_source_navigation.OnlineSourceNavigationTests.test_ordinary_question_recovers_original_caller_and_worker_after_business_term_miss"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_navigation.OnlineSourceNavigationTests.test_literal_locations_match_evidence_lines_across_chunks_and_pages"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_navigation.OnlineSourceNavigationTests.test_navigation_rejects_changed_source_invalid_locations_and_out_of_scope_paths"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/README.md",
+        "poc/tests/test_online_source_navigation.py"
+      ],
+      "limitations": "在已发布的快照目录内，普通题可按页找路径、核对原文字面量位置并用原文取证。未进入快照的源文件及现场真实模型的选择仍未验证。"
+    },
+    {
+      "id": "BUG-20261120-002",
+      "title": "在线调查续查时模型看不到本题此前的业务解释",
+      "symptom": "普通题先交付部分业务结论。再次进入同一调查时，请求中保留工作清单和证据，已交付的解释缺失。",
+      "root_cause": "对话历史在当前问题之前截断，构造在线模型请求时只有修改回答要求才传入旧草稿。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_resume_draft.OnlineResumeDraftTests.test_resume_supplies_saved_interpretation_and_outstanding_question"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_resume_draft.OnlineResumeDraftTests.test_long_saved_analysis_has_lossless_paging_and_separate_source_citations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_resume_draft.OnlineResumeDraftTests.test_resume_checks_the_draft_source_even_when_outside_the_active_window"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/README.md",
+        "poc/tests/test_online_resume_draft.py"
+      ],
+      "limitations": "当前调查按需分页传入已保存的解释，对旧稿引用重新核源。公司真实模型能否完整综合这些事实须现场检验。"
+    },
+    {
+      "id": "BUG-20261120-003",
+      "title": "在线文件目录每返回一条记录就重新解码并校验整片目录",
+      "symptom": "同一 10,001 文件目录读取 101 页时解码 10,361 次，实际只取了 256 个目录对象。",
+      "root_cause": "分页已读入完整分片，逐行通过单文件入口回读，重复校验分片内的所有兄弟项并消耗同一次操作的预算。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_file_page_cost.OnlineFilePageCostTests.test_inventory_page_decodes_each_visited_shard_once_and_preserves_cursor"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_file_page_cost.OnlineFilePageCostTests.test_operation_budget_allows_one_shard_and_rejects_a_real_excess"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_file_page_cost.OnlineFilePageCostTests.test_unreturned_sibling_and_reference_are_validated"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/reader-before.json",
+        "docs/reports/2026-11-20-source-investigation/reader-after.json",
+        "poc/tests/test_online_file_page_cost.py"
+      ],
+      "limitations": "离线合成目录原始对象、101 页内容与游标逐一比对，成本指目录枚举，不含远端接口、模型或公司设备时间。"
+    },
+    {
+      "id": "BUG-20261120-004",
+      "title": "本地命中长源行时实际供证为空仍结束取证",
+      "symptom": "新建索引能找到 7,021 字符的源行，精确读取可返回全文，普通问题却给模型零页原文。",
+      "root_cause": "页面分摊额度裁掉整行，普通问答把索引有匹配文件当成原文已供给。",
+      "status": "open",
+      "verification_scope": "source_offline",
+      "regressions": [],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/local-before.json",
+        "docs/reports/2026-11-20-source-investigation/local-scope.md"
+      ],
+      "limitations": "已在新建合成资料库复现。冻结的本地链路修复范围独立记录，当前仍未关闭。"
+    },
+    {
+      "id": "BUG-20261120-005",
+      "title": "刷新前本地指定文件部分缓存缺页时，文件名命中遮住原文调用",
+      "symptom": "在只有两页的指定文件删除本地派生缓存尾页后，仍返回文件名匹配的首页。对原文件 504 行的独立读取可取得目标调用。",
+      "root_cause": "刷新及精确读取已有缓存缺页恢复，普通检索的文件名命中却足以绕过局部原文回退。",
+      "status": "open",
+      "verification_scope": "source_offline",
+      "regressions": [],
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/local-cache-gap.json"
+      ],
+      "limitations": "仅在合成测试中主动制造派生缓存不完整。相关旧条目 BUG-20261024-102 的刷新及精确读取回归继续保留；公司索引是否出现此状态仍待验证。"
     }
   ],
-  "updated_at": "2026-11-11"
+  "updated_at": "2026-11-20"
 }

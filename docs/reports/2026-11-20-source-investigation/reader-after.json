@@ -1,0 +1,26 @@
+[
+  {
+    "elapsed_seconds": 0.1625563750000083,
+    "shard_decodes": 360,
+    "shard_fetches": 256,
+    "total_files": 10001,
+    "page_count": 101,
+    "all_returned_pages_sha256": "1a14b13bdc36af487f182f4062da41a0634841964dd04c91d8c3f70bec90c98a"
+  },
+  {
+    "elapsed_seconds": 0.16273016599996026,
+    "shard_decodes": 360,
+    "shard_fetches": 256,
+    "total_files": 10001,
+    "page_count": 101,
+    "all_returned_pages_sha256": "1a14b13bdc36af487f182f4062da41a0634841964dd04c91d8c3f70bec90c98a"
+  },
+  {
+    "elapsed_seconds": 0.16032158300004085,
+    "shard_decodes": 360,
+    "shard_fetches": 256,
+    "total_files": 10001,
+    "page_count": 101,
+    "all_returned_pages_sha256": "1a14b13bdc36af487f182f4062da41a0634841964dd04c91d8c3f70bec90c98a"
+  }
+]

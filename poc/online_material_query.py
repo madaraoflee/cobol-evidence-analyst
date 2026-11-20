@@ -52,13 +52,29 @@ def _relation_type(value):
     return value.upper()
 
 
+def _decoded_line_chunks(raw, encoding):
+    """The last physical line in a decoded chunk may continue in the next one."""
+    decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
+    beginning, pending_cr = True, False
+    for offset in range(0, len(raw) + _DECODE_CHUNK_BYTES, _DECODE_CHUNK_BYTES):
+        chunk = raw[offset:offset + _DECODE_CHUNK_BYTES]
+        decoded = decoder.decode(chunk, final=not chunk)
+        if beginning and decoded:
+            decoded = decoded.lstrip("\ufeff")
+            beginning = False
+        if pending_cr and (decoded or not chunk):
+            decoded = decoded.removeprefix("\n")
+            pending_cr = False
+        if decoded.endswith("\r"):
+            pending_cr = True
+        yield decoded.splitlines(keepends=True)
+
+
 def _excerpt(raw, encoding, start, end, maximum):
     """Count all decoded physical lines while retaining only the bounded page."""
-    decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
     line_count, line_length, remaining = 0, 0, maximum
     prefix, fragments = "", []
     actual_end, truncated_at, partial_line = start, None, False
-    beginning, pending_cr = True, False
 
     def accept_line():
         nonlocal remaining, actual_end, truncated_at, partial_line
@@ -78,18 +94,7 @@ def _excerpt(raw, encoding, start, end, maximum):
             truncated_at = {"line": number, "character": len(value)}
             partial_line = True
 
-    for offset in range(0, len(raw) + _DECODE_CHUNK_BYTES, _DECODE_CHUNK_BYTES):
-        chunk = raw[offset:offset + _DECODE_CHUNK_BYTES]
-        decoded = decoder.decode(chunk, final=not chunk)
-        if beginning and decoded:
-            decoded = decoded.lstrip("\ufeff")
-            beginning = False
-        if pending_cr and (decoded or not chunk):
-            decoded = decoded.removeprefix("\n")
-            pending_cr = False
-        if decoded.endswith("\r"):
-            pending_cr = True
-        pieces = decoded.splitlines(keepends=True)
+    for pieces in _decoded_line_chunks(raw, encoding):
         # Once the page is filled, only the physical count remains necessary.
         # This also prevents a file of millions of short lines from retaining
         # a whole-file list or spending one Python iteration per skipped line.
@@ -110,8 +115,6 @@ def _excerpt(raw, encoding, start, end, maximum):
                     accept_line()
                     line_count += 1
                     line_length, prefix = 0, ""
-        if not chunk:
-            break
     if line_length:
         accept_line()
         line_count += 1
@@ -326,20 +329,7 @@ class MaterialQuery:
             "truncated": total_matches > offset + len(matches),
         }
 
-    def evidence(self, path, start_line, end_line, source_reader, max_characters=12000):
-        """Verify bytes before exposing an excerpt with a pinned citation.
-
-        Lines are one-based and inclusive. ``truncated_at`` is the first omitted
-        line and zero-based character offset. A partial last line is identified
-        by ``last_line_truncated``; the citation end is the last line actually
-        represented, not the end of an omitted requested range.
-        """
-        _positive_integer(start_line, 2**63 - 1, "MATERIAL_INVALID_RANGE")
-        _positive_integer(end_line, 2**63 - 1, "MATERIAL_INVALID_RANGE")
-        _positive_integer(max_characters, _MAX_EXCERPT_CHARACTERS,
-                          "MATERIAL_INVALID_CHARACTER_LIMIT")
-        if end_line < start_line:
-            raise MaterialError("MATERIAL_INVALID_RANGE")
+    def _verified_source(self, path, source_reader, last_requested_line=0):
         item = self._file(path)
         source_hash = valid_hash(item.get("sha256"))
         size = item.get("size")
@@ -350,7 +340,7 @@ class MaterialQuery:
         line_count = item.get("line_count")
         if type(line_count) is not int or line_count < 0:
             raise MaterialError("MATERIAL_SOURCE_METADATA_INVALID")
-        if end_line > line_count:
+        if last_requested_line > line_count:
             raise MaterialError("MATERIAL_RANGE_OUT_OF_BOUNDS")
         encoding = item.get("encoding")
         if not isinstance(encoding, str) or not encoding or len(encoding) > 64:
@@ -372,6 +362,61 @@ class MaterialQuery:
             raise MaterialError("MATERIAL_SOURCE_SIZE_MISMATCH")
         if digest(raw) != source_hash:
             raise MaterialError("MATERIAL_SOURCE_HASH_MISMATCH")
+        return raw, encoding, line_count, source_hash
+
+    def locate(self, path, text, source_reader, limit=20, *, offset=0):
+        """Return paged physical line numbers containing a literal in one pinned blob."""
+        _positive_integer(limit, _MAX_RESULT_LIMIT, "MATERIAL_INVALID_LIMIT")
+        if type(offset) is not int or not 0 <= offset < 2 ** 63:
+            raise MaterialError("MATERIAL_INVALID_OFFSET")
+        if (not isinstance(text, str) or not text.strip() or len(text) > 256
+                or any(char in _LINE_ENDINGS for char in text)):
+            raise MaterialError("MATERIAL_INVALID_QUERY")
+        raw, encoding, expected_count, source_hash = self._verified_source(path, source_reader)
+        needle = text.casefold()
+        lines = []
+        line_number, matches = 1, 0
+        tail, matched, open_line = "", False, False
+        try:
+            for pieces in _decoded_line_chunks(raw, encoding):
+                for piece in pieces:
+                    complete = piece[-1] in _LINE_ENDINGS
+                    if not matched:
+                        combined = tail + piece.casefold()
+                        if needle in combined:
+                            if offset <= matches < offset + limit:
+                                lines.append(line_number)
+                            matches += 1
+                            matched = True
+                        elif not complete and len(needle) > 1:
+                            tail = combined[1 - len(needle):]
+                    open_line = not complete
+                    if complete:
+                        line_number += 1
+                        tail, matched = "", False
+        except (UnicodeError, LookupError, TypeError):
+            raise MaterialError("MATERIAL_SOURCE_ENCODING_INVALID") from None
+        if line_number - 1 + int(open_line) != expected_count:
+            raise MaterialError("MATERIAL_SOURCE_LINE_COUNT_MISMATCH")
+        return {"matches": lines, "total_matches": matches, "offset": offset,
+                "query_kind": "original_source_literal", "source_sha256": source_hash,
+                "absence_established": False}
+
+    def evidence(self, path, start_line, end_line, source_reader, max_characters=12000):
+        """Verify bytes before exposing an excerpt with a pinned citation.
+
+        Lines are one-based and inclusive. ``truncated_at`` is the first omitted
+        line and zero-based character offset. A partial last line is identified
+        by ``last_line_truncated``; the citation end is the last line actually
+        represented, not the end of an omitted requested range.
+        """
+        _positive_integer(start_line, 2**63 - 1, "MATERIAL_INVALID_RANGE")
+        _positive_integer(end_line, 2**63 - 1, "MATERIAL_INVALID_RANGE")
+        _positive_integer(max_characters, _MAX_EXCERPT_CHARACTERS,
+                          "MATERIAL_INVALID_CHARACTER_LIMIT")
+        if end_line < start_line:
+            raise MaterialError("MATERIAL_INVALID_RANGE")
+        raw, encoding, line_count, source_hash = self._verified_source(path, source_reader, end_line)
         try:
             excerpt = _excerpt(raw, encoding, start_line, end_line, max_characters)
         except (UnicodeError, LookupError, TypeError):
