@@ -44,3 +44,7 @@ python3 -B -m unittest discover -s poc/tests -p test_online_progressive_delivery
 ```
 
 这份报告验证在线源码入口在上述案例中的交付和规则解释。用户现场的具体等待原因、真实公司模型作答质量、目标设备及最终可执行程序的表现仍待对应环境验证。
+
+## 全量回归
+
+固定版本 `38ff890b61c86d3f90625e4563ba31d85bc68b38` 实际执行 5,527 项 Python 测试和 341 项浏览器测试，全部通过。缺陷台账共 335 项，328 项通过对应离线检查，7 项仍待现场验证，台账总状态为 `blocked`。这 7 项包括公司环境里的首答久等、复杂扣费题回答质量、启动耗时、服务端错误、TLS 连接，以及两项历史业务解释。回归时未生成或发布应用。[逐项回归结果](BUG-REGRESSION-REPORT.json) · [测试输出与固定源码指纹](complete-regression-evidence.zip)
