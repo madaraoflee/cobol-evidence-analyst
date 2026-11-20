@@ -39,3 +39,7 @@ python3 -B -m unittest discover -s poc/tests -p test_local_progressive_delivery.
 ## 对已有问答的影响
 
 在初版 `026eb26` 上，全量测试定位到两项兼容问题。已有四步收款题在列出“最后奖励款”后才逐笔说明足额扣减、不足跳过以及金额来源，初版误把“最后一项”当作最终结果的起点，触发第三次请求。修正后，两次请求即可交付。对于明确追问最终应收的题，仍须给出最终结果。另一项是原有传输限额适配器收到新参数而报错。修正后保留原调用约定，按拟合后真正供给的源码复核，不用先前已移出请求的页证明当前答案。[四步扣减复测](../../../poc/tests/test_collection_flow_delivery.py) · [传输限额复测](../../../poc/tests/test_retrieval_evidence_regressions.py)
+
+## 全量回归
+
+固定版本 `a9a0b8078f10f318c53005cf170b18a20506690e` 实际执行 5,540 项 Python 测试和 343 项浏览器测试，全部通过。台账 341 项中有 334 项通过对应的源码回归，包括本次登记的六项问题。另有 7 项仍待现场验证，含公司环境首答等待及真实模型对复杂扣费题的回答质量，台账总状态为 `blocked`。本次验证没有生成桌面安装包。[逐项回归报告](BUG-REGRESSION-REPORT.json) · [完整测试输出和源码指纹](complete-regression-evidence.zip)
