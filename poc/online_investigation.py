@@ -63,10 +63,22 @@ Tools (all paths are relative to the manifest's selected directory):
   Omit relation_type to inspect CALL/COPY/dynamic and other static relations.
 {"tool":"incoming","target":"PROGRAM-OR-COPY-NAME","relation_type":"CALLS","limit":50,"offset":0}
   Reverse lookup accepts CALLS or INCLUDES_COPY; target is a source name, not a file path.
+{"tool":"inventory","limit":20,"cursor":null}
+  Browse file paths in this snapshot when business vocabulary or a relationship has no
+  index hit. Continue with next_cursor as needed. Choose relevant paths to inspect.
+{"tool":"locate","path":"main.cbl","text":"literal source text","limit":20,"offset":0}
+  Find case-insensitive literal matches directly in one verified original. Matches are
+  physical line numbers, one per matching line. Read the surrounding conditions and
+  follow relevant calls, copybooks and logical views before drawing business conclusions.
 {"tool":"read","path":"main.cbl","start_line":1,"end_line":80,"max_characters":12000}
 {"tool":"recall","evidence_ids":["E..."]}
   Recall makes already verified excerpts available again without discarding the
   investigation. Use it before citing evidence absent from source_context.
+{"tool":"read_draft","offset":0}
+  On an ordinary resumed investigation, prior_analysis is the previous partial
+  business explanation. Continue from it and the remaining questions. Read
+  further characters at next_offset if needed. Draft text is historical, not
+  evidence. Cite only verified original pages from the current source_context.
 {"tool":"evidence_catalog","offset":0,"limit":40}
   Page through older verified excerpts omitted from the current catalog.
 Choose vocabulary from the question, observed program/field names, and actual
@@ -97,7 +109,6 @@ an aggregate with occurrence_count>1 requires each actual occurrence to be revie
 Find renamed parameters, independent roots, non-English business terms and COPY/call
 relationships in original text. Do not turn an index boundary into semantic proof.
 Additional tools:
-{"tool":"inventory","limit":20,"cursor":null}
 {"tool":"arithmetic_candidates","path":"main.cbl","offset":0,"limit":20}
 {"tool":"review","candidate_id":"C...","occurrence":1,"start_line":10,"end_line":12,
  "disposition":"included","summary":"business formula, inputs, applicable conditions and result","citations":["E..."]}
@@ -547,14 +558,19 @@ def _action(value):
     if not isinstance(value, dict) or not isinstance(value.get("tool"), str):
         raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
     kind = value["tool"]
-    required = {"search": {"text"}, "relations": {"path"}, "incoming": {"target"},
+    if kind == "read_draft":
+        offset = value.get("offset", 0)
+        if set(value) - {"tool", "offset"} or type(offset) is not int or not 0 <= offset < 60000:
+            raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
+        return {"tool": kind, "offset": offset}
+    required = {"locate": {"path", "text"}, "search": {"text"}, "relations": {"path"}, "incoming": {"target"},
                 "read": {"path", "start_line", "end_line"}, "recall": {"evidence_ids"},
                 "evidence_catalog": set(), "inventory": set(), "arithmetic_candidates": {"path"},
                 "work_catalog": set(), "findings_catalog": set(), "source_reviews_catalog": set(),
                 "review": {"candidate_id", "disposition", "summary", "citations"},
                 "record_finding": {"path", "start_line", "end_line", "disposition", "summary", "citations"},
                 "review_file": {"path", "summary", "citations"}}
-    optional = {"search": {"limit", "offset"}, "relations": {"relation_type", "limit", "offset"},
+    optional = {"locate": {"limit", "offset"}, "search": {"limit", "offset"}, "relations": {"relation_type", "limit", "offset"},
                 "incoming": {"relation_type", "limit", "offset"}, "read": {"max_characters"}, "recall": set(),
                 "evidence_catalog": {"offset", "limit"}, "inventory": {"limit", "cursor"},
                 "arithmetic_candidates": {"offset", "limit"}, "work_catalog": {"offset", "limit"},
@@ -565,13 +581,17 @@ def _action(value):
     item = {"tool": kind}
     if "path" in value:
         item["path"] = relative_path(value["path"])
+    if kind == "locate":
+        item["text"] = _text(value["text"], 256)
+        if item["text"].splitlines() != [item["text"]]:
+            raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
     if kind == "search":
         item["text"] = _text(value["text"], 4096)
     if kind == "incoming":
         item["target"] = _text(value["target"], 4096)
-    if kind in {"search", "relations", "incoming", "evidence_catalog", "inventory", "arithmetic_candidates", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
-        item["limit"] = _positive(value.get("limit", 20 if kind == "search" else 50), 100)
-    if kind in {"search", "relations", "incoming", "evidence_catalog", "arithmetic_candidates", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
+    if kind in {"locate", "search", "relations", "incoming", "evidence_catalog", "inventory", "arithmetic_candidates", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
+        item["limit"] = _positive(value.get("limit", 20 if kind in {"search", "locate"} else 50), 100)
+    if kind in {"locate", "search", "relations", "incoming", "evidence_catalog", "arithmetic_candidates", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
         offset = value.get("offset", 0)
         if type(offset) is not int or not 0 <= offset < 2 ** 63:
             raise MaterialError("ONLINE_INVALID_MODEL_ACTION")
@@ -907,8 +927,22 @@ def _execute(query, sources, action, state, verified):
         raise
 
 
+def _draft_page(state, offset):
+    answer = state["answer"]
+    if state["work_ledger"]["global"] or offset >= len(answer):
+        raise MaterialError("ONLINE_DRAFT_RANGE_UNAVAILABLE")
+    text = answer[offset:offset + 4000]
+    end = offset + len(text)
+    return {"text": text, "offset": offset, "total_characters": len(answer),
+            "next_offset": end if end < len(answer) else None}
+
+
 def _execute_action(query, sources, action, state, verified):
     kind = action["tool"]
+    if kind == "read_draft":
+        page = _draft_page(state, action["offset"])
+        _verify_delivery_sources(query, sources, state, verified)
+        return page
     session = state.get("work_ledger", {}).get("_session")
     if session is not None and kind in {"work_catalog", "findings_catalog", "source_reviews_catalog", "evidence_catalog"}:
         if kind == "source_reviews_catalog":
@@ -924,11 +958,14 @@ def _execute_action(query, sources, action, state, verified):
             total = session.count(record_kind)
         return {"matches": rows, "total_matches": total, "offset": action["offset"],
                 "truncated": action["offset"] + len(rows) < total, "absence_established": False}
-    if kind in {"inventory", "arithmetic_candidates", "review", "review_file", "record_finding", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
+    if kind == "inventory":
+        return query.inventory(action["limit"], cursor=action["cursor"])
+    if kind == "locate":
+        value = query.locate(action["path"], action["text"], sources, limit=action["limit"], offset=action["offset"])
+        return _compact_result(value, "matches", limit=action["limit"])
+    if kind in {"arithmetic_candidates", "review", "review_file", "record_finding", "work_catalog", "findings_catalog", "source_reviews_catalog"}:
         if not state.get("work_ledger", {}).get("global"):
             raise MaterialError("ONLINE_INVENTORY_SCOPE_REQUIRED")
-        if kind == "inventory":
-            return query.inventory(action["limit"], cursor=action["cursor"])
         if kind == "arithmetic_candidates":
             return _compact_result(query.arithmetic_candidates(action["path"], action["limit"], offset=action["offset"]),
                                    "candidates", limit=action["limit"])
@@ -943,7 +980,10 @@ def _execute_action(query, sources, action, state, verified):
         return _review_work(query, sources, action, state, verified)
     if kind == "search":
         value = query.search(action["text"], limit=action["limit"], offset=action["offset"])
-        return _compact_result(value, "matches", limit=action["limit"])
+        result = _compact_result(value, "matches", limit=action["limit"])
+        if result["total_matches"] == 0 and not state["work_ledger"]["global"]:
+            result["suggested_action"] = {"tool": "inventory", "limit": 20, "cursor": None}
+        return result
     if kind == "relations":
         value = query.relations(action["path"], action.get("relation_type"))
         return _compact_result(value, "relations", action["offset"], action["limit"])
@@ -1148,9 +1188,15 @@ def _messages(query, sources, state, history, verified, history_omitted=0):
             context["reviewed_source_summaries"], total_reviews = session.source_reviews(limit=24)
             context["reviewed_source_summaries_omitted"] = max(0, total_reviews - 24)
         system += _INVENTORY_SYSTEM
+    if state["answer"] and not state["work_ledger"]["global"] and state["revision_draft"] is None:
+        _verify_delivery_sources(query, sources, state, verified)
+        context["prior_analysis"] = _draft_page(state, 0)
     def messages():
         return [{"role": "system", "content": system},
                 {"role": "user", "content": canonical_json(context).decode("utf-8")}]
+    if "prior_analysis" in context and len(canonical_json(messages())) > MAX_PROMPT_BYTES:
+        # Keep original source in view; the saved text is still pageable.
+        context["prior_analysis"].update(text="", next_offset=0)
     while len(canonical_json(messages())) > MAX_PROMPT_BYTES and context["observations"]:
         context["observations"].pop(0)
         context["observations_omitted"] += 1

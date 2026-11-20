@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections import OrderedDict
 from contextlib import contextmanager
 import copy
@@ -243,13 +244,14 @@ class MaterialReader:
     def _route(self, key, route):
         self._tick()
         routing = self._manifest["routes"][route]
-        reference = routing.get(bucket(key))
+        prefix = bucket(key)
+        reference = routing.get(prefix)
         if reference is None:
             return None
         value = self.read_object(reference, kind=route)
         if set(value) != {"kind", "entries"} or not isinstance(value["entries"], dict):
             raise MaterialError("MATERIAL_INVALID_OBJECT")
-        if any(not isinstance(entry, str) or not entry or bucket(entry) != bucket(key) for entry in value["entries"]):
+        if any(not isinstance(entry, str) or not entry or bucket(entry) != prefix for entry in value["entries"]):
             raise MaterialError("MATERIAL_ROUTE_MISMATCH")
         self._charge(entries=len(value["entries"]))
         return value["entries"]
@@ -260,6 +262,11 @@ class MaterialReader:
         entries = self._route(path, "files")
         if entries is None:
             return None
+        self._validate_file_entries(entries)
+        return copy.deepcopy(entries.get(path))
+
+    @staticmethod
+    def _validate_file_entries(entries):
         for name, item in entries.items():
             relative_path(name)
             if not isinstance(item, dict) or set(item) != {"relative_path", "sha256", "size", "encoding", "source_format", "line_count", "facts"}:
@@ -271,7 +278,6 @@ class MaterialReader:
                 if not isinstance(item[field], str) or not item[field] or len(item[field]) > 128 or any(ord(c) < 32 for c in item[field]):
                     raise MaterialError("MATERIAL_INVALID_FILE")
             _references(item["facts"])
-        return copy.deepcopy(entries.get(path))
 
     @_bounded_operation
     def facts(self, path):
@@ -323,16 +329,19 @@ class MaterialReader:
                     raise MaterialError("MATERIAL_ROUTE_MISMATCH")
             if cursor is not None and prefix == cursor["bucket"] and cursor["after"] not in entries:
                 raise MaterialError("MATERIAL_INVALID_CURSOR")
-            for path in sorted(entries):
-                if cursor is not None and prefix == cursor["bucket"] and path <= cursor["after"]:
-                    continue
-                if len(rows) == limit:
-                    more = True
-                    break
-                # Reuse the existing full metadata and content-reference checks.
-                rows.append(self.file(path))
-                last = {"bucket": prefix, "after": path}
-            if more:
+            paths = sorted(entries)
+            if cursor is not None and prefix == cursor["bucket"]:
+                paths = paths[bisect_right(paths, cursor["after"]):]
+            selected = paths[:limit - len(rows)]
+            if selected:
+                # Validate the whole shard, including unreturned siblings, once.
+                self._validate_file_entries(entries)
+                for path in selected:
+                    self._tick()
+                    rows.append(copy.deepcopy(entries[path]))
+                last = {"bucket": prefix, "after": selected[-1]}
+            if len(selected) < len(paths):
+                more = True
                 break
         return {"files": rows, "cursor": copy.deepcopy(cursor), "next_cursor": last if more else None,
                 "complete": not more}

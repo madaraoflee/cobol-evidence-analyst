@@ -1,0 +1,42 @@
+{
+  "search": {
+    "matched_file_count": 1,
+    "matched_page_count": 1,
+    "coverage": {
+      "scope": "retrieved_excerpts",
+      "repository_total_files": 1,
+      "repository_total_pages": 1,
+      "selected_files": 0,
+      "selected_pages": 0,
+      "selected_characters": 0,
+      "max_pages": 8,
+      "max_characters": 32000,
+      "repository_complete": false,
+      "source_state_scope": "selected_files_only",
+      "new_files_checked": false,
+      "selected_source_hashes_verified": true,
+      "current_content_hashes_recomputed": 1
+    },
+    "boundaries": [],
+    "orientation_only": false
+  },
+  "search_returned_requested_text": false,
+  "read_verified": true,
+  "wire": [
+    {
+      "mode": "business_analysis",
+      "source_selection": {
+        "source_supplied": false,
+        "page_count": 0,
+        "relative_paths": [],
+        "omitted_paths": 0,
+        "identity_status": "none",
+        "identity_unresolved": false,
+        "focus_correctable": true
+      },
+      "physical_hit": false,
+      "source_pages": 0
+    }
+  ],
+  "agent_status": "PARTIAL"
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "question": "Only analyze fees.cbl and check PAIDDISPATCH",
+    "requested": [
+      "fees.cbl"
+    ],
+    "exclusive": true,
+    "status": "resolved",
+    "selected_paths": [
+      "fees.cbl"
+    ]
+  },
+  {
+    "question": "Only analyze fees.cbl. Check PAIDDISPATCH.",
+    "requested": [
+      "fees.cbl"
+    ],
+    "exclusive": false,
+    "status": "resolved",
+    "selected_paths": [
+      "fees.cbl",
+      "unused.cbl"
+    ]
+  },
+  {
+    "question": "Only analyze `fees.cbl`. Check PAIDDISPATCH.",
+    "requested": [
+      "fees.cbl"
+    ],
+    "exclusive": true,
+    "status": "resolved",
+    "selected_paths": [
+      "fees.cbl"
+    ]
+  },
+  {
+    "question": "Only analyze fees.cbl, check PAIDDISPATCH.",
+    "requested": [
+      "fees.cbl"
+    ],
+    "exclusive": true,
+    "status": "resolved",
+    "selected_paths": [
+      "fees.cbl"
+    ]
+  }
+]
