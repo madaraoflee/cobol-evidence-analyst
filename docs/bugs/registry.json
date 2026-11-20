@@ -9839,6 +9839,179 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "初版 026eb26 的本地源码回归重现；不代表企业真实模型或目标机验证。"
+    },
+    {
+      "id": "BUG-20261121-018",
+      "title": "可从调用方找到下一程序，本地问答却以源码不足结束",
+      "symptom": "原题首轮有准备金及间接调用原文。模型回复源码不足后，工作台没有按原文线索查全库，重复三轮仍未读到后两级程序。",
+      "root_cause": "候选排序和已有的字面回退不能让问答逐轮遍历指定词的命中。补查按本次导入范围逐行搜索，沿原文发现的新名称核查下一程序。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/before.json",
+        "docs/reports/2026-11-21-local-source-grep/after.json",
+        "docs/reports/2026-11-21-local-source-grep/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_insufficient_reply_triggers_repository_grep_then_source_led_search"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_grep.LocalSourceGrepTests.test_literal_pagination_covers_noisy_pages_then_late_file_without_copying"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_grep.LocalSourceGrepTests.test_empty_window_resumes_past_128_pages_and_can_be_cancelled"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_grep.LocalSourceGrepTests.test_oversized_physical_line_uses_import_encoding_and_verified_bytes"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_grep.LocalSourceGrepTests.test_cursor_binds_scope_literal_and_generation_and_rejects_invalid_paths"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_protocol.LocalGrepProtocolTests.test_empty_batches_reach_last_file_in_one_tool_then_supply_its_original"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_protocol.LocalGrepProtocolTests.test_short_source_deferral_preserves_supported_answer_and_qualified_boundaries"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "使用中性源码和受控模型经过普通本地问答入口。公司现场、真实模型与大仓库用时仍待核实。"
+    },
+    {
+      "id": "BUG-20261121-019",
+      "title": "本地模型提出的 grep 请求被当成普通回答",
+      "symptom": "模型要求搜索第一个间接目标的定义，工作台把工具 JSON 交付为正文，没有执行该搜索。",
+      "root_cause": "问答动作和草稿识别缺少 grep。现执行搜索、复读命中源码，再显示实际搜索位置；模型动作与结论分别交付。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/before.json",
+        "docs/reports/2026-11-21-local-source-grep/after.json",
+        "docs/reports/2026-11-21-local-source-grep/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_model_can_follow_two_literal_searches_and_reopen_the_original_citations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_workbench_progress_snapshots.WorkbenchProgressSnapshotTests.test_source_search_progress_preserves_only_recent_real_steps_across_phases"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_investigation_progress.test.cjs"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_protocol.LocalGrepProtocolTests.test_literal_actions_share_search_slots_and_reject_command_objects"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "使用中性源码和受控模型经过普通本地问答入口。公司现场、真实模型与大仓库用时仍待核实。"
+    },
+    {
+      "id": "BUG-20261121-020",
+      "title": "已核查两级间接调用与扣减结果的本地回答仍标部分",
+      "symptom": "两个间接目标均已找到且相关引用均可重开，回答仍因先前调查的未决事项标为部分。",
+      "root_cause": "完结判定未区分已经核实的条件路径与运行期绑定及上游来源。以完整原文、逐个调用的赋值和传参位置、唯一程序定义逐项匹配本题义务。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/README.md",
+        "docs/reports/2026-11-21-local-source-grep/after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_model_can_follow_two_literal_searches_and_reopen_the_original_citations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_protocol.LocalGrepProtocolTests.test_foreign_fields_missing_bindings_and_capped_batches_remain_open"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_complete_source_and_qualified_three_file_answer_close_the_path"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_reassigned_target_wrong_parameter_or_nested_guard_leave_path_open"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_duplicate_target_in_other_grep_hit_never_selects_one_implementation"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_missing_or_truncated_conditions_and_operations_leave_path_open"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_passing_by_value_or_content_cannot_establish_caller_receivable"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_answer_needs_all_decisions_skip_cases_final_amount_and_each_original_reference"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_unrelated_question_and_upstream_amount_followup_stay_open"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "在本轮源码改动过程中复现并修复；固定旧版未通过此路径。现场情况仍待核实。"
+    },
+    {
+      "id": "BUG-20261121-021",
+      "title": "模型写错减数字段和应收算术时仍可能交付为完整答案",
+      "symptom": "同一扣费题中把源码字段替换成虚构字段，并把 100 减 20 再减 30 答成 1000，在初版逐项检索中仍能标记完成。",
+      "root_cause": "覆盖了比较条件等文字要点不足以验证字段、传参和算术。对已完整核对的适用路径，由实际算式、分支及调用原文生成最终答文并关联每段原件。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/README.md",
+        "docs/reports/2026-11-21-local-source-grep/after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_delivered_answer_is_derived_from_source_despite_wrong_model_fields_targets_and_arithmetic"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "在本轮源码改动过程中复现并修复；固定旧版未通过此路径。现场情况仍待核实。"
+    },
+    {
+      "id": "BUG-20261121-022",
+      "title": "个别原件在补查中消失导致当前搜索批次中断",
+      "symptom": "处理缺页原件时，若文件在检查路径和读取大小之间消失，同批的其他有效命中无法返回。",
+      "root_cause": "原件补读增加的文件状态读取可能抛出系统异常。改为记录该文件覆盖缺口，继续检查其他文件，并将缺口传到后续分页。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/README.md",
+        "docs/reports/2026-11-21-local-source-grep/after.json"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_source_grep.LocalSourceGrepTests.test_missing_page_keeps_later_hits_and_coverage_gap_across_continuations"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "在本轮源码改动过程中复现并修复；固定旧版未通过此路径。现场情况仍待核实。"
     }
   ],
   "updated_at": "2026-11-21"

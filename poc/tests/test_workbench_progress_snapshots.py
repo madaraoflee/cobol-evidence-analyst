@@ -36,6 +36,26 @@ class WorkbenchProgressSnapshotTests(unittest.TestCase):
     def publish(self, **event):
         self.app._progress(self.job_id, {"phase": "writing_answer", **event})
 
+    def test_source_search_progress_preserves_only_recent_real_steps_across_phases(self):
+        step = {"term": "BALANCE", "files_scanned": 3, "matches": 1, "has_more": True, "complete": False,
+                "hit_file": "rules/post.cbl", "hit_line": 12, "source_body": "private-envelope"}
+        for number in range(10):
+            self.publish(source_grep={**step, "term": f"FIELD-{number}"})
+        self.publish(phase="waiting_for_model", source_grep={**step, "files_scanned": True})
+        progress = self.app.get_job(self.job_id)["progress"]
+        steps = progress["source_grep_steps"]
+        self.assertEqual([row["term"] for row in steps], [f"FIELD-{n}" for n in range(2, 10)])
+        self.assertEqual(steps[-1]["hit_line"], 12)
+        self.assertEqual(steps[-1]["hit_file"], "rules/post.cbl")
+        self.assertNotIn("private-envelope", json.dumps(progress))
+        self.assertNotIn("checked_findings", progress)
+        self.publish(source_grep={**step, "hit_file": "../private.cbl", "complete": False, "has_more": False})
+        self.assertNotIn("hit_file", self.app.get_job(self.job_id)["progress"]["source_grep_steps"][-1])
+        self.app.job["status"] = "COMPLETED"
+        with patch("web_app.threading.Thread"):
+            next_job = self.app.start({"source": str(self.source), "output": str(self.output)})
+        self.assertNotIn("source_grep_steps", self.app.get_job(next_job["job_id"])["progress"])
+
     def test_checked_findings_keep_verified_locations_during_the_job_only(self):
         ref = {"evidence_id": "ev_page_" + "a" * 24, "relative_path": "rules/credit.cbl",
                "start_line": 4, "end_line": 6}

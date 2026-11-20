@@ -914,14 +914,14 @@ function answerPreview(value){
   const text=value.text.trim();
   const candidate=text.replace(/^```(?:json)?\s*\n?/i,'').replace(/\n?```\s*$/,'').trim();
   const objectStart=candidate.search(/[\[{]/);
-  if(objectStart>=0 && /"(?:search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate.slice(objectStart)))return null;
+  if(objectStart>=0 && /"(?:search|grep|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect|tool_calls)"\s*:/.test(candidate.slice(objectStart)))return null;
   return {text:value.text,round:progressCount(value.round),stage:['draft','drafting','answer','answering','writing','revision','revise','revising','continuation','continuing','verifying'].includes(value.stage)?value.stage:'drafting'};
 }
 function analysisState(value){
   if(!value || typeof value!=='object' || Array.isArray(value) || value.schema_version!=='business-investigation-progress/v1')return null;
   const number=item=>Number.isSafeInteger(item)&&item>=0;
   const boundedText=item=>item.length<=2000?item:item.slice(0,1999)+'…';
-  const prose=item=>typeof item==='string'&&!/<(?:think|analysis)(?:\s|>)|["'](?:reasoning_content|reasoning|chain_of_thought|tool_calls|search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect)["']\s*:/i.test(item);
+  const prose=item=>typeof item==='string'&&!/<(?:think|analysis)(?:\s|>)|["'](?:reasoning_content|reasoning|chain_of_thought|tool_calls|search|grep|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect)["']\s*:/i.test(item);
   if(!number(value.revision)||!number(value.round)||value.round<1||!['investigate','compacting','answer','review'].includes(value.phase)||!prose(value.summary)||!number(value.omitted_findings))return null;
   const counts=value.counts,keys=['candidate','open','conflicts','total_sources'];
   if(!counts || typeof counts!=='object' || Array.isArray(counts) || keys.some(key=>!number(counts[key])) || !Array.isArray(value.findings))return null;
@@ -979,6 +979,20 @@ function checkedFindingsView(findings){
   const title=escapeHTML(t('已查實的結論'));
   return items?`<section class="analysis-finding-group" aria-label="${title}"><h4>${title}</h4><ul>${items}</ul></section>`:'';
 }
+function sourceGrepView(steps){
+  if(!Array.isArray(steps))return '';
+  const items=steps.slice(-8).map(step=>{
+    if(typeof step?.term!=='string' || !step.term.trim() ||
+        ![step.files_scanned,step.matches].every(n=>Number.isSafeInteger(n)&&n>=0) ||
+        typeof step.complete!=='boolean' || typeof step.has_more!=='boolean')return '';
+    const status=step.complete?'已搜完整個範圍':step.has_more?'仍有源碼可續查':'部分源碼未能檢查';
+    const location=step.matches && typeof step.hit_file==='string' && Number.isSafeInteger(step.hit_line) && step.hit_line>0?
+      `<small>${escapeHTML(step.hit_file)} · L${step.hit_line}</small>`:'';
+    return `<li><strong>${escapeHTML(step.term)}</strong> · ${escapeHTML(t('本次檢查的文件'))} ${formatNumber(step.files_scanned)} · ${escapeHTML(t('本次命中行'))} ${formatNumber(step.matches)} · ${escapeHTML(t(status))}${location}</li>`;
+  }).join('');
+  const title=escapeHTML(t('近期源碼搜尋'));
+  return items?`<section class="analysis-finding-group" aria-label="${title}"><h4>${title}</h4><ol>${items}</ol></section>`:'';
+}
 function liveAnalysisView(progress=state.progress){
   if(state.analysisDisplay==='progress')return '';
   const update=analysisUpdate(progress?.analysis_update),preview=answerPreview(progress?.answer_preview);
@@ -992,7 +1006,7 @@ function liveAnalysisView(progress=state.progress){
   const history=Array.isArray(progress?._activityHistory)?progress._activityHistory:[];
   const activity=history.length?ui`<details class="analysis-activity-history"><summary>查看處理進展 · ${formatNumber(history.length)}</summary><ol>${history.map(item=>`<li>${item.phase?`<strong>${escapeHTML(phaseLabel(item.phase))}</strong>`:''}${item.summary?`<span>${escapeHTML(item.summary)}</span>`:''}</li>`).join('')}</ol></details>`:'';
   const investigation=investigationStateView(progress?.analysis_state);
-  return checkedFindingsView(progress?.checked_findings)+(investigation || activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:''))+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
+  return checkedFindingsView(progress?.checked_findings)+sourceGrepView(progress?.source_grep_steps)+(investigation || activity+(update?ui`<section class="analysis-live-update" aria-label="調查進展"><div class="analysis-live-counts">${escapeHTML(counts.join(' · '))}</div>${update.summary?`<p role="status" aria-live="polite">${escapeHTML(update.summary)}</p>`:''}${open.length?ui`<details class="analysis-open-items"><summary>待核對事項 · ${formatNumber(open.length)}</summary><ul>${open.map(item=>`<li>${escapeHTML(item)}</li>`).join('')}</ul></details>`:''}</section>`:''))+(preview?ui`<section class="answer-live-preview" aria-label="回答草稿"><div class="answer-preview-heading"><strong>${stage}</strong>${preview.round>0?`<span>${escapeHTML(ui`調查輪次 ${formatNumber(preview.round)}`)}</span>`:''}</div><p class="answer-preview-notice">內容可能修訂，請以完成後的回答為準。</p><div class="narrative-body" tabindex="0">${answerMarkdown.render(preview.text)}</div></section>`:'');
 }
 function rememberProgress(progress){
   if(!progress || typeof progress!=='object')return;
@@ -1009,7 +1023,10 @@ function rememberProgress(progress){
   if(!Object.hasOwn(progress,'checked_findings') && previous._analysisJobId===state.jobId && previous.checked_findings){
     state.progress.checked_findings=previous.checked_findings;
   }
-  if(state.progress.analysis_state || state.progress.checked_findings)state.progress._analysisJobId=state.jobId;
+  if(!Object.hasOwn(progress,'source_grep_steps') && previous._analysisJobId===state.jobId && previous.source_grep_steps){
+    state.progress.source_grep_steps=previous.source_grep_steps;
+  }
+  if(state.progress.analysis_state || state.progress.checked_findings || state.progress.source_grep_steps)state.progress._analysisJobId=state.jobId;
   else delete state.progress._analysisJobId;
   const history=[...(previous._activityHistory || [])];
   const phase=['using_index','retrieving','answering','compacting','locating_sources','reading_relevant_sources','supplementing_evidence','waiting_for_model','verifying_answer','writing_answer','reviewing_answer','reading_sources','analyzing_pages','synthesizing','framework','framework_reference','framework_semantics','source_version','discovering_business','searching_repository','planning_search','model','investigation','investigating','finalizing'].includes(progress.phase)?progress.phase:null;

@@ -1,0 +1,54 @@
+Product revision 839d085166fbef89a882c917ea73c21f7eda380b
+test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs (test_local_grep_delivery.LocalGrepDeliveryTests.test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs) ... FAIL
+test_insufficient_reply_triggers_repository_grep_then_source_led_search (test_local_grep_delivery.LocalGrepDeliveryTests.test_insufficient_reply_triggers_repository_grep_then_source_led_search) ... FAIL
+test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap (test_local_grep_delivery.LocalGrepDeliveryTests.test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap) ... FAIL
+test_model_can_follow_two_literal_searches_and_reopen_the_original_citations (test_local_grep_delivery.LocalGrepDeliveryTests.test_model_can_follow_two_literal_searches_and_reopen_the_original_citations) ... FAIL
+
+======================================================================
+FAIL: test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs (test_local_grep_delivery.LocalGrepDeliveryTests.test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<fixed-baseline>/poc/tests/test_local_grep_delivery.py", line 88, in test_false_fields_and_arithmetic_are_corrected_from_the_three_read_programs
+    self.assertTrue(wrong, "the inaccurate draft never reached the real answer path")
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : the inaccurate draft never reached the real answer path
+
+======================================================================
+FAIL: test_insufficient_reply_triggers_repository_grep_then_source_led_search (test_local_grep_delivery.LocalGrepDeliveryTests.test_insufficient_reply_triggers_repository_grep_then_source_led_search)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<fixed-baseline>/poc/tests/test_local_grep_delivery.py", line 75, in test_insufficient_reply_triggers_repository_grep_then_source_led_search
+    self.assertTrue(any(row["grep_actions"] for row in result["requests"][1:]),
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    "source insufficiency ended or recycled the existing draft without grep")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : source insufficiency ended or recycled the existing draft without grep
+
+======================================================================
+FAIL: test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap (test_local_grep_delivery.LocalGrepDeliveryTests.test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<fixed-baseline>/poc/tests/test_local_grep_delivery.py", line 96, in test_missing_second_target_retains_caller_rules_and_a_specific_evidence_gap
+    self.assertTrue(self.requests_for(result, target))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true
+
+======================================================================
+FAIL: test_model_can_follow_two_literal_searches_and_reopen_the_original_citations (test_local_grep_delivery.LocalGrepDeliveryTests.test_model_can_follow_two_literal_searches_and_reopen_the_original_citations)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<fixed-baseline>/poc/tests/test_local_grep_delivery.py", line 82, in test_model_can_follow_two_literal_searches_and_reopen_the_original_citations
+    self.assert_reached_deduction(result)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "<fixed-baseline>/poc/tests/test_local_grep_delivery.py", line 20, in assert_reached_deduction
+    self.assertEqual(result["status"], "completed", result["stop_reason"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'partial' != 'completed'
+- partial
++ completed
+ : answer_incomplete
+
+----------------------------------------------------------------------
+Ran 4 tests in 2.202s
+
+FAILED (failures=4)

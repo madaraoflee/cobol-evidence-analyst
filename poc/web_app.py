@@ -134,6 +134,29 @@ def _checked_findings(value):
     return rows
 
 
+def _source_grep_step(value):
+    """Keep the location and counters of one source search for live display."""
+    if not isinstance(value, dict):
+        return None
+    term = value.get("term")
+    if (not isinstance(term, str) or not term.strip() or not term.isprintable() or len(term) > 256
+            or any(type(value.get(key)) is not int or not 0 <= value[key] <= 2**53 - 1
+                   for key in ("files_scanned", "matches"))
+            or any(type(value.get(key)) is not bool for key in ("has_more", "complete"))
+            or value["has_more"] and value["complete"]):
+        return None
+    step = {key: value[key] for key in ("term", "files_scanned", "matches", "has_more", "complete")}
+    path, line = value.get("hit_file"), value.get("hit_line")
+    if (value["matches"] and isinstance(path, str) and path.isprintable() and len(path) <= 4096
+            and type(line) is int and 1 <= line <= 2**53 - 1):
+        try:
+            _relative_path(path)
+        except ValueError:
+            return step
+        step.update(hit_file=path, hit_line=line)
+    return step
+
+
 def _analysis_state(value):
     """Project a self-contained public investigation snapshot, not model reasoning."""
     if not isinstance(value, dict) or value.get("schema_version") != "business-investigation-progress/v1":
@@ -148,7 +171,7 @@ def _analysis_state(value):
     def prose(item):
         return (isinstance(item, str) and not re.search(
             r'<(?:think|analysis)(?:\s|>)|["\'](?:reasoning_content|reasoning|chain_of_thought|tool_calls|'
-            r'search|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|'
+            r'search|grep|read|focus|findings|framework_search|inspect_business_context|list_impact|search_concepts|'
             r'backward_slice|forward_slice|explain_assignment|trace_parameter|explain_external_effect)["\']\s*:', item, re.I))
 
     if (not number(value.get("revision")) or not number(value.get("round")) or value["round"] < 1
@@ -2250,6 +2273,12 @@ class WorkbenchState:
                 if type(value) is int and 0 <= value <= 1_000_000:
                     self.job["progress"][key] = value
             current = self.job["progress"]
+            steps = previous.get("source_grep_steps", [])
+            step = _source_grep_step(event.get("source_grep"))
+            if step:
+                steps = [*steps[-7:], step]
+            if steps:
+                current["source_grep_steps"] = steps
             # Summary and preview snapshots belong to the job rather than its
             # current stage. A phase-only event must not erase useful updates.
             for key, validate in (("analysis_update", _analysis_update), ("answer_preview", _answer_preview),

@@ -64,6 +64,26 @@ test('checked local rules show source lines before drafting and stay scoped to t
   }
 });
 
+test('source searches show actual terms, line locations and scope while the question is running',()=>{
+  for(const [locale,heading,pending,blocked,done] of [
+    ['en','Recent source searches','More source to search','Some source could not be checked','Search scope fully checked'],
+    ['zh-CN','最近的源码搜索','仍有源码可继续查','部分源码未能检查','已搜完整个范围'],
+    ['zh-HK','近期源碼搜尋','仍有源碼可續查','部分源碼未能檢查','已搜完整個範圍']]){
+    const h=harness(locale),step={term:'FIELD-<A>',files_scanned:6,matches:1,has_more:true,complete:false,
+      hit_file:'rules/next.cbl',hit_line:10};
+    h.run("state.jobId='source-question';");
+    publish(h,snapshot(),{source_grep_steps:[step,{...step,term:'NEXT',has_more:false,complete:true},
+      {...step,term:'UNKNOWN',has_more:false,matches:0}]});
+    h.run("rememberProgress({phase:'reading_relevant_sources'});updateLiveAnalysis();");
+    const html=h.get('conversation-analysis-live').innerHTML;
+    for(const label of [heading,pending,blocked,done,'FIELD-&lt;A&gt;','rules/next.cbl · L10'])assert.ok(html.includes(label),label);
+    assert.doesNotMatch(html,/<A>/);
+    assert.equal(h.run('answerPreview({text:\'{"grep":[{"term":"NEXT"}]}\'})'),null);
+    h.run("state.jobId='new-job'; rememberProgress({phase:'preparing'});");
+    assert.ok(!h.run('liveAnalysisView()').includes(heading));
+  }
+});
+
 test('a completed source-derived answer stays readable without a model-authored draft',()=>{
   const h=harness(),answer={status:'ANSWERED',answer:'The returned balance is 80.',
     answer_origin:'verified_source_sequence',model_answer_recorded:false,answer_available:true};
