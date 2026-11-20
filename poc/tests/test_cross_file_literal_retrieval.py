@@ -136,3 +136,13 @@ class CrossFileLiteralRetrievalTests(unittest.TestCase):
         with closing(discovery._connect(self.database)) as connection, self.assertRaises(InterruptedError):
             discovery._literal_source_matches(connection, ["xadjkey"], [], "", (), 1, None, stop_scan)
         self.assertEqual(ticks, 15)
+
+    def test_global_inventory_keeps_batch_schedule_and_allows_explicit_literal_lookup(self):
+        question = "列出全系统所有 premium formula 的计算位置"
+        with mock.patch.object(discovery, "_literal_source_matches",
+                               side_effect=AssertionError("inventory topic displaced scheduled source pages")):
+            initial = self.search(question)
+        self.assertNotIn("literal_search", initial)
+        explicit = self.search(question, search_terms=["xadjkey"])
+        self.assertTrue(any("PM/XADJKEYENDORSED" in page["source_text"] for page in explicit["pages"]))
+        self.assertGreater(explicit["literal_search"]["selected_pages"], 0)

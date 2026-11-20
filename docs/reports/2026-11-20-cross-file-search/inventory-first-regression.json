@@ -1,0 +1,14 @@
+{
+  "commit": "9d88835f3122197147ce124f90d7d022032c6078",
+  "source_regressions_passed": false,
+  "tests": [
+    {
+      "id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items",
+      "outcome": "failed"
+    },
+    {
+      "id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery",
+      "outcome": "failed"
+    }
+  ]
+}

@@ -9169,6 +9169,35 @@
         "poc/tests/test_online_literal_paging_cost.py"
       ],
       "limitations": "复用同一查询实例中最近一个词在同一版本原件上的命中位置。每次读页仍须校验原件；跨进程或切换词以后需要重新定位。现场耗时未测。"
+    },
+    {
+      "id": "BUG-20261120-010",
+      "title": "全库保费公式清单启动时被额外字面线索挤占原定证据窗口",
+      "symptom": "新字面检索加入后的第一轮全量回归发现，系统的全部公式清单和带繁体中文自定义要求的清单已评审候选，却在多次续查后持续返回部分完成。",
+      "root_cause": "从完整清单题的原始措辞自动提取通用主题词并重新选页，占用清单调度器已分配给待交付原文的上下文。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_real_local_batches_resume_to_all_gold_sites_without_replaying_reviewed_items"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_global_formula_inventory_acceptance.LocalGlobalFormulaDeliveryTests.test_saved_business_requirements_and_traditional_chinese_survive_inventory_delivery"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_cross_file_literal_retrieval.CrossFileLiteralRetrievalTests.test_global_inventory_keeps_batch_schedule_and_allows_explicit_literal_lookup"
+        }
+      ],
+      "evidence": [
+        "docs/reports/2026-11-20-cross-file-search/inventory-first-regression.json",
+        "docs/reports/2026-11-20-cross-file-search/README.md",
+        "poc/tests/test_global_formula_inventory_acceptance.py",
+        "poc/tests/test_cross_file_literal_retrieval.py"
+      ],
+      "limitations": "合成题核对全部已知公式位置、续查进度、自定义回答要求和显式追加的搜索线索。公司系统是否存在资料库外公式仍待现场确认。"
     }
   ],
   "updated_at": "2026-11-20"

@@ -18,6 +18,7 @@ import sys
 from threading import RLock
 
 from dependency_sources import dependency_source_availability
+from repository_scope import repository_inventory_requested
 from repository_identity import identity_blocks_analysis, identity_boundaries, identity_sql_scope, resolve_source_identity
 from source_reading import _cancel, _identify_page, _persist_page, _relative_path, _safe_file, _verified_lines, _verified_pages
 
@@ -1775,7 +1776,11 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
             ranked, raw_fallback = _raw_text_fallback(connection, root, terms, identity,
                 max_pages=max_pages, check_cancel=check_cancel, source_session=source_session)
         literal_report = None
-        literals = _literal_leads(question, search_terms)
+        # An inventory owns its source batches and continuation cursor. Topic
+        # words in its initial question must not displace those scheduled pages.
+        # A subsequent explicit search still requests its own literal evidence.
+        literals = (_literal_leads(question, search_terms)
+                    if search_terms or not repository_inventory_requested(question) else [])
         if literals and not blocked and not incomplete_path:
             literal_rows, literal_report = _literal_source_matches(connection, literals, ranked,
                 scope_sql, scope_values, max_pages, source_session, check_cancel)
