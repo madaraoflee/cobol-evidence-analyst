@@ -1,0 +1,61 @@
+{
+  "supplied_file": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 2,
+    "read_requests": 1,
+    "actions": [
+      "read"
+    ],
+    "cited_ranges": [
+      {
+        "path": "main.cbl",
+        "start": 1,
+        "end": 13
+      }
+    ],
+    "answer": "本轮未提供 main.cbl 的源码，无法回答。 [E5c1776fd4754afb50c287f61]"
+  },
+  "display_claim": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 2,
+    "read_requests": 1,
+    "actions": [
+      "read"
+    ],
+    "cited_ranges": [
+      {
+        "path": "worker.cbl",
+        "start": 5,
+        "end": 5
+      }
+    ],
+    "answer": "先用账户余额，再用退款。 [E06ec108c3fa4f3c1227f2d71]"
+  },
+  "early_answer": {
+    "status": "failed",
+    "error": "ONLINE_MODEL_PROTOCOL_FAILED",
+    "model_calls": 3,
+    "read_requests": 0,
+    "actions": [
+      "protocol",
+      "protocol",
+      "protocol"
+    ],
+    "cited_ranges": [],
+    "answer": ""
+  },
+  "paused_business_work": {
+    "status": "needs_continuation",
+    "error": "ONLINE_MODEL_BUDGET_EXCEEDED",
+    "requested": [
+      "核对原先的条件",
+      "核对金额不足时是否继续扣减",
+      "核对申请失效后的冲正"
+    ],
+    "checkpoint_remaining": [
+      "核对原先的条件"
+    ]
+  }
+}

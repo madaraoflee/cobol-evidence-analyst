@@ -1,0 +1,82 @@
+{
+  "supplied_file": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 3,
+    "read_requests": 1,
+    "actions": [
+      "read",
+      "answer_check"
+    ],
+    "cited_ranges": [
+      {
+        "path": "main.cbl",
+        "start": 1,
+        "end": 13
+      }
+    ],
+    "answer": "输入金额大于零时调用处理子程序。 [E5c1776fd4754afb50c287f61]"
+  },
+  "display_claim": {
+    "status": "needs_continuation",
+    "error": null,
+    "model_calls": 3,
+    "read_requests": 1,
+    "actions": [
+      "read",
+      "answer_check",
+      "source_recovery",
+      "locate_global",
+      "locate_global"
+    ],
+    "cited_ranges": [
+      {
+        "path": "worker.cbl",
+        "start": 5,
+        "end": 5
+      }
+    ],
+    "answer": "已核对的语句显示提示，实际扣减顺序仍需核对。 [E06ec108c3fa4f3c1227f2d71]"
+  },
+  "early_answer": {
+    "status": "answered",
+    "error": null,
+    "model_calls": 2,
+    "read_requests": 2,
+    "actions": [
+      "source_recovery",
+      "locate_global",
+      "locate_global",
+      "locate_global",
+      "read",
+      "read"
+    ],
+    "cited_ranges": [
+      {
+        "path": "return.cbl",
+        "start": 1,
+        "end": 7
+      },
+      {
+        "path": "cash.cbl",
+        "start": 1,
+        "end": 10
+      }
+    ],
+    "answer": "先使用准备金，剩余应收大于零时调用退款处理。 [E57444cf4e1519cfbff6c0528] [E8f6fb91cfaa2eb008ba2ceb6]"
+  },
+  "paused_business_work": {
+    "status": "needs_continuation",
+    "error": "ONLINE_ACTION_BUDGET_EXCEEDED",
+    "requested": [
+      "核对原先的条件",
+      "核对金额不足时是否继续扣减",
+      "核对申请失效后的冲正"
+    ],
+    "checkpoint_remaining": [
+      "核对原先的条件",
+      "核对金额不足时是否继续扣减",
+      "核对申请失效后的冲正"
+    ]
+  }
+}

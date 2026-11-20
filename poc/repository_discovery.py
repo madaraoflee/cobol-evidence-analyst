@@ -1145,6 +1145,20 @@ def _restore_missing_search_pages(connection, root, relative, check_cancel, sour
         raise
 
 
+def _search_crop_center(lines, row, terms):
+    route_terms = row.get("retrieval_terms") or row.get("focus_terms") or ()
+    exact = {term.rstrip(".") for term in row.get("retrieval_identifiers", ())}
+    # Match the exact lead before broad question terms, with earliest-line ties.
+    if row.get("focus_line") is not None:
+        return row["focus_line"] - row["start_line"], True
+    hits = ((bool(exact) and _contains_identifier(text, exact),
+             sum(min(32, len(term)) for term in route_terms if term in text),
+             sum(min(32, len(term)) for term in terms if term in text), -index)
+            for index, text in enumerate(line.casefold() for line in lines))
+    strongest = max(hits)
+    return -strongest[-1], any(strongest[:3])
+
+
 def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None,
                   read_obstructions=None, deferred_lines=None):
     """Crop on physical line boundaries and persist a citation for the crop."""
@@ -1162,24 +1176,10 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
     if lower >= upper:
         return None
     if start_line is None:
-        folded = [line.casefold() for line in lines]
-        route_terms = row.get("retrieval_terms") or row.get("focus_terms") or ()
-        exact = {term.rstrip(".") for term in row.get("retrieval_identifiers", ())}
-        # Preserve the reason this page was selected when choosing its crop.
-        # Broad original-question words elsewhere on the page must not hide a
-        # new search lead, and substrings cannot outrank a complete identifier.
-        hits = [(bool(exact) and _contains_identifier(text, exact),
-                 sum(min(32, len(term)) for term in route_terms if term in text),
-                 sum(min(32, len(term)) for term in terms if term in text), index)
-                for index, text in enumerate(folded)]
-        *_, center = max(hits, default=(False, 0, 0, lower),
-                         key=lambda item: (*item[:3], -item[3]))
-        if row.get("focus_line") is not None:
-            center = row["focus_line"] - row["start_line"]
+        center, matched = _search_crop_center(lines, row, terms)
         center = min(max(center, lower), upper - 1)
         first, last, used = center, center + 1, len(lines[center])
-        if (deferred_lines is not None and used > budget
-                and (any(hits[center][:3]) or row.get("focus_line") is not None)):
+        if deferred_lines is not None and used > budget and matched:
             line = row["start_line"] + center
             deferred_lines.setdefault((row["relative_path"], line), (row, line, used))
         while used <= budget and (first > lower or last < upper):
@@ -1237,12 +1237,46 @@ def _session_relation_cache(connection, source_session):
     return state["relations"]
 
 
-def _cached_context_relations(connection, paths, limit=64, *, relation_cache=None):
+def _matched_callsite_ranges(connection, rows, terms, limit, check_cancel):
+    """Locate the search crops in already saved original source, within the page budget."""
+    ranges = {}
+    for row in rows:
+        _cancel(check_cancel)
+        if not row.get("retrieval_terms"):
+            continue
+        lines = None
+        for lead in row.get("retrieval_leads", [{}]):
+            candidate = {**row, **lead}
+            if candidate["span_truncated"] or not candidate["evidence_id"]:
+                continue
+            line = candidate.get("focus_line")
+            if line is None:
+                # Ranked text searches store their crop terms. Literal matches
+                # already carry the precise physical line and need no lookup.
+                if lines is None:
+                    evidence = connection.execute("SELECT text FROM evidence_spans WHERE evidence_id=?",
+                                                  (row["evidence_id"],)).fetchone()
+                    if not evidence:
+                        continue
+                    lines = evidence["text"].split("\n")
+                center, matched = _search_crop_center(lines, candidate, terms)
+                if not matched:
+                    continue
+                line = candidate["start_line"] + center
+            if candidate["start_line"] <= line <= candidate["end_line"]:
+                span = (candidate["relative_path"], candidate["start_line"], candidate["end_line"], line)
+                ranges[span] = None
+                if len(ranges) == limit:
+                    return tuple(ranges)
+    return tuple(ranges)
+
+
+def _cached_context_relations(connection, paths, limit=64, *, relation_cache=None, matched_ranges=()):
     if relation_cache is None:
-        return _context_relations(connection, paths, limit)
-    key = (tuple(paths), limit)
+        return _context_relations(connection, paths, limit, matched_ranges)
+    key = (tuple(paths), limit, matched_ranges)
     if key not in relation_cache:
-        rows, omitted = _context_relations(connection, paths, limit)
+        rows, omitted = _context_relations(connection, paths, limit, matched_ranges)
         relation_cache[key] = (tuple(dict(row) for row in rows), omitted)
         # Eviction changes only reuse, never candidate or source coverage.
         while len(relation_cache) > 32:
@@ -1254,7 +1288,7 @@ def _cached_context_relations(connection, paths, limit=64, *, relation_cache=Non
     return deepcopy(list(rows)), omitted
 
 
-def _context_relations(connection, paths, limit=64):
+def _context_relations(connection, paths, limit=64, matched_ranges=()):
     if not paths:
         return [], 0
     slots = ",".join("?" for _ in paths)
@@ -1263,7 +1297,16 @@ def _context_relations(connection, paths, limit=64):
     # visit every relation, even when just one source page is being read.
     # Sparse and structural snapshots differ in Copybook program_name; both
     # definitions remain addressable without adding a repository-sized index.
-    query = (f"WITH definitions AS MATERIALIZED (SELECT unit_id,unit_type,name,program_name FROM code_units "
+    focus_cte = focus_order = ""
+    if matched_ranges:
+        values = ",".join("(?,?,?,?)" for _ in matched_ranges)
+        focus_cte = f"focus(path,first,last,center) AS (VALUES {values}), "
+        # Rank calls from the matched part of a busy program before applying
+        # the graph preview limit. Keep the ordinary order for all other links.
+        focus_order = ("COALESCE((SELECT MIN(ABS(e.start_line-focus.center)) FROM focus "
+                       "WHERE r.relation_type IN ('CALLS','CALL_TARGET_FROM') AND focus.path=r.relative_path "
+                       "AND e.start_line BETWEEN focus.first AND focus.last), 2147483647),")
+    query = (f"WITH {focus_cte}definitions AS MATERIALIZED (SELECT unit_id,unit_type,name,program_name FROM code_units "
              f"WHERE relative_path IN ({slots}) AND unit_type IN ('Program','Copybook','Section','Paragraph','DataItem')), "
              "target_keys AS (SELECT unit_id,unit_type AS symbol_type,name,program_name FROM definitions WHERE unit_type!='DataItem' "
              "UNION ALL SELECT unit_id,'Field',name,program_name FROM definitions WHERE unit_type='DataItem' "
@@ -1283,10 +1326,11 @@ def _context_relations(connection, paths, limit=64):
              "JOIN evidence_spans e ON e.evidence_id=r.evidence_id "
              "LEFT JOIN symbols s ON s.symbol_id=r.target_entity_id "
              "LEFT JOIN code_units u ON u.unit_id=s.definition_unit_id "
-             f"ORDER BY r.relative_path NOT IN ({slots}),"
+             f"ORDER BY {focus_order}r.relative_path NOT IN ({slots}),"
              "r.relation_type NOT IN ('CALLS','CALL_TARGET_FROM'),"
              "r.relation_type='PERFORMS',r.relative_path,e.start_line,r.relation_id LIMIT ?")
-    rows = connection.execute(query, (*paths, *paths, *paths, limit + 1)).fetchall()
+    focus_values = [value for span in matched_ranges for value in span]
+    rows = connection.execute(query, (*focus_values, *paths, *paths, *paths, limit + 1)).fetchall()
     result = []
     candidate_cache = {}
     for row in rows[:limit]:
@@ -1366,7 +1410,7 @@ def _retrieved_outline(connection, relative, pages, limit=24):
 
 def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max_chars,
                       check_cancel=None, requested_span=None, source_session=None,
-                      relation_cache=None):
+                      relation_cache=None, matched_ranges=()):
     _state_schema(connection)
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
@@ -1427,7 +1471,8 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     if any(row["span_truncated"] for row in rows):
         boundaries.append({"reason": "source_line_exceeds_search_page_budget", "message": "An oversized source line has no complete source citation in this index."})
     selected = list(dict.fromkeys(page["relative_path"] for page in pages))
-    links, omitted = _cached_context_relations(connection, selected, relation_cache=relation_cache)
+    links, omitted = _cached_context_relations(connection, selected, relation_cache=relation_cache,
+        matched_ranges=tuple(span for span in matched_ranges if span[0] in selected))
     usable = []
     for link in links:
         state = _current_selected_source(connection, root, link["caller_path"], cache, check_cancel, source_session)
@@ -1938,15 +1983,22 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                     rows.append(row)
                     seen_rows.add(row["page_id"])
         # Reserve a small part of the bundle for called interfaces and callers.
-        seeds = list(dict.fromkeys(row["relative_path"] for row in rows[:max(1, max_pages // 2)]))
-        links, _ = _cached_context_relations(connection, seeds, relation_cache=relation_cache)
+        seed_rows = rows[:max(1, max_pages // 2)]
+        seeds = list(dict.fromkeys(row["relative_path"] for row in seed_rows))
+        matched_ranges = ()
+        if (ranked and not identity.get("exclusive_source_scope")
+                and (search_terms or not repository_inventory_requested(question))):
+            matched_ranges = _matched_callsite_ranges(connection, seed_rows, terms, max_pages, check_cancel)
+        links, _ = _cached_context_relations(connection, seeds, relation_cache=relation_cache,
+                                             matched_ranges=matched_ranges)
+        seed_page_ids = {row["page_id"] for row in seed_rows}
         neighbours, neighbour_ids = [], set()
         for link in ([] if identity.get("exclusive_source_scope") else links):
             for relative, line in ((link["caller_path"], link["caller_start_line"]), (link["target_path"], link["target_start_line"])):
                 if not relative or line is None:
                     continue
                 row = connection.execute("SELECT * FROM repo_pages WHERE relative_path=? AND start_line<=? AND end_line>=? ORDER BY start_line LIMIT 1", (relative, line, line)).fetchone()
-                if row and row["page_id"] not in neighbour_ids and row["page_id"] not in {item["page_id"] for item in rows[:max(1, max_pages // 2)]}:
+                if row and row["page_id"] not in neighbour_ids and row["page_id"] not in seed_page_ids:
                     neighbours.append({**dict(row), "selection_reason": "dependency_context", "focus_line": line})
                     neighbour_ids.add(row["page_id"])
                 if len(neighbours) >= max(1, max_pages // 3):
@@ -1957,7 +2009,7 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
         rows = rows[:cut] + neighbours + rows[cut:]
         result = _assemble_context(connection, root, overview, rows, terms, max_pages=max_pages,
                                    max_chars=max_chars, check_cancel=check_cancel, source_session=source_session,
-                                   relation_cache=relation_cache)
+                                   relation_cache=relation_cache, matched_ranges=matched_ranges)
         delivered_literals = [p for p in result["pages"] if "literal_source_match" in p["selection_reasons"]]
         if literal_report is not None:
             result["literal_search"] = {**literal_report, "selected_pages": len(delivered_literals),
