@@ -1,0 +1,40 @@
+[
+  {
+    "all_search_entries_missing_for_file": false,
+    "original_call_line": 504,
+    "requests": [
+      {
+        "mode": "business_analysis",
+        "contains_actual_target": true,
+        "sourced_paths": [
+          "fees.cbl"
+        ],
+        "matched_spans": [
+          [
+            1,
+            505
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "all_search_entries_missing_for_file": true,
+    "original_call_line": 504,
+    "requests": [
+      {
+        "mode": "business_analysis",
+        "contains_actual_target": true,
+        "sourced_paths": [
+          "fees.cbl"
+        ],
+        "matched_spans": [
+          [
+            1,
+            505
+          ]
+        ]
+      }
+    ]
+  }
+]
