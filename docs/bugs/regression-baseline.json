@@ -3070,6 +3070,9 @@
     "test_local_api_config.LocalAPIConfigTests.test_unreadable_or_oversized_file_has_safe_error",
     "test_local_api_config.LocalAPIConfigTests.test_web_state_reports_configuration_without_exposing_values",
     "test_local_api_config.LocalAPIConfigTests.test_windows_bom_crlf_quotes_and_literal_special_characters",
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_line_over_total_allowance_keeps_discovery_open_and_returns_read_location",
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_normal_question_supplies_complete_hashed_matching_line_to_model",
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_small_independent_hit_keeps_its_slot_before_spending_remaining_space",
     "test_located_copy_sources.LocatedCopySourceTests.test_ambiguous_basename_is_not_selected_but_exact_path_is",
     "test_located_copy_sources.LocatedCopySourceTests.test_caller_must_be_actual_visible_same_version_copy",
     "test_located_copy_sources.LocatedCopySourceTests.test_existing_read_allowance_and_scope_exclusion_are_preserved",
@@ -3119,6 +3122,14 @@
     "test_model_output_budget.ModelOutputBudgetTests.test_process_environment_overrides_local_file_for_both_profiles",
     "test_model_output_budget.ModelOutputBudgetTests.test_timeout_overrides_are_validated_before_returning_a_profile",
     "test_model_output_budget.ModelOutputBudgetTests.test_valid_environment_bounds_are_sent_without_expanding_other_settings",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_dot_containing_path_keeps_its_full_identity_and_supplementary_search_scope",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_followup_model_search_after_terminal_period_reads_only_the_named_file",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_trailing_extension_or_internal_dot_cannot_match_a_shorter_filename",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_changed_original_is_not_substituted_for_the_requested_version",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_missing_fts_entry_retains_real_call_while_complete_index_needs_no_source_fallback",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_page_from_only_requested_verified_original",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_tail_even_without_any_fts_hit",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_oversized_original_exposes_existing_byte_limit_without_claiming_a_complete_search",
     "test_native_release_performance.NativeReleasePerformanceTests.test_complete_native_offline_samples_keep_measured_timings",
     "test_native_release_performance.NativeReleasePerformanceTests.test_download_checks_public_candidate_and_exact_pinned_bytes_before_execution",
     "test_native_release_performance.NativeReleasePerformanceTests.test_draft_or_wrong_repository_never_downloads",
@@ -5788,5 +5799,5 @@
     "poc/tests/web_tls_phase_diagnostic.test.cjs::legacy TLS classification states an unconfirmed phase and preserves unknown request outcome in every language"
   ],
   "note": "Append-only minimum; every current test also runs. Test count is not a count of defects.",
-  "updated_at": "2026-11-10"
+  "updated_at": "2026-11-20"
 }

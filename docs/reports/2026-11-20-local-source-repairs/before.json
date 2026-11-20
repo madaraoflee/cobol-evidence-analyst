@@ -1,0 +1,16 @@
+{
+  "run": 11,
+  "outcomes": {
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_line_over_total_allowance_keeps_discovery_open_and_returns_read_location": "error",
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_normal_question_supplies_complete_hashed_matching_line_to_model": "failed",
+    "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_small_independent_hit_keeps_its_slot_before_spending_remaining_space": "failed",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_changed_original_is_not_substituted_for_the_requested_version": "error",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_missing_fts_entry_retains_real_call_while_complete_index_needs_no_source_fallback": "error",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_page_from_only_requested_verified_original": "failed",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_tail_even_without_any_fts_hit": "error",
+    "test_named_source_partial_search.NamedSourcePartialSearchTests.test_oversized_original_exposes_existing_byte_limit_without_claiming_a_complete_search": "error",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_dot_containing_path_keeps_its_full_identity_and_supplementary_search_scope": "passed",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_followup_model_search_after_terminal_period_reads_only_the_named_file": "failed",
+    "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_trailing_extension_or_internal_dot_cannot_match_a_shorter_filename": "failed"
+  }
+}

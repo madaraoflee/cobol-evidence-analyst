@@ -107,7 +107,9 @@ def _exclusive_source_scope(question, identity):
                     r"(?:此|本|这个|這個|该|該)(?:文件|程序|程式|源码|原文))", following, re.I):
             return True
         for name in names:
-            if name and re.match(r"[`\"'“‘（(\[【]?" + re.escape(name) + r"(?![A-Za-z0-9_$#@.-])",
+            # A final period followed by whitespace or end of input closes the
+            # sentence. An internal period belongs to the full source name.
+            if name and re.match(r"[`\"'“‘（(\[【]?" + re.escape(name) + r"(?=\.(?:\s|$)|[^A-Za-z0-9_$#@.-]|$)",
                                  following, re.I):
                 return True
     return False

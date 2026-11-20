@@ -1144,7 +1144,7 @@ def _restore_missing_search_pages(connection, root, relative, check_cancel, sour
 
 
 def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=None,
-                  read_obstructions=None):
+                  read_obstructions=None, deferred_lines=None):
     """Crop on physical line boundaries and persist a citation for the crop."""
     if row["span_truncated"] or not row["evidence_id"]:
         return None
@@ -1176,6 +1176,10 @@ def _bounded_page(connection, row, terms, budget, *, start_line=None, end_line=N
             center = row["focus_line"] - row["start_line"]
         center = min(max(center, lower), upper - 1)
         first, last, used = center, center + 1, len(lines[center])
+        if (deferred_lines is not None and used > budget
+                and (any(hits[center][:3]) or row.get("focus_line") is not None)):
+            line = row["start_line"] + center
+            deferred_lines.setdefault((row["relative_path"], line), (row, line, used))
         while used <= budget and (first > lower or last < upper):
             # Keep immediate context on both sides of the matching line.
             changed = False
@@ -1365,6 +1369,7 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
     cache = {"states": {}, "checked_files": 0, "reused_files": 0, "content_verified_files": 0}
     pages, boundaries, used, seen = [], [], 0, set()
     read_obstructions = [] if requested_span else None
+    deferred_lines = {}
     # Allocate the ordinary total budget across independent crops before the
     # first lead can consume it. A single lead retains its original allowance.
     rows = [{**row, **lead} for row in rows
@@ -1380,13 +1385,15 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
         kwargs = requested_span or {}
         budget = max_chars - used if requested_span else min(per_page, max_chars - used)
         try:
-            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions, **kwargs)
+            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions,
+                                 deferred_lines=deferred_lines, **kwargs)
         except ValueError as exc:
             if (str(exc) != "REPOSITORY_SEARCH_STALE" or not row["evidence_id"] or connection.execute(
                     "SELECT 1 FROM evidence_spans WHERE evidence_id=?", (row["evidence_id"],)).fetchone()):
                 raise
             _restore_missing_search_pages(connection, root, row["relative_path"], check_cancel, source_session)
-            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions, **kwargs)
+            page = _bounded_page(connection, row, terms, budget, read_obstructions=read_obstructions,
+                                 deferred_lines=deferred_lines, **kwargs)
         if page and page["evidence_id"] not in seen:
             page["selection_reasons"] = [row.get("selection_reason", "question_match")]
             page["source_verification"] = state["verification"]
@@ -1395,6 +1402,26 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
             used += len(page["source_text"])
             if requested_span and page["end_line"] < min(row["end_line"], requested_span["end_line"]):
                 break
+    # Other leads receive their normal allocations first. Spend remaining space
+    # on whole matching lines that did not fit their individual excerpt share.
+    for row, line, required in deferred_lines.values():
+        _cancel(check_cancel)
+        if len(pages) >= max_pages:
+            break
+        if required > max_chars - used:
+            obstruction = {"reason": "matching_line_exceeds_remaining_budget",
+                           "relative_path": row["relative_path"], "source_sha256": row["source_sha256"],
+                           "start_line": line, "required_characters": required,
+                           "remaining_characters": max_chars - used}
+            boundaries.append(obstruction)
+            continue
+        page = _bounded_page(connection, row, terms, required, start_line=line, end_line=line)
+        if page and page["evidence_id"] not in seen:
+            page["selection_reasons"] = [row.get("selection_reason", "question_match")]
+            page["source_verification"] = cache["states"][row["relative_path"]]["verification"]
+            seen.add(page["evidence_id"])
+            pages.append(page)
+            used += len(page["source_text"])
     if any(row["span_truncated"] for row in rows):
         boundaries.append({"reason": "source_line_exceeds_search_page_budget", "message": "An oversized source line has no complete source citation in this index."})
     selected = list(dict.fromkeys(page["relative_path"] for page in pages))
@@ -1438,8 +1465,24 @@ def _assemble_context(connection, root, overview, rows, terms, *, max_pages, max
             "cache": cache_report, "needs_refresh": bool(boundaries and any(item.get("needs_refresh") for item in boundaries))}
 
 
+def _incomplete_named_search(connection, identity):
+    """Check the derived page counts for one explicitly named imported source."""
+    paths = identity.get("direct_paths", [])
+    if (identity.get("status") != "resolved" or identity.get("selection_source") != "question"
+            or not identity.get("hard_constraint") or len(paths) != 1):
+        return None
+    path = paths[0]
+    coverage = connection.execute(
+        "SELECT s.page_count,COUNT(f.rowid) FROM repo_sources s "
+        "JOIN source_files src ON src.relative_path=s.relative_path AND src.sha256=s.sha256 "
+        "JOIN repo_pages p ON p.relative_path=s.relative_path "
+        "LEFT JOIN repo_fts f ON f.rowid=p.page_id WHERE s.relative_path=? "
+        "GROUP BY s.relative_path,s.page_count", (path,)).fetchone()
+    return path if coverage and coverage[0] != coverage[1] else None
+
+
 def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_cancel=None,
-                       source_session=None, requested_span=None, page_chars=PAGE_CHARS):
+                       source_session=None, requested_span=None, page_chars=PAGE_CHARS, incomplete_path=None):
     """Search bounded original excerpts when the text index has no hits.
 
     The imported file table is the only namespace. A precisely located file
@@ -1447,21 +1490,22 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
     no directory walk or global index repair occurs during a question.
     """
     scope_sql, scope_values = identity_sql_scope(identity, supplemental=False)
-    direct = identity.get("direct_paths", [])
+    direct = [incomplete_path] if incomplete_path else identity.get("direct_paths", [])
     generation = tuple(connection.execute("SELECT key,value FROM metadata WHERE key IN "
         "('snapshot_id','parser_version','indexed_at_utc') ORDER BY key"))
     cache_key = (tuple(tuple(row) for row in generation), tuple(terms), tuple(direct), scope_sql,
-                 tuple(scope_values), max_pages, tuple((requested_span or {}).items()), page_chars)
+                 tuple(scope_values), max_pages, tuple((requested_span or {}).items()), page_chars, incomplete_path)
     cache = getattr(source_session, "_raw_fallback_cache", {}) if source_session else {}
     if cache_key in cache:
         rows, report = cache[cache_key]
         return [dict(row) for row in rows], {**report, "cache_reused": True}
     rows, checked, characters, exhausted, failures = [], 0, 0, False, []
+    original_pages_checked = 0
     candidates = connection.execute(
         "SELECT p.*,e.text FROM repo_pages p JOIN evidence_spans e ON e.evidence_id=p.evidence_id "
         "JOIN source_files f ON f.relative_path=p.relative_path AND f.sha256=p.source_sha256 "
         "WHERE p.span_truncated=0" + scope_sql + " ORDER BY p.relative_path,p.start_line LIMIT ?",
-        (*scope_values, RAW_FALLBACK_PAGES + 1)) if requested_span is None else ()
+        (*scope_values, RAW_FALLBACK_PAGES + 1)) if requested_span is None and not incomplete_path else ()
     for original in candidates:
         _cancel(check_cancel)
         text = original["text"]
@@ -1479,7 +1523,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
     # A valid imported identity must not disappear merely because its search
     # pages were omitted. Read at most a few small, exact files, never guesses.
     for relative in direct[:min(4, max_pages)]:
-        if not requested_span and connection.execute(
+        if not requested_span and not incomplete_path and connection.execute(
                 "SELECT 1 FROM repo_pages WHERE relative_path=? LIMIT 1", (relative,)).fetchone():
             continue
         _cancel(check_cancel)
@@ -1503,6 +1547,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
                 read_root = source_session.mirror_root
             staged = []
             for page in _verified_pages(read_root, dict(item), check_cancel, [], page_chars):
+                original_pages_checked += 1
                 if requested_span and (page["end_line"] < requested_span["start_line"]
                         or page["start_line"] > requested_span["end_line"]):
                     continue
@@ -1512,7 +1557,7 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
                     continue
                 page["evidence_id"] = _identify_page(page)
                 score = sum(min(64, len(term)) for term in terms if term in page["source_text"].casefold())
-                if score or not staged or requested_span:
+                if score or (not staged and not incomplete_path) or requested_span:
                     staged.append((score, page))
                     staged.sort(key=lambda pair: (-pair[0], pair[1]["start_line"]))
                     del staged[max_pages:]
@@ -1538,6 +1583,9 @@ def _raw_text_fallback(connection, root, terms, identity, *, max_pages, check_ca
               "source_directory_scanned": False, "failures": failures[:16],
               "failure_count": len(failures), "omitted_failures": max(0, len(failures) - 16),
               "cache_reused": False}
+    if incomplete_path:
+        report["incomplete_search_path"] = incomplete_path
+        report["original_pages_checked"] = original_pages_checked
     result = rows[:max_pages * 4]
     if source_session is not None:
         cache[cache_key] = ([dict(row) for row in result], dict(report))
@@ -1576,7 +1624,18 @@ def retrieve_repository_context(database_path, source_root, question, *, search_
                 _retrieval_query_groups(question, search_terms, terms),
                 scope_sql, scope_values, max_pages, check_cancel)
         raw_fallback = None
-        if not ranked and not blocked:
+        incomplete_path = _incomplete_named_search(connection, identity)
+        if incomplete_path:
+            # A filename can rank the remaining header above an unindexed rule.
+            # Prefer the requested search terms in that one verified original.
+            wanted = _query_terms("", search_terms)[0] or terms
+            recovered, raw_fallback = _raw_text_fallback(connection, root, wanted, identity,
+                max_pages=max_pages, check_cancel=check_cancel, source_session=source_session,
+                incomplete_path=incomplete_path)
+            existing = {row["evidence_id"] for row in ranked}
+            ranked = [{**row, "retrieval_terms": wanted} for row in recovered
+                      if row["evidence_id"] not in existing] + ranked
+        elif not ranked and not blocked:
             ranked, raw_fallback = _raw_text_fallback(connection, root, terms, identity,
                 max_pages=max_pages, check_cancel=check_cancel, source_session=source_session)
         # Across-file diversity prevents an enormous matching program from

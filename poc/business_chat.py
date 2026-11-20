@@ -519,9 +519,8 @@ def _history_messages(history, policy=None, *, question=None):
 
 def _retrieval_found_source(context):
     """A verified original-text fallback is also a usable retrieval result."""
-    return bool(context.get("matched_file_count", 0) or
-                ((context.get("raw_fallback") or {}).get("matched_pages", 0)
-                 and context.get("pages")))
+    return bool(context.get("pages") and (context.get("matched_file_count", 0)
+                or (context.get("raw_fallback") or {}).get("matched_pages", 0)))
 
 
 def _compact_prompt_payload(payload):

@@ -8952,40 +8952,97 @@
       "title": "本地命中长源行时实际供证为空仍结束取证",
       "symptom": "新建索引能找到 7,021 字符的源行，精确读取可返回全文，普通问题却给模型零页原文。",
       "root_cause": "页面分摊额度裁掉整行，普通问答把索引有匹配文件当成原文已供给。",
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "regressions": [],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_line_over_total_allowance_keeps_discovery_open_and_returns_read_location"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_normal_question_supplies_complete_hashed_matching_line_to_model"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_source_line_retrieval.LocalSourceLineRetrievalTests.test_small_independent_hit_keeps_its_slot_before_spending_remaining_space"
+        }
+      ],
       "evidence": [
         "docs/reports/2026-11-20-source-investigation/local-before.json",
-        "docs/reports/2026-11-20-source-investigation/local-scope.md"
+        "docs/reports/2026-11-20-source-investigation/local-scope.md",
+        "docs/reports/2026-11-20-local-source-repairs/before.json",
+        "docs/reports/2026-11-20-local-source-repairs/after.json",
+        "poc/tests/test_local_source_line_retrieval.py"
       ],
-      "limitations": "已在新建合成资料库复现。冻结的本地链路修复范围独立记录，当前仍未关闭。"
+      "limitations": "正常业务问答完整供给已校验的长行；超过整题预算则保留定位并进入后续取证。合成源码已复测，真实模型对该内容的业务解释待现场确认。"
     },
     {
       "id": "BUG-20261120-005",
       "title": "刷新前本地指定文件部分缓存缺页时，文件名命中遮住原文调用",
       "symptom": "在只有两页的指定文件删除本地派生缓存尾页后，仍返回文件名匹配的首页。对原文件 504 行的独立读取可取得目标调用。",
       "root_cause": "刷新及精确读取已有缓存缺页恢复，普通检索的文件名命中却足以绕过局部原文回退。",
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "regressions": [],
-      "evidence": [
-        "docs/reports/2026-11-20-source-investigation/local-cache-gap.json"
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_named_source_partial_search.NamedSourcePartialSearchTests.test_changed_original_is_not_substituted_for_the_requested_version"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_source_partial_search.NamedSourcePartialSearchTests.test_missing_fts_entry_retains_real_call_while_complete_index_needs_no_source_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_page_from_only_requested_verified_original"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_source_partial_search.NamedSourcePartialSearchTests.test_named_file_recovers_missing_tail_even_without_any_fts_hit"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_source_partial_search.NamedSourcePartialSearchTests.test_oversized_original_exposes_existing_byte_limit_without_claiming_a_complete_search"
+        }
       ],
-      "limitations": "仅在合成测试中主动制造派生缓存不完整。相关旧条目 BUG-20261024-102 的刷新及精确读取回归继续保留；公司索引是否出现此状态仍待验证。"
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/local-cache-gap.json",
+        "docs/reports/2026-11-20-local-source-repairs/before.json",
+        "docs/reports/2026-11-20-local-source-repairs/after.json",
+        "poc/tests/test_named_source_partial_search.py",
+        "docs/reports/2026-11-20-local-source-repairs/ordinary-chat.json"
+      ],
+      "limitations": "合成库主动移除指定文件的部分派生缓存后，在保留和移除剩余全文检索记录两种情况下均回读到第 504 行调用。仅在原读取预算内验证具名文件。公司缓存是否出现该情况尚待现场确认。"
     },
     {
       "id": "BUG-20261120-006",
       "title": "英文句末句号导致本地“只分析指定文件”的限制失效",
       "symptom": "同一健康资料库，明确指定只分析 fees.cbl，以句号结束该句时原文供给还选入 unused.cbl。逗号、反引号或连成一句时只取指定文件。",
       "root_cause": "限定文件匹配排除紧随文件名的点，未区分额外扩展名与句末标点。",
-      "status": "open",
+      "status": "fixed",
       "verification_scope": "source_offline",
-      "regressions": [],
-      "evidence": [
-        "docs/reports/2026-11-20-source-investigation/local-exclusive-scope.json"
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_dot_containing_path_keeps_its_full_identity_and_supplementary_search_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_followup_model_search_after_terminal_period_reads_only_the_named_file"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_named_scope_sentence_end.NamedScopeSentenceEndTests.test_trailing_extension_or_internal_dot_cannot_match_a_shorter_filename"
+        }
       ],
-      "limitations": "独立合成复现，涉及冻结的本地范围识别。此条尚未修复。"
+      "evidence": [
+        "docs/reports/2026-11-20-source-investigation/local-exclusive-scope.json",
+        "docs/reports/2026-11-20-local-source-repairs/before.json",
+        "docs/reports/2026-11-20-local-source-repairs/after.json",
+        "poc/tests/test_named_scope_sentence_end.py"
+      ],
+      "limitations": "已验证英文句末点号后的提问及模型补查都受原文件范围约束，并验证含点路径、额外扩展名的边界。真实公司资料及 Windows 成品需另行验证。"
     }
   ],
   "updated_at": "2026-11-20"
