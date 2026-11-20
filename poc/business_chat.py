@@ -4305,8 +4305,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                     failure = "INVALID_INVESTIGATION_ACTION"
                     break
                 if not action:
-                    shortage = _source_shortage_reply(reply.text)
-                    if (shortage and not force_answer and (not framework_only or source_required)
+                    supplied_set = visible.get("working_set") or {}
+                    source_gap = (discovery_pending or not _bound_source_ids(visible)
+                        or not (supplied_set.get("physical_complete") and supplied_set.get("closure_complete"))
+                        or bool(current_investigation.get("open_gaps")))
+                    if (_source_shortage_reply(reply.text) and source_gap and not answer and not force_answer
+                            and (not framework_only or source_required)
                             and inventory_state is None and not identity_blocks_analysis(
                                 business_map.get("source_identity", {}))
                             and policy.can_request(turns) and action_policy.max_searches_per_turn
@@ -4337,7 +4341,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             continue
                         failure = "RETRIEVAL_UNRESOLVED"
                         break
-                    deferred = shortage or _investigation_deferral(reply.text)
+                    deferred = _investigation_deferral(reply.text)
                     completion = source_completion(reply.text, payload)
                     promised = completion.get("pending_investigation", False)
                     if answer and (promised or (reply.truncated and not truncated)):

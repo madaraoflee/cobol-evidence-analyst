@@ -1,6 +1,6 @@
 {
   "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
-  "product_sha256": "4554125ad3e5177d2927c8b1ddb61e95dff68a4680560b264d2c5797648e7aa6",
+  "product_sha256": "b0d7a32b674cd472d1a78e34244905b0ee7cbac737c62a981e302815a942135f",
   "scenarios": {
     "insufficient_then_grep": {
       "files": {

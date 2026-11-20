@@ -10012,6 +10012,44 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "在本轮源码改动过程中复现并修复；固定旧版未通过此路径。现场情况仍待核实。"
+    },
+    {
+      "id": "BUG-20261121-023",
+      "title": "完整原文已供应时再次搜索挤占了答案复核",
+      "symptom": "首次全量回归中，已完整提供原件的问答在模型声称源码不足后仍重复搜索，有时用尽请求而丢失已有答复或复核状态。",
+      "root_cause": "不足答复的自动搜索未区分全库原文已供应与仍有未查文件，也抢在已有草稿复核之前。修复优先用已到手的完整原文复核答案，仍有未供源码时才自动扩大检索。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_repeated_blanket_limitation_is_not_a_successful_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_general_question_reviews_a_blanket_limitation_without_formula_requirements"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_review_that_loses_the_business_explanation_preserves_the_draft"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_false_source_selection_denial_recovers_once_with_supplied_source"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_answer_completion.AnswerCompletionTests.test_search_absence_messages_review_the_source_already_supplied"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_delivery.LocalGrepDeliveryTests.test_insufficient_reply_triggers_repository_grep_then_source_led_search"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "首次整套源码回归在 d7c791e 暴露此问题；公司真实模型、设备和耗时仍待核对。"
     }
   ],
   "updated_at": "2026-11-21"
