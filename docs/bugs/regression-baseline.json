@@ -3086,6 +3086,7 @@
     "test_local_api_config.LocalAPIConfigTests.test_unreadable_or_oversized_file_has_safe_error",
     "test_local_api_config.LocalAPIConfigTests.test_web_state_reports_configuration_without_exposing_values",
     "test_local_api_config.LocalAPIConfigTests.test_windows_bom_crlf_quotes_and_literal_special_characters",
+    "test_local_deduction_review.LocalDeductionReviewTests.test_last_item_in_sequence_does_not_hide_subsequent_skip_conditions",
     "test_local_deduction_review.LocalDeductionReviewTests.test_missing_each_skip_boundary_order_or_result_is_reviewed",
     "test_local_deduction_review.LocalDeductionReviewTests.test_named_paragraph_operation_is_scoped_to_its_real_source",
     "test_local_deduction_review.LocalDeductionReviewTests.test_redacted_prefixes_extra_sources_and_stale_citations_never_close_the_path",

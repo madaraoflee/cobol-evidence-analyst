@@ -76,6 +76,16 @@ class LocalDeductionReviewTests(unittest.TestCase):
         self.assertIn('final_receivable', proof.missing_aspects(ANSWER.split('最终')[0]))
         self.assertFalse(deduction_review_requested('无需说明扣费顺序，只列字段类型。'))
 
+    def test_last_item_in_sequence_does_not_hide_subsequent_skip_conditions(self):
+        review = self.proof([])
+        prose = ('先收税款，最后处理折扣。税款足额时从 BALANCE 扣除税款；不足时跳过。'
+                 '折扣足额时从 BALANCE 扣除折扣；不足时跳过。')
+        self.assertEqual(review.missing_aspects(prose), [])
+        ask_for_result = self.proof([], question=QUESTION + '还要说明最终应收。')
+        self.assertEqual(ask_for_result.missing_aspects(prose), ['final_receivable'])
+        self.assertEqual(ask_for_result.missing_aspects(prose + '最终应收是初始应收减去已扣金额。'), [])
+        self.assertIn('final_receivable', review.missing_aspects(prose.replace('BALANCE 扣除折扣', 'OTHER 扣除折扣')))
+
     def test_redacted_prefixes_extra_sources_and_stale_citations_never_close_the_path(self):
         a = self.page('collector.cbl', CALLER)
         b = self.page('discount.cbl', WORKER)

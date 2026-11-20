@@ -21,12 +21,28 @@ _ORDER = re.compile(r"先|随后|隨後|然后|然後|之后|之後|接着|接�
 _SKIP = re.compile(r"跳[过過]|略[过過]|否[则則]|其[他餘余]|[不未无無]扣|不[作做再予]|不[调調]用|不[进進]入|"
                    r"保[持留]|不[变變]|直接返回|不[处處]理|才(?:会|會)?(?:扣|减|減|调|調|进入|進入)|"
                    r"\b(skip\w*|otherwise|unchanged|retain\w*|only if|unless|not deduct\w*)\b", re.I)
-_RESULT = re.compile(r"最[终終后後]|(?:返回|回[写寫])(?:的|后|後)?(?:应收|應收|金额|金額|余额|餘額)|"
+_RESULT = re.compile(r"最[终終]|最[后後](?=.{0,8}(?:[应應]收|[余餘]额|金[额額]|[结結]果))|(?:返回|回[写寫])(?:的|后|後)?(?:应收|應收|金额|金額|余额|餘額)|"
                      r"\b(final|returned|resulting|ends? up|net result)\b", re.I)
 _BALANCE = re.compile(r"应收|應收|余额|餘額|金额|金額|结余|結餘|\b(receivable|amount|balance|due)\b", re.I)
 _EFFECT = re.compile(r"减[去掉少]?|減[去掉少]?|抵扣|扣[除减減掉]|实际[扣生]|實際[扣生]|保留|保持|不变|不變|"
                      r"等于|等於|[=−]|为\s*\d|為\s*\d|"
                      r"\b(less|minus|deduct\w*|subtract\w*|remain\w*|retain\w*|unchanged|equals?)\b", re.I)
+# A step-by-step answer can describe the resulting balance cumulatively. This
+# is a coverage signal for a sequence question, never proof of the arithmetic.
+_RUNNING_DEBIT = re.compile(
+    r"(?:从|從)\s*`?(余额|餘額|应收(?:金额)?|應收(?:金額)?|[a-z][a-z0-9-]*)`?\s*(?:中)?\s*(?:扣除|扣[减減]|减去|減去)"
+    r"|\b(?:deduct|subtract)\s+[^.;\n]{1,48}?\s+from\s+(?:the )?`?([a-z][a-z0-9-]*)", re.I)
+
+
+def _running_effects(text):
+    receivers = []
+    for part in re.split(r"[。.!?！？\n]", text):
+        debit = _RUNNING_DEBIT.search(part)
+        if debit and _SKIP.search(part):
+            receivers.append(next(value for value in debit.groups() if value))
+    return len(receivers) >= 2 and len(set(receivers)) == 1
+
+
 _RELATIONS = {
     "=": r"(?<![<>!])=(?!=)|(?<![不于於])等[于於]|(?:类型|類型|代[码碼])(?:为|為|是)|\bequals?\b",
     "<>": r"<>|!=|不等[于於]|不[是为為]|不同|\b(?:differs? from|not equal)\b",
@@ -160,6 +176,7 @@ class DeductionEvidence:
     requires_review: bool
     decisions: tuple
     unresolved_targets: tuple = ()
+    explicit_result: bool = False
 
     def missing_aspects(self, answer):
         if not self.requires_review or self.closed_answer and answer == self.closed_answer:
@@ -169,7 +186,7 @@ class DeductionEvidence:
         # The conclusion may recap every subject without explaining a single
         # branch. Look for the individual decisions in the procedural text.
         body = text
-        if result:
+        if result and self.decisions:
             prefix = text[:result.start()]
             # Business answers may lead with their conclusion. Move on to
             # the following rule descriptions in that case.
@@ -186,8 +203,15 @@ class DeductionEvidence:
             skips = bool(_SKIP.search(body)) and not self.decisions
         if not skips:
             missing.append("skip_conditions")
-        ending = text[result.start():] if result else ""
-        if not (_BALANCE.search(ending) and _EFFECT.search(ending)):
+        result_explained = False
+        for marker in _RESULT.finditer(text):
+            statement = re.split(r"[。！？!?]|\.(?:\s|$)", text[marker.start():], maxsplit=1)[0]
+            if _BALANCE.search(statement) and _EFFECT.search(statement):
+                result_explained = True
+                break
+        if not result_explained and not self.decisions and not self.explicit_result:
+            result_explained = _running_effects(text)
+        if not result_explained:
             missing.append("final_receivable")
         return missing
 
@@ -195,7 +219,7 @@ class DeductionEvidence:
 def inspect_deduction(question, pages, *, source_session, answer_language):
     """Inspect only physical pages actually supplied to this local question."""
     required = deduction_review_requested(question)
-    evidence = DeductionEvidence([], None, required, ())
+    evidence = DeductionEvidence([], None, required, (), explicit_result=bool(_RESULT.search(question)))
     if not pages or source_session is None:
         return evidence
     # Duplicated windows cannot add obligations or turn missing pages into a proof.

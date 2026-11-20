@@ -9795,6 +9795,50 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "验证中性静态调用路径及受控回答，企业源程序、真实模型和运行绑定仍未现场验证。"
+    },
+    {
+      "id": "BUG-20261121-016",
+      "title": "列出最后一个扣费项目后已写出的跳过条件被漏读",
+      "symptom": "四项扣减按顺序说明，随后逐笔给出同一余额的更新、跳过和金额来源时，初版额外要求第三次请求。",
+      "root_cause": "将“最后一项”当作最终应收段落，截断了后续说明。复核现按实际结果语句与逐步余额更新识别。用户明确问最终数额时仍要求作答。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_review.LocalDeductionReviewTests.test_last_item_in_sequence_does_not_hide_subsequent_skip_conditions"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_collection_flow_delivery.CollectionFlowDeliveryTests.test_slow_deferral_is_reviewed_with_all_steps_from_large_source"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "初版 026eb26 的本地源码回归重现；不代表企业真实模型或目标机验证。"
+    },
+    {
+      "id": "BUG-20261121-017",
+      "title": "问答修订的新参数破坏已有的请求预算适配入口",
+      "symptom": "已有请求预算适配器在修订时收到不支持的参数，实际源码在传输限额下被省略的场景报错。",
+      "root_cause": "新增扣费复核通过额外关键字参数接入已有请求裁剪入口。修复保持该入口约定并在实际供证上处理待核事项。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-progressive-answer/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_retrieval_evidence_regressions.RetrievalEvidenceRegressionTests.test_transport_budget_omitting_known_source_does_not_restart_discovery"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_progressive_delivery.LocalProgressiveDeliveryTests.test_shallow_reply_is_revised_after_a_cited_interim_finding"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "初版 026eb26 的本地源码回归重现；不代表企业真实模型或目标机验证。"
     }
   ],
   "updated_at": "2026-11-21"

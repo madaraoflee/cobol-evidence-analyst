@@ -41,7 +41,7 @@ from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, fram
 from framework_semantics import build_framework_facts, visible_framework_facts
 from quality_trace import QualityTrace, PIPELINE_VERSION, PROMPT_VERSION
 from question_budget import QuestionBudget, QuestionDeadlineExceeded
-from prior_source_memory import PriorSourceMemory, valid_findings
+from prior_source_memory import PriorSourceMemory, source_binding_sha256, valid_findings
 from repository_identity import identity_blocks_analysis
 from response_language import answer_language_instruction, localized_text, resolve_answer_language
 
@@ -1023,8 +1023,15 @@ def _system_for_payload(payload):
         payload.get("answer_instructions"))
 
 
+def _deduction_review_binding(draft, pages):
+    """Identify the reviewed text and physically supplied excerpts after request fitting."""
+    rows = sorted((page.get("evidence_id", ""), source_binding_sha256(page),
+                   hashlib.sha256(page.get("source_text", "").encode()).hexdigest()) for page in pages)
+    return hashlib.sha256(json.dumps([draft, rows], ensure_ascii=False).encode()).hexdigest()
+
+
 def _fit_request(config, payload, history, policy=None, *, trim_events=None, investigation_builder=None,
-                 source_fallback_builder=None, check_cancel=None, source_memory=None, review_builder=None):
+                 source_fallback_builder=None, check_cancel=None, source_memory=None):
     """Bound the actual encoded request, trimming secondary context first."""
     history = list(history)
     policy = resolve_agent_policy(policy)
@@ -1033,6 +1040,7 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
     source_fallback_attempted = False
     minimal_investigation = False
     last_material = None
+    previous_review = payload.get("answer_review") or {}
     # Remember source-bound rules before metadata compaction can remove their
     # fact records. Unbound automatic documentation must not evict the business
     # implementation it was meant to help interpret.
@@ -1203,13 +1211,24 @@ def _fit_request(config, payload, history, policy=None, *, trim_events=None, inv
             investigation = payload.get("question_investigation", {})
             working_set = bundle.get("working_set")
             references = payload.get("framework_references", [])
-            if review_builder:
-                payload["answer_review"] = review_builder(draft, investigation, review_pages, working_set, references)
-            else:
-                payload["answer_review"] = assess_business_answer(payload.get("question", ""), draft,
-                    investigation, review_pages, answer_detail=payload.get("answer_detail", "detailed"),
-                    working_set=working_set, answer_instructions=payload.get("answer_instructions", ""),
-                    framework_references=references)
+            assessment = assess_business_answer(payload.get("question", ""), draft,
+                investigation, review_pages, answer_detail=payload.get("answer_detail", "detailed"),
+                working_set=working_set, answer_instructions=payload.get("answer_instructions", ""),
+                framework_references=references)
+            missing = previous_review.get("deduction_missing")
+            if missing:
+                # A source-bound check of the accepted draft survives navigation
+                # trimming. If fitting changes the actual text or excerpts, the
+                # earlier omissions are a prompt for investigation only.
+                if previous_review.get("deduction_review_binding") == _deduction_review_binding(draft, review_pages):
+                    assessment.update(status="incomplete", reason="deduction_explanation_incomplete",
+                        deduction_missing=missing, deduction_review_binding=previous_review["deduction_review_binding"],
+                        missing_aspects=list(dict.fromkeys([*assessment.get("missing_aspects", []), *missing])))
+                    if previous_review.get("unverified_call_targets"):
+                        assessment["unverified_call_targets"] = previous_review["unverified_call_targets"]
+                else:
+                    assessment["prior_draft_deduction_gaps"] = missing
+            payload["answer_review"] = assessment
         if "answer_review" in payload:
             suggestions = []
             for fact in payload.get("source_fact_suggestions", []):
@@ -1990,7 +2009,9 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     def review_deductions_in(assessment, text, supplied):
         if review_deductions and inventory_state is None:
             proof = inspect_sources(supplied)
-            return deduction_assessment(assessment, proof.missing_aspects(text), proof.unresolved_targets)
+            assessment = deduction_assessment(assessment, proof.missing_aspects(text), proof.unresolved_targets)
+            if assessment.get("deduction_missing"):
+                assessment["deduction_review_binding"] = _deduction_review_binding(text, supplied)
         return assessment
 
     def assess_reply(text, investigation, supplied, working_set, references):
@@ -3799,8 +3820,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 trim_events = selection_events()
                 messages, request_size = _fit_request(config, payload, history_context, policy,
                     trim_events=trim_events, investigation_builder=question_investigation,
-                    source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
-                    review_builder=assess_reply)
+                    source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 if resume_response is not None and resume_checkpoint.get("request_payload"):
                     payload = resume_checkpoint["request_payload"]
                     messages = [{"role": "system", "content": _system_for_payload(payload)}, *history_context,
@@ -3825,8 +3845,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "analysis_compaction_source_count": len(pending_compaction_ids)})
                     messages, request_size = _fit_request(config, payload, history_context, policy,
                         trim_events=trim_events, investigation_builder=question_investigation,
-                        source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
-                        review_builder=assess_reply)
+                        source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 if adaptive:
                     continuation.observe([page for bundle in payload.get("source_context", [])
                         for page in bundle.get("pages", [])], payload.get("framework_references", []),
@@ -3843,8 +3862,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                             "保留业务细节与引用；只说明具体未知事项，不再请求补查。")
                         messages, request_size = _fit_request(config, payload, history_context, policy,
                             trim_events=trim_events, investigation_builder=question_investigation,
-                            source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
-                            review_builder=assess_reply)
+                            source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 visible = _request_manifest(payload, source_memory)
                 current_investigation = payload["question_investigation"]
                 last_investigation = current_investigation
@@ -4402,8 +4420,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     continuation_messages, continuation_size = _fit_request(config, continuation_payload,
                         history_context, policy, trim_events=continuation_trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
-                        review_builder=assess_reply)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 continuation_visible = _request_manifest(continuation_payload, source_memory)
@@ -4571,8 +4588,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 try:
                     revision_messages, revision_size = _fit_request(config, revised_payload,
                         history_context, policy, trim_events=trims,
-                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory,
-                        review_builder=assess_reply)
+                        investigation_builder=question_investigation, source_fallback_builder=source_fallback, check_cancel=check_cancel, source_memory=source_memory)
                 except ValueError:
                     raise APIClientError("BUSINESS_CONTEXT_TOO_LARGE") from None
                 revised_material = _supplied_answer_material(revised_payload)
