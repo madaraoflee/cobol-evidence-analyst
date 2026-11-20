@@ -1,0 +1,34 @@
+{
+  "first_turns": [
+    {
+      "saved_bytes": 11284,
+      "saved_named_branch": true
+    },
+    {
+      "saved_bytes": 11285,
+      "saved_named_branch": true
+    }
+  ],
+  "followup_count": 2,
+  "model_received_identical_context": false,
+  "matching_branch_in_visible_tail": [
+    true,
+    true
+  ],
+  "previous_answer_prefix_bytes_in_model": 6000,
+  "content_truncated": true,
+  "previous_source_hints": 1,
+  "second_question_sources_before_read": 0,
+  "read_draft_result": [
+    {
+      "action": {
+        "tool": "read_draft",
+        "offset": 8000
+      },
+      "result": {
+        "error": "ONLINE_DRAFT_RANGE_UNAVAILABLE",
+        "absence_established": false
+      }
+    }
+  ]
+}

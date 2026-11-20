@@ -1,0 +1,238 @@
+[
+  {
+    "test": "cross",
+    "physical_pages": [
+      [
+        1,
+        170
+      ],
+      [
+        171,
+        174
+      ]
+    ],
+    "header_line": 170,
+    "retrieved": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          171,
+          174
+        ],
+        [
+          "z-rule.cbl",
+          89,
+          170
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    },
+    "first_request": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          171,
+          174
+        ],
+        [
+          "z-rule.cbl",
+          89,
+          170
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    }
+  },
+  {
+    "test": "same",
+    "physical_pages": [
+      [
+        1,
+        172
+      ]
+    ],
+    "header_line": 168,
+    "retrieved": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          88,
+          172
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    },
+    "first_request": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          88,
+          172
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    }
+  },
+  {
+    "test": "next_body",
+    "physical_pages": [
+      [
+        1,
+        171
+      ],
+      [
+        172,
+        174
+      ]
+    ],
+    "header_line": 170,
+    "retrieved": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          89,
+          171
+        ],
+        [
+          "z-rule.cbl",
+          172,
+          174
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    },
+    "first_request": {
+      "ranges": [
+        [
+          "z-rule.cbl",
+          89,
+          171
+        ],
+        [
+          "z-rule.cbl",
+          172,
+          174
+        ],
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": true,
+      "condition_value": true,
+      "deduction": true
+    }
+  },
+  {
+    "test": "comment_bound",
+    "physical_pages": [
+      [
+        1,
+        171
+      ],
+      [
+        172,
+        173
+      ]
+    ],
+    "header_line": 171,
+    "retrieved": {
+      "ranges": [
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": false,
+      "condition_value": false,
+      "deduction": false
+    },
+    "first_request": {
+      "ranges": [
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": false,
+      "condition_value": false,
+      "deduction": false
+    }
+  },
+  {
+    "test": "display_bound",
+    "physical_pages": [
+      [
+        1,
+        170
+      ],
+      [
+        171,
+        172
+      ]
+    ],
+    "header_line": 170,
+    "retrieved": {
+      "ranges": [
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": false,
+      "condition_value": false,
+      "deduction": false
+    },
+    "first_request": {
+      "ranges": [
+        [
+          "a-notice.cbl",
+          1,
+          5
+        ]
+      ],
+      "header": false,
+      "condition_value": false,
+      "deduction": false
+    }
+  }
+]
