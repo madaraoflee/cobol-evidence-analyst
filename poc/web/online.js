@@ -46,6 +46,40 @@
     ["更新授权", "更新授權", "Update authorization"],
     ["结束授权", "結束授權", "End authorization"],
     ["资料覆盖范围", "資料覆蓋範圍", "Material coverage"],
+    ["查找候选文件", "尋找候選檔案", "Search candidate files"],
+    ["跨文件查原文", "跨檔案查原文", "Search across source files"],
+    ["在文件内定位", "在檔案內定位", "Find text in a file"],
+    ["追踪源码关系", "追蹤源碼關係", "Trace source relationships"],
+    ["反查引用", "反查引用", "Find incoming references"],
+    ["核对原文", "核對原文", "Check original source"],
+    ["回查依据", "回查依據", "Recheck evidence"],
+    ["浏览文件目录", "瀏覽檔案目錄", "Browse file inventory"],
+    ["定位计算候选", "定位計算候選", "Locate candidate calculations"],
+    ["回看对话", "回看對話", "Read earlier conversation"],
+    ["浏览历史目录", "瀏覽歷史目錄", "Browse conversation history"],
+    ["回看回答草稿", "回看回答草稿", "Read the answer draft"],
+    ["查看依据目录", "查看依據目錄", "Browse source references"],
+    ["查看待查项", "查看待查項", "Check outstanding work"],
+    ["查看已核对结论", "查看已核對結論", "Browse checked findings"],
+    ["查看原文核对记录", "查看原文核對記錄", "Browse source review records"],
+    ["核对计算候选", "核對計算候選", "Check a candidate calculation"],
+    ["记录核对结论", "記錄核對結論", "Record a checked finding"],
+    ["记录文件核对范围", "記錄檔案核對範圍", "Record file review coverage"],
+    ["本页已查文件 {n}", "本頁已查檔案 {n}", "Files searched on this page {n}"],
+    ["候选文件 {n}", "候選檔案 {n}", "Candidate files {n}"],
+    ["本页匹配行 {n}", "本頁相符行 {n}", "Matching lines on this page {n}"],
+    ["匹配行 {n}", "相符行 {n}", "Matching lines {n}"],
+    ["源码关系 {n}", "源碼關係 {n}", "Source relationships {n}"],
+    ["已核对完整行 {n}", "已核對完整行 {n}", "Complete lines checked {n}"],
+    ["引用位置 {n}", "引用位置 {n}", "Reference locations {n}"],
+    ["本页文件 {n}", "本頁檔案 {n}", "Files on this page {n}"],
+    ["计算候选 {n}", "計算候選 {n}", "Candidate calculations {n}"],
+    ["原文依据 {n}", "原文依據 {n}", "Source references {n}"],
+    ["最近的调查步骤", "最近的調查步驟", "Recent investigation steps"],
+    ["下一项", "下一項", "Next"],
+    ["本轮模型调用次数已达上限，已有调查可以继续。", "本輪模型呼叫次數已達上限，已有調查可以繼續。", "The model call limit for this run was reached. You can continue the saved investigation."],
+    ["本轮补查次数已达上限，已有调查可以继续。", "本輪補查次數已達上限，已有調查可以繼續。", "The investigation action limit for this run was reached. You can continue the saved investigation."],
+    ["重复操作没有取得新证据，本轮调查已停止。", "重複操作沒有取得新證據，本輪調查已停止。", "Repeated actions produced no new evidence. This investigation run has stopped."],
     ["正在分析", "正在分析", "Analyzing"],
     ["停止", "停止", "Stop"],
     ["业务分析对话", "業務分析對話", "Business analysis conversation"],
@@ -310,6 +344,11 @@
     MATERIAL_COMMIT_MISMATCH:'源码提交与分析资料不一致，未切换版本。',
     MATERIAL_REVISION_MISMATCH:'分析资料修订不一致，未采用该资料。',
     MATERIAL_HASH_MISMATCH:'分析资料校验失败，请重新发布完整版本。',
+    ONLINE_MODEL_BUDGET_EXCEEDED:'本轮模型调用次数已达上限，已有调查可以继续。',
+    ONLINE_ACTION_BUDGET_EXCEEDED:'本轮补查次数已达上限，已有调查可以继续。',
+    ONLINE_SOURCE_BUDGET_EXCEEDED:'本轮读取范围达到上限，请缩小问题范围或继续已有调查。',
+    MATERIAL_OPERATION_LIMIT:'本轮读取范围达到上限，请缩小问题范围或继续已有调查。',
+    ONLINE_NO_PROGRESS:'重复操作没有取得新证据，本轮调查已停止。',
     MATERIAL_QUERY_BUDGET_EXCEEDED:'本轮读取范围达到上限，请缩小问题范围或继续已有调查。',
     ONLINE_INVALID_REPOSITORY:'请填写 Bitbucket Cloud 仓库链接或 workspace/repository。',
     ONLINE_INVALID_COMMIT:'请填写完整的固定提交哈希。',
@@ -433,6 +472,30 @@
     return data;
   }
 
+  const sourceActions = new Map([
+    ['search',['查找候选文件','候选文件 {n}']], ['locate_global',['跨文件查原文','本页匹配行 {n}']],
+    ['locate',['在文件内定位','匹配行 {n}']], ['relations',['追踪源码关系','源码关系 {n}']],
+    ['incoming',['反查引用','引用位置 {n}']], ['read',['核对原文','已核对完整行 {n}']],
+    ['recall',['回查依据','原文依据 {n}']], ['inventory',['浏览文件目录','本页文件 {n}']],
+    ['arithmetic_candidates',['定位计算候选','计算候选 {n}']], ['read_history',['回看对话']], ['history_catalog',['浏览历史目录']],
+    ['read_draft',['回看回答草稿']], ['evidence_catalog',['查看依据目录']], ['work_catalog',['查看待查项']],
+    ['findings_catalog',['查看已核对结论']], ['source_reviews_catalog',['查看原文核对记录']], ['review',['核对计算候选']],
+    ['record_finding',['记录核对结论']], ['review_file',['记录文件核对范围']]
+  ]);
+  function describeSourceStep(step) {
+    const labels = sourceActions.get(step?.tool);
+    if (!labels) return '';
+    const details = [t(labels[0])];
+    if (step.failed === true) details.push(t('未完成'));
+    else {
+      if (step.tool === 'locate_global' && Number.isSafeInteger(step.scanned_files) && step.scanned_files >= 0) {
+        details.push(t('本页已查文件 {n}', {n:step.scanned_files}));
+      }
+      if (labels[1] && Number.isSafeInteger(step.count) && step.count >= 0) details.push(t(labels[1], {n:step.count}));
+      if (step.partial === true) details.push(t('仍有范围待核对'));
+    }
+    return details.join(' · ');
+  }
   const phaseNames = {preparing:'正在准备调查',investigating:'正在调查业务问题',ready:'已就绪',model_request_started:'正在请求模型',model_response_received:'已收到模型响应',model_request_failed:'模型请求未完成',response_applied:'已应用模型响应',source_action_completed:'已完成源码补查',answer_ready:'回答已准备好'};
   const inventoryPages = new Map(), inventoryRequests = new Map(), inventoryAnswers = new Map();
   function inventoryKey(message) {
@@ -535,9 +598,16 @@
       $('progress-title').textContent = job.kind === 'connect' || job.kind === 'update' ? t('正在核对分析版本') : t('正在调查业务问题');
       const progress = job.progress || {};
       $('progress-detail').textContent = typeof progress === 'string' ? t(progress) : [t(progress.message || phaseNames[progress.phase] || progress.phase || '正在读取资料'), progress.completed != null ? `${progress.completed}${progress.total != null ? '/' + progress.total : ''}` : ''].filter(Boolean).join(' · ');
+      const next = sourceActions.get(progress.next_tool);
+      if (next && selectedJob()) $('progress-detail').textContent += ` · ${t('下一项')} · ${t(next[0])}`;
       $('cancel').disabled = state.submitting;
     }
     const selectedDiagnosticJob = selectedJob();
+    const steps = selectedDiagnosticJob?.source_activity;
+    const recent = Array.isArray(steps) ? steps.slice(-4).map(describeSourceStep).filter(Boolean) : [];
+    const activityText = recent.length ? `${t('最近的调查步骤')} · ${recent.join(' → ')}` : '';
+    if ($('source-activity').textContent !== activityText) $('source-activity').textContent = activityText;
+    $('source-activity').hidden = !recent.length;
     const storageError = selectedDiagnosticJob?.storage_error === 'ONLINE_STATE_UNAVAILABLE'
       || selected?.pending?.storage_error === 'ONLINE_STATE_UNAVAILABLE' ? t('在线分析的存储收尾出现错误；请核对已保存结果后再继续。') : '';
     $('model-diagnostic').textContent = [diagnosticText(selectedDiagnosticJob?.diagnostic) || diagnosticText(selected?.pending?.diagnostic), storageError].filter(Boolean).join(' · ');

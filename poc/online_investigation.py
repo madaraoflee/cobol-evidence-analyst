@@ -20,7 +20,9 @@ from answer_markdown import BUSINESS_ANSWER_POLICY, with_answer_instructions
 from api_error_details import sanitize_diagnostic
 from company_api import APIClientError, OpenAICompatibleChatClient
 from response_language import SUPPORTED_LANGUAGES, answer_language_instruction, localized_text, resolve_answer_language
+from online_source_recovery import follow_locations, history_reads, named_scope, question_terms
 from repository_scope import repository_inventory_requested
+from online_answer_checks import answer_source_issue, retain_checked_location
 from online_material_format import (MaterialError, canonical_json, decode_json, digest,
                                     relative_path, valid_hash)
 
@@ -714,6 +716,14 @@ def _response(value):
     return _parsed_response(result)
 
 
+class _UncitedAnswer(MaterialError):
+    """A structured answer for which the model supplied no source pages."""
+
+    def __init__(self, remaining):
+        super().__init__("ONLINE_INVALID_MODEL_CITATIONS")
+        self.remaining = remaining
+
+
 def _parsed_response(result):
     if not isinstance(result, dict):
         raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
@@ -726,6 +736,8 @@ def _parsed_response(result):
         raise MaterialError("ONLINE_INVALID_MODEL_RESPONSE")
     answer = _text(result["answer"], 60000, "ONLINE_INVALID_MODEL_RESPONSE")
     citations = result["citations"]
+    if type(result["complete"]) is bool and citations == [] and not _CITATION.search(answer):
+        raise _UncitedAnswer(_remaining(result["remaining"]))
     if (type(result["complete"]) is not bool or not isinstance(citations, list)
             or not 1 <= len(citations) <= 64
             or any(not isinstance(item, str) or not _IDENTIFIER.fullmatch(item) for item in citations)):
@@ -744,7 +756,7 @@ def _new_state(manifest, question):
             "request_status": "not_sent", "pending_response": None, "request_evidence": [],
             "model_calls_total": 0, "actions_total": 0, "protocol_failures": 0,
             "no_progress_rounds": 0, "observations_total": 0, "error": None,
-            "answer_requirements": None, "revision_draft": None, "diagnostic": None,
+            "answer_requirements": None, "revision_draft": None, "diagnostic": None, "source_recovery": None,
             "work_ledger": _new_work(question), "archived_evidence": []}
 
 
@@ -758,8 +770,14 @@ def _restore(manifest, question, checkpoint, inventory_session=None):
     if external is not None and (inventory_session is None or external != {"id": inventory_session.id}):
         raise MaterialError("ONLINE_INVENTORY_NOT_FOUND")
     # Only the explicitly added fields may be absent in older online checkpoints.
-    for key in ("answer_requirements", "revision_draft", "diagnostic"):
+    for key in ("answer_requirements", "revision_draft", "diagnostic", "source_recovery"):
         state.setdefault(key, None)
+    recovery = state["source_recovery"]
+    if recovery is not None and (not isinstance(recovery, dict) or set(recovery) != {"phase", "terms"}
+            or recovery["phase"] not in ("locating", "paging", "attempted") or not isinstance(recovery["terms"], list)
+            or len(recovery["terms"]) > 6 or any(not isinstance(term, str) or not 2 <= len(term) <= 80
+                                                  for term in recovery["terms"])):
+        raise MaterialError("ONLINE_INVALID_CHECKPOINT")
     legacy_work = "work_ledger" not in state
     state.setdefault("work_ledger", _new_work(question))
     state.setdefault("archived_evidence", [])
@@ -878,6 +896,40 @@ def _previous_action_failed(state, action):
         code = result.get("error") if isinstance(result, dict) else None
         return isinstance(code, str) and _CODE.fullmatch(code) is not None
     return False
+
+
+def _start_source_recovery(state, history):
+    if state["work_ledger"]["global"] or state["source_recovery"] is not None:
+        return None
+    terms = question_terms(state["question"], state["observations"])
+    paths, restricted, calls_requested = named_scope(state["question"])
+    if restricted and not paths:
+        return None
+    if restricted:
+        actions = [{"tool": "locate", "path": path, "text": term, "limit": 8}
+                   for term in terms for path in paths]
+    else:
+        actions = history_reads(state["question"], history)
+        if calls_requested:
+            actions.extend({"tool": "relations", "path": path, "relation_type": "CALLS", "limit": 8}
+                           for path in paths)
+        located = {str(row["action"].get("text", "")).casefold() for row in state["observations"]
+                   if row["action"].get("tool") == "locate_global" and row["action"].get("cursor") is None
+                   and "matches" in row["result"]}
+        actions.extend({"tool": "locate_global", "text": term, "limit": 8} for term in terms
+                       if term.casefold() not in located)
+    if not terms and not paths and not actions:
+        actions.append({"tool": "inventory", "limit": 20})
+    # Carry the phase in the same checkpoint as the actions so an interrupt
+    # after any search resumes its next original read without a planner call.
+    state["source_recovery"] = {"phase": "locating" if terms or paths else "attempted", "terms": terms}
+    plan = [_action(action) for action in actions[:8]]
+    done = set(state["completed_actions"])
+    plan = [item for item in plan if digest(canonical_json(item)) not in done and not _previous_action_failed(state, item)]
+    _observe(state, {"tool": "source_recovery"}, {
+        "terms": terms, "instruction": "Use the verified original ranges, inspect caller and callee when needed. "
+                                      "A literal match or incomplete search does not prove business order or absence."})
+    return {"actions": plan, "remaining": list(state["remaining"])}
 
 
 def _checkpoint(state):
@@ -1537,6 +1589,23 @@ an already received response is consumed without another model request.
                         state["protocol_failures"] += 1
                         _observe(state, {"tool": "protocol"}, {"error": "ONLINE_CITATION_NOT_IN_CONTEXT", "instruction": "Recall the referenced verified excerpts before answering."})
                     else:
+                        if not state["work_ledger"]["global"]:
+                            supplied = [pages[i] for i in state["request_evidence"] if "text" in pages[i]]
+                            issue = answer_source_issue(question, response, supplied)
+                            if issue:
+                                repeated = any(o["action"] == {"tool": "answer_check"} and
+                                               o["result"] == issue for o in state["observations"])
+                                _observe(state, {"tool": "answer_check"}, issue)
+                                retain_checked_location(state, issue, pages[issue["evidence_ids"][0]])
+                                if repeated:
+                                    return finish("needs_continuation")
+                                if issue["issue"] == "display_only_sequence":
+                                    recovery = _start_source_recovery(state, history)
+                                    if recovery:
+                                        state["pending_actions"] = recovery["actions"]
+                                _emit(progress, state, "investigating")
+                                _tick(check_cancel)
+                                continue
                         state["answer"] = response["answer"]
                         state["revision_draft"] = None
                         state["answer_citations"] = response["citations"]
@@ -1590,6 +1659,14 @@ an already received response is consumed without another model request.
                 actions += 1
                 state["actions_total"] += 1
                 _emit(progress, state, "source_action_completed", action=action["tool"], completed=actions)
+            recovery = state["source_recovery"]
+            if recovery is not None and recovery["phase"] in ("locating", "paging"):
+                phase, next_actions = follow_locations(query, state["question"], recovery["terms"], state["observations"],
+                                                       page_again=recovery["phase"] == "locating")
+                recovery["phase"] = phase
+                state["pending_actions"] = [_action(item) for item in next_actions]
+                if next_actions:
+                    continue
             if state["protocol_failures"] >= 3:
                 return finish("failed", "ONLINE_MODEL_PROTOCOL_FAILED")
             if calls >= max_model_calls:
@@ -1622,9 +1699,17 @@ an already received response is consumed without another model request.
             try:
                 state["pending_response"] = _response(result)
             except MaterialError as error:
-                state["protocol_failures"] += 1
-                _observe(state, {"tool": "protocol"}, {"error": error.code,
-                    "instruction": "Return the documented JSON actions or a source-cited answer; do not invent citation IDs."})
+                recovery_plan = None
+                if isinstance(error, _UncitedAnswer) and not state["work_ledger"]["global"]:
+                    state["remaining"] = list(dict.fromkeys(state["remaining"] + error.remaining))[:32]
+                    if not state["evidence"] and not state["archived_evidence"]:
+                        recovery_plan = _start_source_recovery(state, history)
+                if recovery_plan is not None:
+                    state["pending_actions"] = recovery_plan["actions"]
+                else:
+                    state["protocol_failures"] += 1
+                    _observe(state, {"tool": "protocol"}, {"error": error.code,
+                        "instruction": "Return the documented JSON actions or a source-cited answer; do not invent citation IDs."})
             state["request_status"] = "response_received"
             _emit(progress, state, "model_response_received", completed=calls)
             _tick(check_cancel)

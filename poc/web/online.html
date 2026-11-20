@@ -28,6 +28,7 @@
       <div id="error" class="notice error" role="alert" hidden></div>
       <div id="model-diagnostic" class="notice error" role="status" hidden></div>
       <section id="progress" class="notice" aria-live="polite" hidden><div><strong id="progress-title">正在分析</strong><p id="progress-detail"></p></div><button id="cancel" class="secondary">停止</button></section>
+      <p id="source-activity" class="muted small" aria-live="polite" hidden></p>
       <section id="messages" class="messages" aria-label="业务分析对话" aria-live="polite"><div class="empty"><div class="empty-mark">⌕</div><h2>让每个结论有源码依据</h2><p>可以询问一项业务如何处理、条件如何判断，或变更会影响哪些程序。系统会记录已核对的范围和待确认事项。</p></div></section>
       <div id="continuation" class="continuation" hidden><p id="continuation-description"></p><button id="resume" class="secondary">继续调查</button><button id="retry" class="secondary" hidden>确认重新调用模型</button></div>
       <div class="conversation-tools"><button id="export-markdown" class="quiet" disabled>导出 Markdown</button><button id="export-json" class="quiet" disabled>导出 JSON</button><button id="delete-conversation" class="quiet danger" disabled>删除对话</button></div>

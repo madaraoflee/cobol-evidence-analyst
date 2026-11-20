@@ -170,3 +170,31 @@ test('online failures belong to the selected conversation and workspace while un
   const pending=harness('en',{conversation:{...c,pending:{diagnostic:safeError('timeout')}},current_conversation_id:c.id,active_job:{kind:'question',status:'failed',conversation_id:'e'.repeat(32),workspace_id:'a'.repeat(64),diagnostic:safeError()}});await pending.ready();
   assert.match(pending.element('model-diagnostic').textContent,/timed out/);assert.ok(!pending.element('model-diagnostic').textContent.includes('request rate limit'));
 });
+
+test('source progress distinguishes completed operations and stays scoped during model waits',async()=>{
+  const selected={id:'d'.repeat(32),status:'running',messages:[]};
+  const job={status:'running',conversation_id:selected.id,progress:{phase:'model_request_started'},source_activity:[
+    {tool:'search',count:0},{tool:'locate_global',scanned_files:3,count:1,partial:true},{tool:'relations',count:2},{tool:'read',count:4,text:'PRIVATE-MARKER'}]};
+  const h=harness('zh-CN',{conversation:selected,current_conversation_id:selected.id,active_job:job});await h.ready();
+  const info=h.element('source-activity');assert.equal(info.hidden,false);assert.match(info.textContent,/候选文件 0/);
+  assert.match(info.textContent,/跨文件查原文/);assert.match(info.textContent,/本页已查文件 3/);assert.match(info.textContent,/本页匹配行 1/);assert.match(info.textContent,/仍有范围待核对/);
+  assert.match(info.textContent,/源码关系 2/);assert.match(info.textContent,/已核对完整行 4/);assert.doesNotMatch(info.textContent,/PRIVATE/);
+  await h.select('zh-HK');assert.match(info.textContent,/跨檔案查原文/);assert.match(info.textContent,/源碼關係 2/);
+  await h.select('en');assert.match(info.textContent,/Search across source files/);assert.match(info.textContent,/Complete lines checked 4/);
+  h.setState({conversation:selected,current_conversation_id:selected.id,active_job:{...job,conversation_id:'e'.repeat(32)}});
+  h.events.get('disconnect:click')();await h.ready();assert.equal(info.hidden,true);assert.equal(info.textContent,'');
+});
+
+
+test('stopped online investigation names the limit or repeated action without reporting a missing source',async()=>{
+  const c={id:'d'.repeat(32),status:'needs_continuation',messages:[]};
+  const cases=[['ONLINE_MODEL_BUDGET_EXCEEDED','model call limit'],['ONLINE_ACTION_BUDGET_EXCEEDED','action limit'],
+    ['ONLINE_SOURCE_BUDGET_EXCEEDED','reading limit'],['MATERIAL_OPERATION_LIMIT','reading limit'],['ONLINE_NO_PROGRESS','Repeated actions']];
+  for(const [code,reason] of cases){
+    const job={status:c.status,error:code,conversation_id:c.id,source_activity:[{tool:'read',failed:true,count:10},{tool:'PRIVATE-MARKER',text:'PRIVATE'}]};
+    const h=harness('en',{conversation:c,current_conversation_id:c.id,active_job:job});await h.ready();
+    const activity=h.element('source-activity').textContent;
+    assert.ok(h.element('error').textContent.toLowerCase().includes(reason.toLowerCase()),h.element('error').textContent);
+    assert.match(activity,/Check original source · Incomplete/);assert.doesNotMatch(activity,/PRIVATE|10/);
+  }
+});

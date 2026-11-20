@@ -9275,7 +9275,208 @@
         }
       ],
       "limitations": "已验证同一会话和快照的历史末项、中段与窗口外的消息可按需寻回；引用须在本题核验原件。历史中未保存的线索、真实模型回答和目标设备仍待现场复核。"
+    },
+    {
+      "id": "BUG-20261121-001",
+      "title": "相关扣款调用被同一文件较早的初始化调用挤出",
+      "symptom": "检索已经命中扣款分支和 CALL，模型收到的子程序却是前面的初始化程序，答不出金额条件。",
+      "root_cause": "关系查询先按文件中的静态关系取前 64 条，再选择邻近原文，忽略了本题命中的调用位置。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "docs/reports/2026-11-21-source-investigation/local-before.jsonl",
+        "docs/reports/2026-11-21-source-investigation/local-after.jsonl",
+        "poc/tests/test_business_callsite_discovery.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_business_callsite_discovery.BusinessCallsiteDiscoveryTests.test_ordinary_question_supplies_actual_callee_and_arithmetic_without_model_naming_a_path"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_business_callsite_discovery.BusinessCallsiteDiscoveryTests.test_different_leads_in_the_same_large_caller_keep_distinct_targets_and_citable_ranges"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_business_callsite_discovery.BusinessCallsiteDiscoveryTests.test_explicit_file_scope_never_fetches_the_outside_callee"
+        }
+      ],
+      "limitations": "普通提问、共享检索会话换主题和单文件限制经过合成源码验证。动态调用和真实保费公式全量覆盖仍待现场核对。"
+    },
+    {
+      "id": "BUG-20261121-002",
+      "title": "在线普通问题在尚未取证时提前结束",
+      "symptom": "模型第一次给出格式齐全、无引用的答复后，系统可连续要求更正格式，最后报协议失败，实际搜索与原文读取均为零。",
+      "root_cause": "引用检查在调查恢复前否决了整个答复，服务没有根据题中词汇、文件或最近引用主动查找原文。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "docs/reports/2026-11-21-source-investigation/online-before.json",
+        "docs/reports/2026-11-21-source-investigation/online-after.json",
+        "poc/tests/test_online_automatic_source_search.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_uncited_early_answer_triggers_literal_search_and_originals_before_next_request"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_source_action_budget_resume_reads_pinned_hits_without_new_planner_or_duplicate_search"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_unrelated_source_is_not_read_for_a_miss_and_search_is_not_restarted"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_changed_source_and_missing_transfer_authorization_still_stop_the_fallback"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_chinese_balance_and_refund_lead_to_sources_without_english_in_question"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_named_caller_follows_static_call_and_reads_both_originals"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_only_named_file_reads_its_original_and_preserves_scope"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_uncited_followup_obligations_survive_existing_work_and_action_budget_resume"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_only_in_an_eligibility_question_does_not_restrict_source_search"
+        }
+      ],
+      "limitations": "受控模型与固定源码验证了搜索命中、无命中、调用者与被调方、纯中文术语、授权和恢复边界。自动查词有覆盖范围，不能证明所有真实业务路径已找到。"
+    },
+    {
+      "id": "BUG-20261121-003",
+      "title": "在线回答可引用刚读过的文件并宣称该文件未提供",
+      "symptom": "旧版把 main.cbl 的物理行附在回答后，同时把未提供该文件当作完整答复交付。",
+      "root_cause": "提交前只验证引用标识与原件相符，没有对照同一模型请求中实际送达的原文检查文件缺失断言。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "docs/reports/2026-11-21-source-investigation/online-before.json",
+        "docs/reports/2026-11-21-source-investigation/online-after.json",
+        "poc/tests/test_online_answer_source_checks.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_visible_file_denial_is_corrected_using_original_without_repeating_the_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_repeated_denial_stops_without_publishing_it_and_preserves_verified_locations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_real_rule_gap_or_unread_callee_is_still_reportable"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_nested_file_denial_must_name_the_same_path_in_the_denial_itself"
+        }
+      ],
+      "limitations": "只检查可识别的具名文件缺失断言，区分所需规则缺失、未读子程序、同名文件。真实模型仍可能有其他语义错误。"
+    },
+    {
+      "id": "BUG-20261121-004",
+      "title": "在线答复可以只凭屏幕提示断言金额扣减先后",
+      "symptom": "实际引文只有 DISPLAY 的字面提示，系统仍交付先用余额、再用退款的确定顺序。",
+      "root_cause": "引用真实只代表引文存在，原先没有检查用户询问的金额处理顺序是否只援引了可识别的提示语句。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "docs/reports/2026-11-21-source-investigation/online-before.json",
+        "docs/reports/2026-11-21-source-investigation/online-after.json",
+        "poc/tests/test_online_answer_source_checks.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_display_text_cannot_establish_the_order_of_applying_funds"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_partial_label_cannot_hide_a_definite_sequence_claim"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_display_question_and_execution_sources_do_not_trigger_the_sequence_check"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_qualified_order_is_preserved_in_complete_partial_and_continued_answers"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_answer_source_checks.OnlineAnswerSourceChecksTests.test_unrelated_uncertainty_does_not_excuse_an_explicit_sequence"
+        }
+      ],
+      "limitations": "检查针对明确金额顺序和纯字面 DISPLAY 语句。保留已核实阶段、其他类型源码和真实未决条件，不代表一般性语义判定。"
+    },
+    {
+      "id": "BUG-20261121-005",
+      "title": "在线工作台在等待模型时看不到已完成的查找操作",
+      "symptom": "找候选、查跨文件命中、跟踪关系和核对原文显示相同进度，下一次模型请求又覆盖它，无法区分零命中、失败或暂时停止。",
+      "root_cause": "后台任务对外只保留最近阶段及次数，页面没有保留已经完成的各类查找和相应结果。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "poc/tests/test_online_source_activity.py",
+        "poc/tests/web_online_locale.test.cjs"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_source_activity.OnlineSourceActivityTests.test_real_search_location_and_read_survive_model_wait_and_completion"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_online_source_activity.OnlineSourceActivityTests.test_failed_lookup_is_distinct_from_zero_matches_and_limited_scan"
+        },
+        {
+          "kind": "browser",
+          "path": "poc/tests/web_online_locale.test.cjs"
+        }
+      ],
+      "limitations": "已验证在线任务接口及三种界面语言、跨会话切换、零命中、有限扫描和停止原因。未在目标 Windows 设备上操作。"
+    },
+    {
+      "id": "BUG-20261121-006",
+      "title": "提前给出无引文答复后，未完成的业务问题在续查中丢失",
+      "symptom": "无引用答复附有具体待核问题；操作预算耗尽时，这些问题没有出现在待办或断点中。",
+      "root_cause": "原有引用检查在提取答复中合法的待核问题前丢弃了整份答复，后续模型无法继承其业务待办。",
+      "status": "fixed",
+      "verification_scope": "source_offline",
+      "evidence": [
+        "docs/reports/2026-11-21-source-investigation/README.md",
+        "docs/reports/2026-11-21-source-investigation/online-before.json",
+        "docs/reports/2026-11-21-source-investigation/online-after.json",
+        "poc/tests/test_online_automatic_source_search.py"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_automatic_source_search.AutomaticSourceSearchTests.test_uncited_followup_obligations_survive_existing_work_and_action_budget_resume"
+        }
+      ],
+      "limitations": "验证一次中断与继续调查保存业务待办，不代替公司历史会话复核。"
     }
   ],
-  "updated_at": "2026-11-20"
+  "updated_at": "2026-11-21"
 }

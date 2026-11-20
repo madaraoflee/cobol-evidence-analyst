@@ -58,6 +58,53 @@ _MAX_JOBS = 200
 _SOURCE_BASES = {"repository_snapshot", "sync_attested", "unknown"}
 
 
+_ACTIVITY_TOOLS = {
+    "search", "locate_global", "locate", "relations", "incoming", "read", "recall",
+    "inventory", "arithmetic_candidates", "read_history", "history_catalog", "read_draft",
+    "evidence_catalog", "work_catalog", "findings_catalog", "source_reviews_catalog",
+    "review", "record_finding", "review_file",
+}
+_ACTIVITY_ROW_FIELDS = {"locate_global": "matches", "inventory": "files", "recall": "recalled_evidence"}
+
+
+def _source_activity(checkpoint):
+    """Expose only the latest numeric result of each recent operation, never its inputs or text."""
+    observations = checkpoint.get("observations") if isinstance(checkpoint, dict) else None
+    if not isinstance(observations, list):
+        return []
+    steps = {}
+    for event in reversed(observations):
+        if not isinstance(event, dict) or not isinstance(event.get("action"), dict):
+            continue
+        tool = event["action"].get("tool")
+        result = event.get("result")
+        if not isinstance(tool, str) or tool not in _ACTIVITY_TOOLS or tool in steps or not isinstance(result, dict):
+            continue
+        item = {"tool": tool}
+        if result.get("error"):
+            item["failed"] = True
+        else:
+            count = result.get("total_matches")
+            if tool == "read":
+                count = result.get("complete_line_count")
+            elif tool in _ACTIVITY_ROW_FIELDS:
+                rows = result.get(_ACTIVITY_ROW_FIELDS[tool])
+                count = len(rows) if isinstance(rows, list) else None
+            if type(count) is int and 0 <= count <= 2**53 - 1:
+                item["count"] = count
+            if tool == "locate_global":
+                scanned = result.get("scanned_files")
+                if type(scanned) is int and 0 <= scanned <= 2**53 - 1:
+                    item["scanned_files"] = scanned
+            if (result.get("truncated") is True or result.get("complete") is False
+                    or result.get("next_cursor") is not None or result.get("search_mode") == "legacy_token_candidates_only"):
+                item["partial"] = True
+        steps[tool] = item
+        if len(steps) == 4:
+            break
+    return list(reversed(steps.values()))
+
+
 def _inventory_coverage(value):
     if not isinstance(value, dict) or value.get("active") is not True or value.get("scope") != "indexed_snapshot":
         return None
@@ -723,11 +770,21 @@ class OnlineWorkbench:
         safe = _guard_secrets(event, credentials)
         visible = {key: safe[key] for key in ("phase", "status", "model_calls", "actions", "completed", "total")
                    if key in safe and isinstance(safe[key], (str, int, float, bool))}
+        if isinstance(checkpoint, dict) and safe.get("phase") in {"response_applied", "source_action_completed", "investigating"}:
+            pending = checkpoint.get("pending_actions")
+            if isinstance(pending, list) and pending and isinstance(pending[0], dict):
+                tool = pending[0].get("tool")
+                if isinstance(tool, str) and tool in _ACTIVITY_TOOLS:
+                    visible["next_tool"] = tool
         if len(canonical_json(visible)) > 8192:
             visible = {"phase": "investigating"}
         with self.lock, self.store.transaction() as db:
             job = self._get(db, "jobs", identifier)
             job.update(progress=visible, updated_at=_now())
+            if safe.get("phase") == "source_action_completed":
+                activity = _source_activity(checkpoint)
+                if activity:
+                    job["source_activity"] = activity
             coverage_ledger = _inventory_coverage(safe.get("coverage_ledger"))
             if coverage_ledger is not None:
                 job["coverage_ledger"] = coverage_ledger
@@ -791,6 +848,9 @@ class OnlineWorkbench:
             coverage_ledger = _inventory_coverage(result.get("coverage_ledger"))
             job.update(status=status, error=error, diagnostic=diagnostic, updated_at=_now(), transfer=transfer,
                        progress={"phase": status, "model_calls": result.get("model_calls", 0), "actions": result.get("actions", 0)})
+            activity = _source_activity(checkpoint)
+            if activity:
+                job["source_activity"] = activity
             if storage_error:
                 job["storage_error"] = storage_error
             else:
