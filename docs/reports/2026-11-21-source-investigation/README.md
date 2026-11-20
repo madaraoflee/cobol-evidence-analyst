@@ -12,3 +12,5 @@
 | 继续调查时具体待核问题消失 | 空引用答复中的金额不足、失效冲正等后续问题未进入断点。 | 在有界的搜索与继续调查之间保存合法的业务待办。 |
 
 本地请求记录见 [修复前](local-before.jsonl) 和 [修复后](local-after.jsonl)。在线请求与交付记录见 [修复前](online-before.json) 和 [修复后](online-after.json)。每个故障与相应测试逐条登记在 [缺陷台账](../../bugs/registry.json)。这些用例验证了系统怎样查证和交付，不推断公司的实际扣款优先级。
+
+固定源码 `33c3da7438538bc4a5757c484db5552449677ab2` 完整执行 5,508 项 Python 和 340 项浏览器测试，均通过。台账共 329 条，本轮 323 条通过离线回归。其余六条保留现场未验证状态，台账总状态为 `blocked`。详见 [逐项回归报告](BUG-REGRESSION-REPORT.json) 和 [测试输出及源码指纹](complete-regression-evidence.zip)。
