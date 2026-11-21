@@ -10050,6 +10050,162 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "首次整套源码回归在 d7c791e 暴露此问题；公司真实模型、设备和耗时仍待核对。"
+    },
+    {
+      "id": "BUG-20261121-024",
+      "title": "同一字面词的未读命中无法跨轮接续",
+      "symptom": "有十个文件包含同一调用目标名称，前九个只显示文字。当模型再次搜索相同名称时，后面的实际程序仍未供应。",
+      "root_cause": "整库扫描的继续位置和是否读过匹配原文是两回事。此前只保存扫描游标，现单独保存未读行，按实际读额度续读并允许任务恢复。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/before.json",
+        "docs/reports/2026-11-21-local-source-grep-followup/after.json",
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md",
+        "docs/reports/2026-11-21-local-source-grep-followup/before-navigation.txt"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_followup_delivery.LocalGrepFollowupDeliveryTests.test_workbench_opens_later_matches_of_same_literal_until_actual_program_is_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_repeated_literal_opens_undelivered_matches_before_scanning_the_next_page"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_cancelled_question_resumes_unread_hit_locations_without_rescanning_the_library"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_model_request_limit_preserves_unread_locations_without_overstating_source"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证覆盖普通本地问答、中性程序和受控回复。现场真实模型、企业源码和 Windows 安装版仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-025",
+      "title": "同一文件后方的独立命中被首个读窗遮住",
+      "symptom": "一个词在同一文件的相邻两行和远处一行出现，远处扣款规则可在正常预算内读取，却只送出第一个位置。",
+      "root_cause": "原先每个文件只开一次。现依据实际供应的版本与行区间去重，同窗的相邻命中共用一次读取，远处命中保留独立机会。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md",
+        "docs/reports/2026-11-21-local-source-grep-followup/before-navigation.txt"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_distant_hits_in_one_file_are_opened_while_neighbors_share_one_read"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证覆盖普通本地问答、中性程序和受控回复。现场真实模型、企业源码和 Windows 安装版仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-026",
+      "title": "找到扣款语句却漏掉远在固定读窗之外的控制条件",
+      "symptom": "同一扣费题中 IF 在第 40 行，SUBTRACT 在第 81 行；原来只供应 69–83 行，最后仍为部分回答。",
+      "root_cause": "固定行距忽略了 COBOL 的语句和分支结构。对同版本的已验证原文解析实际控制关系，按预算读取守卫及命中处，或给出可补读的行号。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/before.json",
+        "docs/reports/2026-11-21-local-source-grep-followup/after.json",
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_followup_delivery.LocalGrepFollowupDeliveryTests.test_workbench_supplies_remote_refund_guard_after_searching_the_debit"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_short_program_supplies_the_distant_condition_and_matching_debit_in_one_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_small_budget_keeps_hit_and_returns_unread_nested_and_else_header_locations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_unrelated_closed_condition_and_quoted_or_commented_if_never_widen_the_read"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_changed_or_damaged_index_page_produces_no_guard_locator"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_large_file_returns_only_matched_sentence_context_across_index_pages"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证覆盖普通本地问答、中性程序和受控回复。现场真实模型、企业源码和 Windows 安装版仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-027",
+      "title": "已完整供应的多页程序无法核实扣费路径",
+      "symptom": "同一版本中，前三个文件的内容都已供应。仅将末级程序的条件和扣款分在两页，原先有效的路径证明便失败。",
+      "root_cause": "先前要求同一页独自覆盖整个程序。现按文件版本核对各窗口的原文及完整物理行覆盖，允许相邻或重叠窗口，并保留用户能重新打开的原始页引用。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/before-split-citations.txt",
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_literal_call_path.LocalLiteralCallPathTests.test_unsupplied_stale_or_transformed_guard_does_not_close_the_split_path"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证覆盖普通本地问答、中性程序和受控回复。现场真实模型、企业源码和 Windows 安装版仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-028",
+      "title": "已供应的高频文字占尽后续检索轮数",
+      "symptom": "一个来源包含大量重复文字。连续的匹配批次全落在已提供的源码中，下一份含真实计算的文件迟迟没送进回答。",
+      "root_cause": "原先每个非空批次均触发模型请求。对当前请求已经供应完整的同版本文件，可在本地跳过其重复匹配的批次，继续寻找新原文。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md",
+        "docs/reports/2026-11-21-local-source-grep-followup/before-navigation.txt"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_repeated_search_passes_already_supplied_noise_without_exhausting_model_rounds"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_navigation.LocalGrepNavigationTests.test_prior_partial_file_does_not_allow_skipping_batches_of_hit_lines"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本地中性源码和受限读额度下复现；企业仓库环境及实际模型仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-029",
+      "title": "按字符限额读取时，命中行本身被前方长行挤出",
+      "symptom": "在同一程序内搜索扣减位置，前置行耗尽字符额度，供应的读窗既没有命中的算式，也没有真正的外层条件。",
+      "root_cause": "读窗原先只按行数选取。修复按字符给命中行预留位置，无法一并供应的已定位守卫以可补读位置返回。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-source-grep-followup/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_grep_guard_context.LocalGrepGuardContextTests.test_small_budget_keeps_hit_and_returns_unread_nested_and_else_header_locations"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "本地中性源码和受限读额度下复现；企业仓库环境及实际模型仍待验证。"
     }
   ],
   "updated_at": "2026-11-21"

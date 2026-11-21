@@ -68,11 +68,11 @@ def deduction_review_requested(question):
         and business_sequence_requested(normalized))
 
 
-def _verified_view(page, session):
+def _physical_page_lines(page):
     if (not isinstance(page, dict) or not isinstance(page.get("source_text"), str)
             or not page["source_text"] or len(page["source_text"]) > 32000
             or page.get("span_truncated") is not False or type(page.get("start_line")) is not int
-            or page["start_line"] < 1
+            or page["start_line"] < 1 or type(page.get("end_line")) is not int
             or page.get("source_verification") != "content_hash"
             or any(page.get(k) for k in ("include_chain", "copy_instance", "replacement_trace"))):
         return None
@@ -82,6 +82,14 @@ def _verified_view(page, session):
             or page.get("end_line") != page["start_line"] + len(lines) - 1
             or _identify_page(page) != page.get("evidence_id")):
         return None
+    return lines
+
+
+def _verified_view(page, session):
+    lines = _physical_page_lines(page)
+    if not lines:
+        return None
+    text = page["source_text"]
     capture = session.capture(page["relative_path"])
     if capture.sha256 != page["source_sha256"]:
         return None

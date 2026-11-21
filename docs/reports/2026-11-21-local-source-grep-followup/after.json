@@ -1,0 +1,1763 @@
+{
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "python_product_sha256": "feebf2dae19ff3e8659bd8bdfeda6cf6a992d3d6e06b2444cfbbbad292580694",
+  "new_cases": {
+    "noisy_definitions": {
+      "files": {
+        "start.cbl": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+        "legacy/route.cbl": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+        "archive/settlement.cbl": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+        "hint0.cbl": "b334f6ecb59dd5939bc63340e3dc369d9b0f6c6e8d8359f0471f93c872b823e6",
+        "hint1.cbl": "9141124887805a78b1b19e3577d872e7dfb6db5646f7e2f5dbf95e77cb1e0068",
+        "hint2.cbl": "250c03c41205a51334f53eb4965bc12d9190cd1bc85a1a3e8fc51346cfdd47a4",
+        "hint3.cbl": "17c69581174fda4924afcea342af84d736c240c12e296eee0ecf2d55d4771a55",
+        "hint4.cbl": "d0f5c64caf34fcaa6fc7598cbc991f8156dc30cdaf5bfc434fd9e9cfb51fd11b",
+        "hint5.cbl": "d98d10d87f65127725635df4172ee0bf02be05214d98a0ca087a01e4af031565",
+        "hint6.cbl": "659b422cf46f2c90f6cf651ecef469b420b129764440f089f936b0dcdb51f0fd",
+        "hint7.cbl": "b99f8701c6fa8a87ba62ac670d3df6f9bc814dd80acb88a37966e0eb5ce0a018",
+        "hint8.cbl": "edb3d4f7715d485a594ae89a06fd47fe78c8cf974a12eba6100219495187f2f3",
+        "a-notes/advice-0.cbl": "41fbb872ea657f3c3a49fde1eb4c86f52540fc7438b1759f4e65f87cb3726430",
+        "a-notes/advice-1.cbl": "e4348a814355ade0c700e8b7548a09bfdcbf28ae424e5a131d7b3d9853b8bf6b",
+        "a-notes/advice-2.cbl": "3ee82e10573f78155fa21844f5e9fe574857d002340643bf84bd3245ab1b1798",
+        "a-notes/advice-3.cbl": "4c14ba03c086c105cdf6c92804539778c79429c6ffdd8368f7ec9e6a2516aa80",
+        "a-notes/advice-4.cbl": "ad99333dcabb57336ab07e642aadd60899d8c51ce5e739ced3b404d991d70142",
+        "a-notes/advice-5.cbl": "039adff91d529721189003251dce01031d64f009feee6d5d9bb9fd683b5c3f75",
+        "a-notes/advice-6.cbl": "d398e3452446800a7f5959b1706b82135b056462b8daf6859a69e14166f92351",
+        "a-notes/advice-7.cbl": "9a78202e79125972874b8e3b68ab837b38e264d91d13924860286f0e0f4c55c0",
+        "a-notes/advice-8.cbl": "6940ea1720a06c73514853eee1b74f384e560370845fb5bcd4c42f60b9676b8a"
+      },
+      "requests": [
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                3,
+                5
+              ],
+              "id": "ev_page_b11bb978a321fdfc4a053fc8"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                3,
+                5
+              ],
+              "id": "ev_page_9fba963690fa7da481104cdd"
+            }
+          ],
+          "visible_search_steps": [],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          },
+          "searches": []
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "a-notes/advice-0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_550daa546b3ea11c286a8d62"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. ADJ731",
+              "files_scanned": 21,
+              "matches": 10,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "a-notes/advice-0.cbl",
+              "hit_line": 4
+            }
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 21,
+              "complete": true,
+              "has_more": false,
+              "pending_hit_count": 9,
+              "matches": [
+                {
+                  "relative_path": "a-notes/advice-0.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-1.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-2.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-3.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-4.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-5.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-6.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-7.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-8.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_550daa546b3ea11c286a8d62"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "a-notes/advice-0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_550daa546b3ea11c286a8d62"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "a-notes/advice-1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_7c2febbcd4040db75262c78e"
+            },
+            {
+              "path": "a-notes/advice-2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_fd61afbb784af6f19da0edc4"
+            },
+            {
+              "path": "a-notes/advice-3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_92a9ebef54103f59fb833de8"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. ADJ731",
+              "files_scanned": 21,
+              "matches": 10,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "a-notes/advice-0.cbl",
+              "hit_line": 4
+            }
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 0,
+              "complete": true,
+              "has_more": false,
+              "pending_hit_count": 6,
+              "matches": [
+                {
+                  "relative_path": "a-notes/advice-1.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-2.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-3.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-4.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-5.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-6.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-7.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-8.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_7c2febbcd4040db75262c78e",
+                "ev_page_fd61afbb784af6f19da0edc4",
+                "ev_page_92a9ebef54103f59fb833de8"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "a-notes/advice-0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_550daa546b3ea11c286a8d62"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "a-notes/advice-1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_7c2febbcd4040db75262c78e"
+            },
+            {
+              "path": "a-notes/advice-2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_fd61afbb784af6f19da0edc4"
+            },
+            {
+              "path": "a-notes/advice-3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_92a9ebef54103f59fb833de8"
+            },
+            {
+              "path": "a-notes/advice-4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3a0bf3f0f19b2a5fb0fdd070"
+            },
+            {
+              "path": "a-notes/advice-5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_db59f5b6740b6164de276bcc"
+            },
+            {
+              "path": "a-notes/advice-6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_6d25e1eab1b53cdb037ea0d7"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. ADJ731",
+              "files_scanned": 21,
+              "matches": 10,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "a-notes/advice-0.cbl",
+              "hit_line": 4
+            }
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 0,
+              "complete": true,
+              "has_more": false,
+              "pending_hit_count": 3,
+              "matches": [
+                {
+                  "relative_path": "a-notes/advice-4.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-5.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-6.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-7.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-8.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_3a0bf3f0f19b2a5fb0fdd070",
+                "ev_page_db59f5b6740b6164de276bcc",
+                "ev_page_6d25e1eab1b53cdb037ea0d7"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "a-notes/advice-0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_550daa546b3ea11c286a8d62"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "a-notes/advice-1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_7c2febbcd4040db75262c78e"
+            },
+            {
+              "path": "a-notes/advice-2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_fd61afbb784af6f19da0edc4"
+            },
+            {
+              "path": "a-notes/advice-3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_92a9ebef54103f59fb833de8"
+            },
+            {
+              "path": "a-notes/advice-4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3a0bf3f0f19b2a5fb0fdd070"
+            },
+            {
+              "path": "a-notes/advice-5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_db59f5b6740b6164de276bcc"
+            },
+            {
+              "path": "a-notes/advice-6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_6d25e1eab1b53cdb037ea0d7"
+            },
+            {
+              "path": "a-notes/advice-7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_a6b1a02bee040800a13c2ed0"
+            },
+            {
+              "path": "a-notes/advice-8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_5c0a943291f274a3b19ae86e"
+            },
+            {
+              "path": "legacy/route.cbl",
+              "lines": [
+                1,
+                6
+              ],
+              "id": "ev_page_d1b0a0d45329375a04ba5314"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. ADJ731",
+              "files_scanned": 21,
+              "matches": 10,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "a-notes/advice-0.cbl",
+              "hit_line": 4
+            }
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 0,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "a-notes/advice-7.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-8.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_a6b1a02bee040800a13c2ed0",
+                "ev_page_5c0a943291f274a3b19ae86e",
+                "ev_page_d1b0a0d45329375a04ba5314"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "a-notes/advice-0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_550daa546b3ea11c286a8d62"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "a-notes/advice-1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_7c2febbcd4040db75262c78e"
+            },
+            {
+              "path": "a-notes/advice-2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_fd61afbb784af6f19da0edc4"
+            },
+            {
+              "path": "a-notes/advice-3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_92a9ebef54103f59fb833de8"
+            },
+            {
+              "path": "a-notes/advice-4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3a0bf3f0f19b2a5fb0fdd070"
+            },
+            {
+              "path": "a-notes/advice-5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_db59f5b6740b6164de276bcc"
+            },
+            {
+              "path": "a-notes/advice-6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_6d25e1eab1b53cdb037ea0d7"
+            },
+            {
+              "path": "a-notes/advice-7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_a6b1a02bee040800a13c2ed0"
+            },
+            {
+              "path": "a-notes/advice-8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_5c0a943291f274a3b19ae86e"
+            },
+            {
+              "path": "legacy/route.cbl",
+              "lines": [
+                1,
+                6
+              ],
+              "id": "ev_page_d1b0a0d45329375a04ba5314"
+            },
+            {
+              "path": "archive/settlement.cbl",
+              "lines": [
+                1,
+                7
+              ],
+              "id": "ev_page_72b9401078f17ded6959887e"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. CUT526",
+              "files_scanned": 21,
+              "matches": 1,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "archive/settlement.cbl",
+              "hit_line": 2
+            }
+          ],
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。[ev_page_06c225660d2f6f9cbfc2b82c] 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。[ev_page_d1b0a0d45329375a04ba5314] 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。[ev_page_72b9401078f17ded6959887e]",
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 0,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "a-notes/advice-7.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "a-notes/advice-8.cbl",
+                  "line": 4
+                },
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_a6b1a02bee040800a13c2ed0",
+                "ev_page_5c0a943291f274a3b19ae86e",
+                "ev_page_d1b0a0d45329375a04ba5314"
+              ]
+            },
+            {
+              "target": "PROGRAM-ID. CUT526",
+              "checked_files": 21,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "archive/settlement.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_72b9401078f17ded6959887e"
+              ]
+            }
+          ]
+        }
+      ],
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "while_waiting": {
+        "job_status": "RUNNING",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+                "relative_path": "start.cbl",
+                "start_line": 1,
+                "end_line": 11
+              }
+            ]
+          }
+        ],
+        "message_roles": [
+          "user"
+        ]
+      },
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c",
+        "ev_page_d1b0a0d45329375a04ba5314",
+        "ev_page_72b9401078f17ded6959887e"
+      ],
+      "network_connections": 0,
+      "cited_originals": [
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        }
+      ]
+    },
+    "distant_guard": {
+      "files": {
+        "start.cbl": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+        "legacy/route.cbl": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+        "archive/settlement.cbl": "b822429a4f7643a2f7f79cf916fe9684e9322601b2c0b3c539796ee9aed2a8ea",
+        "hint0.cbl": "b334f6ecb59dd5939bc63340e3dc369d9b0f6c6e8d8359f0471f93c872b823e6",
+        "hint1.cbl": "9141124887805a78b1b19e3577d872e7dfb6db5646f7e2f5dbf95e77cb1e0068",
+        "hint2.cbl": "250c03c41205a51334f53eb4965bc12d9190cd1bc85a1a3e8fc51346cfdd47a4",
+        "hint3.cbl": "17c69581174fda4924afcea342af84d736c240c12e296eee0ecf2d55d4771a55",
+        "hint4.cbl": "d0f5c64caf34fcaa6fc7598cbc991f8156dc30cdaf5bfc434fd9e9cfb51fd11b",
+        "hint5.cbl": "d98d10d87f65127725635df4172ee0bf02be05214d98a0ca087a01e4af031565",
+        "hint6.cbl": "659b422cf46f2c90f6cf651ecef469b420b129764440f089f936b0dcdb51f0fd",
+        "hint7.cbl": "b99f8701c6fa8a87ba62ac670d3df6f9bc814dd80acb88a37966e0eb5ce0a018",
+        "hint8.cbl": "edb3d4f7715d485a594ae89a06fd47fe78c8cf974a12eba6100219495187f2f3"
+      },
+      "requests": [
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                3,
+                5
+              ],
+              "id": "ev_page_b11bb978a321fdfc4a053fc8"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                3,
+                5
+              ],
+              "id": "ev_page_9fba963690fa7da481104cdd"
+            }
+          ],
+          "visible_search_steps": [],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          },
+          "searches": []
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "legacy/route.cbl",
+              "lines": [
+                1,
+                6
+              ],
+              "id": "ev_page_d1b0a0d45329375a04ba5314"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. ADJ731",
+              "files_scanned": 12,
+              "matches": 1,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "legacy/route.cbl",
+              "hit_line": 2
+            }
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_d1b0a0d45329375a04ba5314"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "legacy/route.cbl",
+              "lines": [
+                1,
+                6
+              ],
+              "id": "ev_page_d1b0a0d45329375a04ba5314"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "archive/settlement.cbl",
+              "lines": [
+                1,
+                20
+              ],
+              "id": "ev_page_3e1d17c76b98c0155498fc4f"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "PROGRAM-ID. CUT526",
+              "files_scanned": 12,
+              "matches": 1,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "archive/settlement.cbl",
+              "hit_line": 2
+            }
+          ],
+          "reply": {
+            "grep": [
+              "SUBTRACT"
+            ]
+          },
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_d1b0a0d45329375a04ba5314"
+              ]
+            },
+            {
+              "target": "PROGRAM-ID. CUT526",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "archive/settlement.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_3e1d17c76b98c0155498fc4f"
+              ]
+            }
+          ]
+        },
+        {
+          "supplied_pages": [
+            {
+              "path": "start.cbl",
+              "lines": [
+                1,
+                11
+              ],
+              "id": "ev_page_06c225660d2f6f9cbfc2b82c"
+            },
+            {
+              "path": "hint0.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e83a4cf6a7127c91040b0f36"
+            },
+            {
+              "path": "hint1.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_05d45ac4facbea8a1320f4da"
+            },
+            {
+              "path": "hint2.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_e386d96bcd0ff5ac8aee9a64"
+            },
+            {
+              "path": "hint3.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_904a5493c6af827a57003a79"
+            },
+            {
+              "path": "hint4.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_853caaf0110f6b17b765945e"
+            },
+            {
+              "path": "legacy/route.cbl",
+              "lines": [
+                1,
+                6
+              ],
+              "id": "ev_page_d1b0a0d45329375a04ba5314"
+            },
+            {
+              "path": "hint5.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_3644ce2a8e99e6680ab62535"
+            },
+            {
+              "path": "hint6.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_4558de7485efaebabf120bc3"
+            },
+            {
+              "path": "hint7.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_eeaf65e59264e2aece2b5a4b"
+            },
+            {
+              "path": "hint8.cbl",
+              "lines": [
+                1,
+                5
+              ],
+              "id": "ev_page_ef3001bf4388cad77219421a"
+            },
+            {
+              "path": "archive/settlement.cbl",
+              "lines": [
+                1,
+                83
+              ],
+              "id": "ev_page_475dc1143791602fe8253d84"
+            }
+          ],
+          "visible_search_steps": [
+            {
+              "term": "SUBTRACT",
+              "files_scanned": 12,
+              "matches": 2,
+              "has_more": false,
+              "complete": true,
+              "hit_file": "archive/settlement.cbl",
+              "hit_line": 81
+            }
+          ],
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。[ev_page_06c225660d2f6f9cbfc2b82c] 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。[ev_page_d1b0a0d45329375a04ba5314] 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。[ev_page_475dc1143791602fe8253d84]",
+          "searches": [
+            {
+              "target": "PROGRAM-ID. ADJ731",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "legacy/route.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_d1b0a0d45329375a04ba5314"
+              ]
+            },
+            {
+              "target": "PROGRAM-ID. CUT526",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "archive/settlement.cbl",
+                  "line": 2
+                }
+              ],
+              "read_ids": [
+                "ev_page_3e1d17c76b98c0155498fc4f"
+              ]
+            },
+            {
+              "target": "SUBTRACT",
+              "checked_files": 12,
+              "complete": true,
+              "has_more": false,
+              "matches": [
+                {
+                  "relative_path": "archive/settlement.cbl",
+                  "line": 81
+                },
+                {
+                  "relative_path": "start.cbl",
+                  "line": 5
+                }
+              ],
+              "read_ids": [
+                "ev_page_475dc1143791602fe8253d84",
+                "ev_page_06c225660d2f6f9cbfc2b82c"
+              ]
+            }
+          ]
+        }
+      ],
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_475dc1143791602fe8253d84]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_475dc1143791602fe8253d84]",
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "while_waiting": {
+        "job_status": "RUNNING",
+        "checked_findings": [
+          {
+            "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+            "sources": [
+              {
+                "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+                "relative_path": "start.cbl",
+                "start_line": 1,
+                "end_line": 11
+              }
+            ]
+          }
+        ],
+        "message_roles": [
+          "user"
+        ]
+      },
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c",
+        "ev_page_d1b0a0d45329375a04ba5314",
+        "ev_page_475dc1143791602fe8253d84"
+      ],
+      "network_connections": 0,
+      "cited_originals": [
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 83,
+          "source_sha256": "b822429a4f7643a2f7f79cf916fe9684e9322601b2c0b3c539796ee9aed2a8ea",
+          "evidence_id": "ev_page_475dc1143791602fe8253d84"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        }
+      ]
+    }
+  },
+  "previous_four": {
+    "insufficient_then_grep": {
+      "rounds": 4,
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "network_connections": 0,
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c",
+        "ev_page_d1b0a0d45329375a04ba5314",
+        "ev_page_72b9401078f17ded6959887e"
+      ],
+      "answer_sha256": "b6766e7a91981ef2584aa2d55584ba4b0088369c18dde3e5a40332f07a2ea188"
+    },
+    "explicit_grep": {
+      "rounds": 3,
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "network_connections": 0,
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c",
+        "ev_page_d1b0a0d45329375a04ba5314",
+        "ev_page_72b9401078f17ded6959887e"
+      ],
+      "answer_sha256": "b6766e7a91981ef2584aa2d55584ba4b0088369c18dde3e5a40332f07a2ea188"
+    },
+    "missing_implementation": {
+      "rounds": 4,
+      "status": "partial",
+      "stop_reason": "answer_incomplete",
+      "network_connections": 0,
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c"
+      ],
+      "answer_sha256": "62388cfbb542fb6f1a016333f45f6ab5f9dfe09674025fdd4fb710e493f29a2d"
+    },
+    "wrong_amount_then_checked": {
+      "rounds": 3,
+      "status": "completed",
+      "stop_reason": "sufficient_material",
+      "network_connections": 0,
+      "inline_citations": [
+        "ev_page_06c225660d2f6f9cbfc2b82c",
+        "ev_page_d1b0a0d45329375a04ba5314",
+        "ev_page_72b9401078f17ded6959887e"
+      ],
+      "answer_sha256": "b6766e7a91981ef2584aa2d55584ba4b0088369c18dde3e5a40332f07a2ea188"
+    }
+  }
+}

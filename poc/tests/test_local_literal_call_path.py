@@ -68,6 +68,37 @@ class LocalLiteralCallPathTests(unittest.TestCase):
         pages, answer = self.case()
         self.assertFalse(self.proof([*pages[:2], dict(pages[2], span_truncated=True)], answer))
 
+    def test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations(self):
+        whole, answer = self.case()
+        for last_header in (4, 5):
+            with self.subTest(overlap=last_header == 5):
+                header = self.originals.page("settlement.cbl", WORKER, 1, last_header)
+                debit = self.originals.page("settlement.cbl", WORKER, 5)
+                draft = answer.replace(whole[-1]["evidence_id"], debit["evidence_id"])
+                proof = self.proof([debit, *whole[:2], header], draft)
+                self.assertIsNotNone(proof, "the supplied windows cover every original line")
+                delivered = proof["answer"]
+                rule = next(line for line in delivered.splitlines() if "POOL-AMOUNT" in line)
+                for ref in (header, debit):
+                    self.assertIn("[" + ref["evidence_id"] + "]", rule)
+                self.assertNotIn(whole[-1]["evidence_id"], delivered)
+                self.assertIn("仍剩 80", delivered)
+
+    def test_unsupplied_stale_or_transformed_guard_does_not_close_the_split_path(self):
+        whole, answer = self.case()
+        before = self.originals.page("settlement.cbl", WORKER, 1, 3)
+        debit = self.originals.page("settlement.cbl", WORKER, 5)
+        guard = self.originals.page("settlement.cbl", WORKER, 4, 4)
+        draft = answer.replace(whole[-1]["evidence_id"], debit["evidence_id"])
+        for invalid in ([], [dict(guard, source_sha256="another-version")],
+                        [dict(guard, source_text="IF POOL-AMOUNT <= REMAINING-DUE")],
+                        [dict(guard, copy_instance="another-context")], [dict(guard, span_truncated=True)]):
+            with self.subTest(invalid=invalid):
+                self.assertFalse(self.proof([*whole[:2], before, *invalid, debit], draft))
+        self.assertTrue(self.proof([*whole[:2], before, guard, debit], draft))
+        bad_ref = dict(guard, source_verification="metadata")
+        self.assertFalse(self.proof([*whole, bad_ref], answer + f' [{bad_ref["evidence_id"]}]'))
+
     def test_passing_by_value_or_content_cannot_establish_caller_receivable(self):
         for mode in ("VALUE", "CONTENT"):
             for path, text, call in (("entry", ENTRY, "CALL REFUND-ROUTINE USING"),

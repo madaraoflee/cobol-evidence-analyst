@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 import re
 
 from call_bindings import parse_call, parse_signature
-from local_deduction_review import DeductionEvidence, _verified_view, deduction_review_requested
+from local_deduction_review import DeductionEvidence, _physical_page_lines, deduction_review_requested
 from online_grounded_findings import (
     Program, Step, _ADDITIONAL, _COMPARISON, _COMPILER_RECORD, _NAME, _comparison, _describe,
     _matches_scope, _step,
@@ -46,12 +46,13 @@ def _assigned_call(nodes):
     return CallSite(literal[2].upper(), call.target, call.parameters[0].name, invoke.span.start_line, guard)
 
 
-def _parse(view):
-    text = view["text"]
+def _parse(text, path, evidence_id, source_format):
     bodies, _ = _bodies(text, 1)
     if len(bodies) != 1 or bodies[0][0] != "PROCEDURE":
         return None
     _, body, start, fmt = bodies[0]
+    if source_format in {"free", "fixed"} and fmt != source_format:
+        return None
     if ">>" in text or any(_COMPILER_RECORD.match(line) for line in text.splitlines()):
         return None
     words = [t.value for t in lex_cobol(text, source_format=fmt, max_tokens=6000)]
@@ -83,8 +84,43 @@ def _parse(view):
     steps = tuple(_step(n) for n in nodes)
     if any(n.else_children for n in nodes) or any(not s or s.kind != "subtract" for s in steps):
         return None
-    program = Program(names[0][0], view["citation"]["path"], (), view["id"], parameters, steps, True)
+    program = Program(names[0][0], path, (), evidence_id, parameters, steps, True)
     return program, call
+
+
+def _supplied_program(pages, required, capture):
+    """Close only a whole original whose lines are all present in this request."""
+    with capture.path.open(encoding=capture.encoding) as stream:
+        raw = stream.read(32004)
+        if stream.read(1):
+            return None
+    original = raw.lstrip("\ufeff").splitlines()
+    windows = []
+    for page in pages:
+        lines = _physical_page_lines(page)
+        if (not lines or page["source_sha256"] != capture.sha256
+                or original[page["start_line"] - 1:page["end_line"]] != lines):
+            if page["evidence_id"] in required:
+                return None
+            continue
+        windows.append(page)
+    # Prefer a longer window at the same starting line. Keep the exact IDs of
+    # the windows that supply new lines so readers can reopen them individually.
+    covered_through, references = 0, []
+    for page in sorted(windows, key=lambda p: (p["start_line"], -p["end_line"])):
+        if page["start_line"] > covered_through + 1:
+            return None
+        if page["end_line"] <= covered_through:
+            continue
+        covered_through = page["end_line"]
+        references.append(page["evidence_id"])
+    if not references or covered_through != len(original):
+        return None
+    text = "\n".join(original)
+    if len(text) > 32000:
+        return None
+    parsed = _parse(text, pages[0]["relative_path"], references[0], capture.source_format)
+    return (parsed, references) if parsed else None
 
 
 def _example(chain, programs, language):
@@ -108,14 +144,16 @@ def _example(chain, programs, language):
         f"若 `{refund.operand}` 為 30，最終應收為 50；若恰好為 80，兩者相等，跳過這筆扣減，仍剩 80。")
 
 
-def _path_answer(chain, programs, balance, language):
+def _path_answer(chain, programs, balance, language, references):
     lead = localized_text(language,
         "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。",
         "With the call variables bound to the programs below, compatible parameter layouts, exactly representable amounts and normal return, the deductions proceed in this order.",
         "按呼叫變數繫結至下列程式、參數佈局相容、金額可準確表示且正常返回的路徑，扣減順序如下。")
     steps = []
     for program in chain:
-        steps.extend(_describe(program, step, language) for step in program.steps)
+        extra_refs = references[program.path][1:]
+        extra = "".join(f" [{identifier}]" for identifier in extra_refs)
+        steps.extend(_describe(program, step, language) + extra for step in program.steps)
         call = programs[program.name][1]
         if not call:
             continue
@@ -129,13 +167,13 @@ def _path_answer(chain, programs, balance, language):
             action = localized_text(language, f"接着单独判断，若{condition}，{action}若{skip}，跳过此次调用，保留当前金额。",
                 f"Next, check the remaining amount independently. If {condition}, {action} If {skip}, skip the call and retain the current amount.",
                 f"接著單獨判斷，若{condition}，{action}若{skip}，跳過此次呼叫，保留目前金額。")
-        steps.append(f"{action} [{program.evidence}]")
+        steps.append(f"{action} [{program.evidence}]{extra}")
     result = localized_text(language,
         f"最终应收 `{balance}` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。",
         f"The final receivable `{balance}` is the entry amount less each deduction that actually applied. If all are skipped, the entry amount remains.",
         f"最終應收 `{balance}` 等於進入時的應收減去各步實際扣減的金額。全部跳過時，應收保持原額。")
     illustration = _example(chain, programs, language)
-    citations = " ".join(f"[{p.evidence}]" for p in chain)
+    citations = " ".join(f"[{identifier}]" for program in chain for identifier in references[program.path])
     numbered = "\n".join(f"{i}. {step}" for i, step in enumerate(steps, 1))
     return f"{lead}\n\n{numbered}\n\n{result} {illustration} {citations}"
 
@@ -154,32 +192,33 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
     if not 2 <= len(refs) <= 8:
         return None
     captured = {row["relative_path"]: row["sha256"] for row in source_session.source_manifest()}
-    programs = {}
-    definitions = {}
+    programs, references, definitions = {}, {}, {}
+    cited_paths = {p["relative_path"] for p in pages if p.get("evidence_id") in refs}
+    if not cited_paths <= captured.keys() or not refs <= {p.get("evidence_id") for p in pages}:
+        return None
+    by_path = {path: [] for path in cited_paths}
     for page in pages:
-        source = page.get("source_text", "")
+        path, source = page["relative_path"], page.get("source_text", "")
         if page.get("start_line") == 1 and source and len(source) <= 32000:
             fmt = page.get("format_hint")
             for name, _, _ in program_identifiers(source, source_format=fmt if fmt in {"free", "fixed"} else "auto"):
-                definitions.setdefault(name, set()).add(page["relative_path"])
-        if page.get("evidence_id") not in refs:
-            continue
-        if page.get("source_sha256") != captured.get(page.get("relative_path")):
-            return None
+                definitions.setdefault(name, set()).add(path)
+        if path in by_path:
+            by_path[path].append(page)
+    for path, windows in by_path.items():
         try:
-            checked = _verified_view(page, source_session)
-            parsed = _parse(checked[0]) if checked and checked[1] else None
+            capture = source_session.capture(path)
+            if capture.sha256 != captured[path]:
+                return None
+            result = _supplied_program(windows, refs, capture)
         except (ValueError, OSError, CobolLexError):
             return None
-        if not parsed:
+        if not result:
             return None
-        program, call = parsed
-        if program.name in programs and programs[program.name][0] != program:
+        (program, call), references[path] = result
+        if program.name in programs or definitions.get(program.name, set()) - {path}:
             return None
         programs[program.name] = (program, call)
-    if refs != {p.evidence for p, _ in programs.values()} or any(
-            len(definitions.get(name, set())) != 1 for name in programs):
-        return None
     incoming = {c.target for _, c in programs.values() if c}
     entries = [p for p, _ in programs.values() if p.name not in incoming]
     if len(entries) != 1:
@@ -230,4 +269,4 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
     if assessment.missing_aspects(answer.replace("于零", "于0").replace("於零", "於0")):
         return None
     return {"paths": [p.path for p in chain], "calls": calls, "inputs": sorted(inputs), "result": balance,
-            "answer": _path_answer(chain, programs, balance, answer_language)}
+            "answer": _path_answer(chain, programs, balance, answer_language, references)}

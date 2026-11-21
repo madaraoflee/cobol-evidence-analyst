@@ -1,0 +1,33 @@
+Product revision 87bdb9361aae5a4e3e28e638e21d70d8d78aaed8
+.......FF.F
+======================================================================
+FAIL: test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations (test_local_literal_call_path.LocalLiteralCallPathTests.test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations) (overlap=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_literal_call_path.py", line 79, in test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations
+    self.assertIsNotNone(proof, "the supplied windows cover every original line")
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None : the supplied windows cover every original line
+
+======================================================================
+FAIL: test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations (test_local_literal_call_path.LocalLiteralCallPathTests.test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations) (overlap=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_literal_call_path.py", line 79, in test_separate_supplied_guard_and_debit_windows_use_the_actual_page_citations
+    self.assertIsNotNone(proof, "the supplied windows cover every original line")
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None : the supplied windows cover every original line
+
+======================================================================
+FAIL: test_unsupplied_stale_or_transformed_guard_does_not_close_the_split_path (test_local_literal_call_path.LocalLiteralCallPathTests.test_unsupplied_stale_or_transformed_guard_does_not_close_the_split_path)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_literal_call_path.py", line 98, in test_unsupplied_stale_or_transformed_guard_does_not_close_the_split_path
+    self.assertTrue(self.proof([*whole[:2], before, guard, debit], draft))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not true
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.088s
+
+FAILED (failures=3)

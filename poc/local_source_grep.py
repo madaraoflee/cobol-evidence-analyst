@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from contextlib import closing
 import hashlib
 import json
+import sqlite3
 
 from repository_discovery import _connect, _fast_snapshot, _graph_cache_key
+from statement_facts import CobolLexError, lex_cobol, strip_inline_comment
+from statement_parser import parse_statements
 from source_reading import _cancel, _identify_page, _relative_path, _safe_file, _verified_lines
 
 
@@ -113,6 +117,129 @@ def _raw_numbers(hits, start, end):
         offset = hits.find(b"\x01", offset + 1, end)
 
 
+def _grep_guard_ranges(lines, first, hit_line, term, fmt, check_cancel):
+    """Find an actual controlling header and branch markers in the hit's complete COBOL sentence."""
+    if any(">>" in line or "\t" in line for line in lines):
+        return []
+    offsets = [0]
+    for line in lines:
+        offsets.append(offsets[-1] + len(line) + 1)
+    hit_offset = hit_line - first
+    text = "\n".join(lines)
+    try:
+        tokens = lex_cobol(text, source_format=fmt, max_tokens=8000, check_cancel=check_cancel)
+    except CobolLexError:
+        return []
+    # Literal periods and comment text never delimit a COBOL sentence.
+    stops = [t.start for t in tokens if t.value == "."]
+    before = next((p for p in reversed(stops) if p < offsets[hit_offset]), None)
+    after = next((p for p in stops if p >= offsets[hit_offset + 1] - 2), None)
+    if before is None or after is None:
+        return []
+    start = bisect_right(offsets, before) - 1
+    body = " " * (before + 1 - offsets[start]) + text[before + 1:after + 1]
+    parsed = parse_statements(body, start_line=first + start, source_format=fmt,
+                              max_tokens=8000, check_cancel=check_cancel)
+    if not parsed.complete:
+        return []
+    ranges = set()
+    guarded_leaves = []
+    raw = lines[hit_offset]
+    code = strip_inline_comment(raw if fmt == "free" else " " * 7 + raw[7:72])
+    if fmt == "fixed" and raw[6:7] in {"*", "/"}:
+        return []
+
+    for node in parsed.statements:
+        if (node.kind not in {"MOVE", "COMPUTE", "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE", "CALL"}
+                or not node.span.start_line <= hit_line <= node.span.end_line):
+            continue
+        # An identical word in another statement or in a comment on this line
+        # must not associate that unrelated operation with our match.
+        left = max(offsets[start] + node.span.start_offset, offsets[hit_offset])
+        right = min(offsets[start] + node.span.end_offset, offsets[hit_offset] + len(code))
+        if term.casefold() not in text[left:right].casefold():
+            continue
+        if node.guards:
+            guarded_leaves.append(node)
+        for guard in node.guards:
+            ranges.add((guard.span.start_line, guard.span.end_line))
+            if guard.selector_span:
+                ranges.add((guard.selector_span.start_line, guard.selector_span.end_line))
+    # On the false branch an IF header alone cannot identify the taken arm.
+    # Locate its own ELSE between the parsed siblings, even with nested IFs.
+    if any(not g.outcome for n in guarded_leaves for g in n.guards):
+        nodes = list(parsed.nodes)
+        while nodes:
+            ancestor = nodes.pop()
+            nodes.extend(ancestor.children + ancestor.else_children)
+            if ancestor.kind != "IF" or not ancestor.else_children:
+                continue
+            branch = ancestor.else_children
+            if any(branch[0].span.start_offset <= n.span.start_offset <= branch[-1].span.end_offset
+                   for n in guarded_leaves):
+                lower = offsets[start] + ancestor.children[-1].span.end_offset
+                upper = offsets[start] + branch[0].span.start_offset
+                marker = next((t for t in tokens if t.value == "ELSE" and lower <= t.start < upper), None)
+                if marker:
+                    number = first + bisect_right(offsets, marker.start) - 1
+                    ranges.add((number, number))
+    return sorted(ranges)
+
+
+def grep_read_location(database_path, hit, term, *, max_chars, check_cancel=None):
+    """Extend a literal hit's ordinary read to its verified enclosing condition when it fits."""
+    path, line = hit["relative_path"], hit["line"]
+    ordinary = {"relative_path": path, "start_line": max(1, line - 12), "end_line": line + 18}
+    _cancel(check_cancel)
+    try:
+        with closing(_connect(database_path)) as db:
+            db.execute("BEGIN")
+            source = db.execute("SELECT relative_path,sha256,format_hint,line_count FROM source_files "
+                                "WHERE relative_path=? AND sha256=?", (path, hit["source_sha256"])).fetchone()
+            if not source or source["format_hint"] not in {"fixed", "free"}:
+                return ordinary, []
+            first, last = max(1, line - 384), min(source["line_count"], line + 128)
+            page = db.execute("SELECT page_id FROM repo_pages WHERE relative_path=? "
+                              "AND end_line>=? ORDER BY page_id LIMIT 1", (path, first)).fetchone()
+            if not page or not first <= line <= last:
+                return ordinary, []
+            lines, scanned = [], 0
+            for n, (_, start, end, segment) in enumerate(_segments(db, source, page[0], first)):
+                _cancel(check_cancel)
+                if n >= 32 or segment is None:
+                    return ordinary, []
+                chunk = segment[:last - start + 1]
+                scanned += sum(len(row) + 1 for row in chunk)
+                if scanned > 64_000:
+                    return ordinary, []
+                lines.extend(chunk)
+                if end >= last:
+                    break
+    except (sqlite3.Error, OSError):
+        return ordinary, []
+    if len(lines) != last - first + 1 or term.casefold() not in lines[line - first].casefold():
+        return ordinary, []
+    guards = _grep_guard_ranges(lines, first, line, term, source["format_hint"], check_cancel)
+    # The standard source reader consumes its character allowance from the
+    # start of the requested span. Keep expensive preamble lines from crowding
+    # out the match itself, even for an unguarded statement.
+    size = sum(len(s) + 1 for s in lines[ordinary["start_line"] - first:line - first + 1]) - 1
+    while ordinary["start_line"] < line and size > max_chars:
+        size -= len(lines[ordinary["start_line"] - first]) + 1
+        ordinary["start_line"] += 1
+    if not guards or guards[0][0] >= ordinary["start_line"]:
+        return ordinary, []
+    guard = guards[0][0]
+    if first == 1 and last == source["line_count"] and last <= 120 and scanned <= max_chars:
+        return {"relative_path": path, "start_line": 1, "end_line": last}, []
+    end = min(last, ordinary["end_line"])
+    if sum(len(row) + 1 for row in lines[guard - first:end - first + 1]) <= max_chars:
+        return {**ordinary, "start_line": guard, "end_line": end}, []
+    leads = [{"relative_path": path, "start_line": lo, "end_line": hi} for lo, hi in guards
+             if lo < ordinary["start_line"]]
+    return ordinary, leads
+
+
 def grep_repository(database_path, source_root, query, *, cursor=None, limit=12,
                     check_cancel=None, source_session=None, paths=None):
     """Return line locators, requiring an ordinary hash-checked source read for citations.
@@ -143,7 +270,7 @@ def grep_repository(database_path, source_root, query, *, cursor=None, limit=12,
             statement += " AND relative_path IN (SELECT value FROM json_each(?))"
             args.append(json.dumps(paths))
         result = {"snapshot_id": overview["snapshot_id"], "scope": "indexed_snapshot",
-                  "checked_files": 0, "checked_pages": 0, "matches": [], "boundaries": [],
+                  "checked_files": 0, "checked_pages": 0, "matches": [], "match_file_lines": {}, "boundaries": [],
                   "next_cursor": None, "reached_end": False, "complete": False}
         raw_files = 0
         for source in db.execute(statement + " ORDER BY rowid", args):
@@ -186,6 +313,7 @@ def grep_repository(database_path, source_root, query, *, cursor=None, limit=12,
                     if len(result["matches"]) == limit:
                         result["next_cursor"] = _cursor(binding, file_id, page, number, gap)
                         return result
+                    result["match_file_lines"][source["relative_path"]] = source["line_count"]
                     result["matches"].append({"relative_path": source["relative_path"],
                                               "line": number, "source_sha256": source["sha256"]})
         result.update(reached_end=True, complete=not gap)

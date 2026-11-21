@@ -1,0 +1,51 @@
+Product revision 87bdb9361aae5a4e3e28e638e21d70d8d78aaed8
+FFE.FF
+======================================================================
+ERROR: test_model_request_limit_preserves_unread_locations_without_overstating_source (test_local_grep_navigation.LocalGrepNavigationTests.test_model_request_limit_preserves_unread_locations_without_overstating_source)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_grep_navigation.py", line 148, in test_model_request_limit_preserves_unread_locations_without_overstating_source
+    self.assertEqual(row["pending_hit_count"], 7)
+                     ~~~^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'pending_hit_count'
+
+======================================================================
+FAIL: test_cancelled_question_resumes_unread_hit_locations_without_rescanning_the_library (test_local_grep_navigation.LocalGrepNavigationTests.test_cancelled_question_resumes_unread_hit_locations_without_rescanning_the_library)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_grep_navigation.py", line 135, in test_cancelled_question_resumes_unread_hit_locations_without_rescanning_the_library
+    self.assertIn("否则跳过", out["agent_result"]["answer"])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '否则跳过' not found in '本次尚未定位到能回答这个业务问题的相关源码，因此还不能给出可靠的业务结论。这不表示程序或资料不存在；需要继续核对业务用语与源码词项的对应关系。\n\n诊断：RETRIEVAL_UNRESOLVED；阶段：response_validation。'
+
+======================================================================
+FAIL: test_distant_hits_in_one_file_are_opened_while_neighbors_share_one_read (test_local_grep_navigation.LocalGrepNavigationTests.test_distant_hits_in_one_file_are_opened_while_neighbors_share_one_read)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_grep_navigation.py", line 73, in test_distant_hits_in_one_file_are_opened_while_neighbors_share_one_read
+    self.assertEqual(len(row["read_ids"]), 2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2
+
+======================================================================
+FAIL: test_repeated_literal_opens_undelivered_matches_before_scanning_the_next_page (test_local_grep_navigation.LocalGrepNavigationTests.test_repeated_literal_opens_undelivered_matches_before_scanning_the_next_page)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_grep_navigation.py", line 53, in test_repeated_literal_opens_undelivered_matches_before_scanning_the_next_page
+    self.assertEqual(len(self.case.requests), 6)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 6
+
+======================================================================
+FAIL: test_repeated_search_passes_already_supplied_noise_without_exhausting_model_rounds (test_local_grep_navigation.LocalGrepNavigationTests.test_repeated_search_passes_already_supplied_noise_without_exhausting_model_rounds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<baseline>/poc/tests/test_local_grep_navigation.py", line 94, in test_repeated_search_passes_already_supplied_noise_without_exhausting_model_rounds
+    self.assertIn("否则跳过", out["agent_result"]["answer"])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '否则跳过' not found in '本次未取得模型回答。对话和源码索引已保留，可以重试或查看接口返回。\n\n诊断：ANSWER_NOT_PRODUCED；阶段：response_validation。'
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.197s
+
+FAILED (failures=4, errors=1)
