@@ -1,0 +1,182 @@
+{
+  "product_sha256_including_web": "c3026dc8625b1349af8ddd764fe902b39dbb29819550e7ff44a89bff4eb2c815",
+  "runs": [
+    {
+      "first": {
+        "seconds": 2.0018000000044704,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 7.178,
+        "text": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint0.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint1.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint2.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint3.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint4.cbl · L2–10",
+        "BANNER5 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint5.cbl · L1–10",
+        "BANNER0 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint0.cbl · L1–10"
+      ],
+      "first_deduction": {
+        "seconds": 2.0018000000044704,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 10,
+      "answer_status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": false,
+      "oracle_failure": "'partial' != 'completed'\n- partial\n+ completed\n : ('question_evidence_incomplete', '先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27')",
+      "passed": false
+    },
+    {
+      "first": {
+        "seconds": 0.5665999999940395,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 5.71209999999404,
+        "text": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint0.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint1.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint2.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint3.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint4.cbl · L2–10",
+        "BANNER5 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint5.cbl · L1–10",
+        "BANNER0 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint0.cbl · L1–10"
+      ],
+      "first_deduction": {
+        "seconds": 0.5665999999940395,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 10,
+      "answer_status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": false,
+      "oracle_failure": "'partial' != 'completed'\n- partial\n+ completed\n : ('question_evidence_incomplete', '先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27')",
+      "passed": false
+    },
+    {
+      "first": {
+        "seconds": 0.5161000000014901,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 5.68390000000596,
+        "text": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint0.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint1.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint2.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint3.cbl · L2–10",
+        "第 5 行写有 MOVE \"reserve refund\" TO MESSAGE-TEXT。执行这条语句的前提仍待核对。\n\nhint4.cbl · L2–10",
+        "BANNER5 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint5.cbl · L1–10",
+        "BANNER0 的第 5 行受以下条件控制。 若DISPLAY-FLAG 等于 \"Y\"，将 MESSAGE-TEXT 设为 \"reserve refund\"。\n\nhint0.cbl · L1–10"
+      ],
+      "first_deduction": {
+        "seconds": 0.5161000000014901,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 10,
+      "answer_status": "partial",
+      "stop_reason": "question_evidence_incomplete",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": false,
+      "oracle_failure": "'partial' != 'completed'\n- partial\n+ completed\n : ('question_evidence_incomplete', '先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE 减去准备金 CREDIT-AMT。其他类型跳过准备金。然后独立检查剩余应收，大于零才调用 ADJ731，否则跳过退款并保留当时应收。70 按原文赋予两个调用目标的名称、参数相容并正常返回的路径，ADJ731 按引用把剩余应收传给 CUT526。36 只有 POOL-AMOUNT 严格小于当前 REMAINING-DUE 才扣退款，相等或更大时跳过。最终应收等于进入时的应收减去实际生效的扣减额，两步都跳过时保持原额。100 先扣 20 后，如再扣 30，剩 50，退款恰好 80 则仍剩 80。27')",
+      "passed": false
+    }
+  ]
+}

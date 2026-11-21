@@ -2129,8 +2129,12 @@ def build_question_investigation(question, business_map, *, database_path=None,
     unknown_inputs = sorted(input_fields - input_origins)
     if unknown_inputs:
         item = next(item for item in items if item["kind"] == "inputs")
+        selected = unknown_inputs[:_MAX_FIELDS]
         item.update(status="PARTIAL" if item["evidence_ids"] else "UNRESOLVED",
-                    reason="input_source_not_located", fields=[field for _, field in unknown_inputs][:_MAX_FIELDS])
+                    reason="input_source_not_located", fields=[field for _, field in selected],
+                    unknown_input_count=len(unknown_inputs),
+                    unknown_input_sources=[{"relative_path": path, "source_sha256": hashes.get(path), "field": field}
+                                           for path, field in selected])
     input_frontier = [gap for gap in frontier if gap["kind"] == "inputs"]
     if input_frontier:
         item = next(item for item in items if item["kind"] == "inputs")

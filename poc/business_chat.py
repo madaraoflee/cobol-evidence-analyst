@@ -35,7 +35,7 @@ from claim_ledger import review_answer_claims
 from evidence_context import EvidenceContext, page_priority
 from draft_validation import validate_answer_draft, revision_regression
 from online_source_recovery import question_terms
-from local_deduction_review import deduction_review_requested, inspect_deduction
+from local_deduction_review import deduction_review_requested, inspect_deduction, merge_checked_findings
 from semantic_answer_review import build_semantic_review, validate_semantic_review
 from source_availability import repair_source_availability_assertions
 from framework_knowledge import MAX_SECTION_CHARS, build_framework_context, framework_status, search_framework_context
@@ -2813,14 +2813,13 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             "round_id": f"round-{turns}", **payload.get("question_investigation", {})})
         if progress and inventory_state is None and stage in {"answer", "investigate", "revise"}:
             supplied = [p for bundle in payload.get("source_context", []) for p in bundle.get("pages", [])]
-            for finding in inspect_sources(supplied).checked_findings:
-                finding = {**finding, "text": redactor._sanitize(finding["text"])}
-                if finding not in checked_findings and len(checked_findings) < 8:
-                    checked_findings.append(finding)
+            fresh = [(priority, {**finding, "text": redactor._sanitize(finding["text"])})
+                     for priority, finding in inspect_sources(supplied).ranked_findings]
+            checked_findings[:] = merge_checked_findings(checked_findings, fresh)
         began = time.monotonic()
         emit("reviewing_answer" if stage == "semantic_review" else
              "compacting" if stage == "context_compact" else "waiting_for_model",
-             **({"checked_findings": list(checked_findings)} if checked_findings else {}),
+             **({"checked_findings": [finding for _, finding in checked_findings]} if checked_findings else {}),
              **({"analysis_state": latest_analysis_state} if latest_analysis_state else {}))
         streamed_text, preview_at = "", 0.0
         preview_stage = "continuation" if stage == "continue" else "revision" if payload.get("draft_answer") else "draft"
@@ -3016,7 +3015,7 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     seen_actions = set()
     automatic_turn_usage = {"read": 0, "inspect_business_context": 0, "search": 0, "framework_search": 0}
 
-    def question_investigation(selected, *, framework_facts=(), advance_frontier=False):
+    def question_investigation(selected, *, framework_facts=(), advance_frontier=False, next_rule_batch=False):
         nonlocal investigation_calls, investigation_queries, investigation_frontier_state
         nonlocal investigation_frontier_round
         began = time.monotonic()
@@ -3035,8 +3034,8 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                 max_actions=policy.max_reads_per_turn + policy.max_business_context_actions_per_turn,
                 investigation_frontier_state=investigation_frontier_state,
                 source_frontier_state=source_frontier_state,
-                advance_frontier=advance_frontier and turns != investigation_frontier_round)
-            if advance_frontier:
+                advance_frontier=next_rule_batch or (advance_frontier and turns != investigation_frontier_round))
+            if advance_frontier or next_rule_batch:
                 investigation_frontier_round = turns
             state = result.pop("investigation_frontier_state", None)
             gaps = result.pop("unprojected_open_gaps", result.get("open_gaps", []))
@@ -3068,6 +3067,69 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
             return result
         finally:
             timing["question_investigation_seconds"] += time.monotonic() - began
+
+    def deduction_originals():
+        if (not review_deductions or inventory_state is not None or not answer or failure or truncated
+                or has_answer_instructions or history_context or semantic_review_state
+                or (answer_manifest or {}).get("framework_ids")
+                or identity_blocks_analysis(business_map.get("source_identity", {}))):
+            return []
+        original_ids = (answer_manifest or {}).get("source_ids", [])
+        if not set(_REFERENCE.findall(answer)) <= set(original_ids):
+            return []
+        return [sent_pages[identifier] for identifier in original_ids]
+
+    def verified_literal_path(originals):
+        if (not originals or pending_compaction_ids
+                or not any(row.get("tool") == "grep" and row.get("read_ids") for row in completed_actions)):
+            return None
+        from local_literal_call_path import prove_literal_call_path
+        proof = prove_literal_call_path(question, originals, source_session=source_session,
+                                       answer=answer, answer_language=answer_language)
+        if proof and _unique_literal_targets(database_path, source_root, overview["snapshot_id"], proof["calls"]):
+            return proof
+        return None
+
+    def uncovered_literal_gaps(investigation, proof, originals):
+        candidate = _with_historical_gaps(investigation, investigation_obligation_ledger)
+        gaps, _ = _answer_scope_gaps(question, candidate, answer_detail=answer_detail,
+                                    answer_instructions=answer_instructions)
+        remaining, _ = _literal_call_path_gaps(gaps, candidate, investigation_obligation_ledger,
+                                               proof, sent_pages, originals)
+        return remaining
+
+    def check_remaining_rule_batches(investigation, payload):
+        if not (investigation.get("pending_work") or {}).get("rule_path_count"):
+            return investigation, False
+        originals = deduction_originals()
+        proof = verified_literal_path(originals)
+        if not proof:
+            return investigation, False
+        supplied = source_memory.effective_pages(payload) if source_memory else originals
+        # Check every batch with the ordinary planner. A rule or planned read
+        # that the existing original sources cannot resolve still reaches the model.
+        while True:
+            pending = investigation.get("pending_work", {})
+            if ("rule_path_count" not in pending or not (investigation_frontier_state or {}).get("batch_complete")
+                    or investigation.get("planned_actions")
+                    or any(value for key, value in pending.items() if key != "rule_path_count")):
+                return investigation, False
+            if investigation.get("candidate_cache", {}).get("candidate_count") == 0:
+                if any(gap.get("reason") != "business_steps_not_located" for gap in investigation.get("open_gaps", [])):
+                    return investigation, False
+            elif not _supplied_report_batch(investigation, proof, originals, source_session):
+                return investigation, False
+            if not pending["rule_path_count"]:
+                return investigation, not uncovered_literal_gaps(investigation, proof, originals)
+            if question_budget and question_budget.should_stop_local_investigation():
+                return investigation, True
+            try:
+                check_local_analysis_budget()
+            except _LocalAnalysisBudgetExceeded:
+                # The accepted answer and the remaining cursor are checkpointed together.
+                return investigation, True
+            investigation = question_investigation(supplied, framework_facts=payload.get("framework_facts", []),
+                                                   next_rule_batch=True)
 
     def frontier_can_advance():
         # These are finite, saved cursors. Advancing one does not count as new
@@ -4446,6 +4508,12 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
                         remember_draft()
                     if not force_answer and (deferred or promised or not current_investigation.get("can_answer", True)):
                         if frontier_can_advance() and not current_investigation.get("planned_actions"):
+                            if not deferred and not promised and not pending_model_actions:
+                                last_investigation, finish = check_remaining_rule_batches(current_investigation, payload)
+                                if finish:
+                                    answer_investigation = last_investigation
+                                    remember_draft()
+                                    break
                             recovery_reason = "当前批次已核对，继续处理已保存的其余源码链路和业务规则"
                             remember_draft()
                             continue
@@ -4955,32 +5023,18 @@ def _run_business_chat(question, database_path, source_root, config, *, history=
     # still needs the normal delivery and verification semantics.
     proven_sequence = None
     literal_path_proof = None
-    if (review_deductions and inventory_state is None and answer and not failure and not truncated
-            and not has_answer_instructions and not history_context and not semantic_review_state
-            and not (answer_manifest or {}).get("framework_ids")
-            and not identity_blocks_analysis(business_map.get("source_identity", {}))):
-        original_ids = (answer_manifest or {}).get("source_ids", [])
-        if set(_REFERENCE.findall(answer)) <= set(original_ids):
-            originals = [sent_pages[identifier] for identifier in original_ids]
-            proven_sequence = inspect_sources(originals).closed_answer
-            if (not proven_sequence and any(row.get("tool") == "grep" and row.get("read_ids")
-                    for row in completed_actions) and not pending_compaction_ids
-                    and not any((last_investigation or {}).get("pending_work", {}).values())):
-                from local_literal_call_path import prove_literal_call_path
-                proof = prove_literal_call_path(question, originals, source_session=source_session,
-                                                answer=answer, answer_language=answer_language)
-                if proof and _unique_literal_targets(database_path, source_root, overview["snapshot_id"], proof["calls"]):
-                    candidate = _with_historical_gaps(answer_investigation or last_investigation or {},
-                                                      investigation_obligation_ledger)
-                    gaps, _ = _answer_scope_gaps(question, candidate, answer_detail=answer_detail,
-                                                answer_instructions=answer_instructions)
-                    remaining, _ = _literal_call_path_gaps(gaps, candidate, investigation_obligation_ledger,
-                                                           proof, sent_pages, originals)
-                    if not remaining and not any(candidate.get("pending_work", {}).values()):
-                        literal_path_proof = proof
-                        proven_sequence = proof["answer"]
-            if proven_sequence:
-                answer = proven_sequence
+    originals = deduction_originals()
+    if originals:
+        proven_sequence = inspect_sources(originals).closed_answer
+        if not proven_sequence and not any((last_investigation or {}).get("pending_work", {}).values()):
+            proof = verified_literal_path(originals)
+            candidate = answer_investigation or last_investigation or {}
+            if (proof and not any(candidate.get("pending_work", {}).values())
+                    and not uncovered_literal_gaps(candidate, proof, originals)):
+                literal_path_proof = proof
+                proven_sequence = proof["answer"]
+        if proven_sequence:
+            answer = proven_sequence
     # Free-form long explanations still need independent semantic review.
     semantic_review_report = semantic_review_state.get("report")
     answer_prose_characters = _answer_prose_characters(answer, answer_manifest)
@@ -5814,6 +5868,47 @@ def _with_historical_gaps(investigation, ledger):
     return investigation
 
 
+def _supplied_report_batch(investigation, proof, originals, source_session):
+    """Bind every candidate and open input to complete, standalone report source."""
+    by_id = {page["evidence_id"]: page for page in originals}
+    items = [item for item in investigation.get("required_items", []) if item.get("candidate_count")]
+    if (not items or sum(item["candidate_count"] for item in items) != investigation["candidate_cache"]["candidate_count"]
+            or any(item.get("missing_count") != 0 or not item.get("evidence_ids") for item in items)):
+        return False
+    scoped = set()
+    for item in investigation.get("required_items", []):
+        if item.get("status") in {"SATISFIED", "NOT_APPLICABLE"}:
+            continue
+        key = item.get("kind"), item.get("status"), item.get("reason")
+        if key != ("inputs", "PARTIAL", "input_source_not_located"):
+            return False
+        refs = [by_id.get(identifier) for identifier in item.get("evidence_ids", [])]
+        # No business-path versions are admitted in a report-only batch.
+        if not _report_input_scope(item, refs, set(), proof):
+            return False
+        scoped.add(key)
+    if any((gap.get("kind"), gap.get("status"), gap.get("reason")) not in scoped
+           for gap in investigation.get("open_gaps", [])):
+        return False
+    ids_by_path = {}
+    for identifier in {identifier for item in items for identifier in item["evidence_ids"]}:
+        page = by_id.get(identifier)
+        if not page or page["relative_path"] in proof["paths"]:
+            return False
+        ids_by_path.setdefault(page["relative_path"], set()).add(identifier)
+    from local_literal_call_path import supplied_report_counters
+    for path, required in ids_by_path.items():
+        report = proof.get("report_counters", {}).get(path)
+        if report and all(by_id[i]["source_sha256"] == report["sha256"] for i in required):
+            continue
+        pages = [page for page in originals if page["relative_path"] == path]
+        # The call-path proof records whole programs with checked counters.
+        # Text-only notices still need their own original-source check.
+        if supplied_report_counters(pages, source_session=source_session, required_ids=required) != {}:
+            return False
+    return True
+
+
 def _unique_literal_targets(database_path, source_root, snapshot_id, calls):
     from repository_discovery import _connect, _fast_snapshot
     try:
@@ -5830,6 +5925,40 @@ def _unique_literal_targets(database_path, source_root, snapshot_id, calls):
         return bool(calls)
     except (ValueError, OSError, sqlite3.Error):
         return False
+
+
+def _report_input_scope(item, refs, versions, proof):
+    """Scope every missing input to its own captured file, including earlier batches."""
+    from local_deduction_review import _physical_page_lines
+    reports = proof.get("report_counters", {})
+    sources = item.get("unknown_input_sources", [])
+    if (not reports or not refs or not sources or item.get("missing_count") != 0
+            or len(sources) != item.get("unknown_input_count")
+            or [source["field"] for source in sources] != item.get("fields")):
+        return False
+    windows = {}
+    for ref in refs:
+        if not ref or not _physical_page_lines(ref):
+            return False
+        version = (ref["relative_path"], ref["source_sha256"])
+        if version not in versions and reports.get(version[0], {}).get("sha256") != version[1]:
+            return False
+        windows.setdefault(version, []).append((ref["start_line"], ref["end_line"]))
+    found_counter = False
+    for source in sources:
+        path, sha, field = source["relative_path"], source["source_sha256"], source["field"]
+        version = path, sha
+        if version not in windows:
+            return False
+        if version in versions:
+            if field not in proof["path_inputs"].get(path, ()):
+                return False
+        else:
+            lines = reports[path]["counters"].get(field, ())
+            if not any(start <= line <= end for line in lines for start, end in windows[version]):
+                return False
+            found_counter = True
+    return found_counter
 
 
 def _literal_call_path_gaps(gaps, investigation, ledger, proof, sent_pages, final_pages):
@@ -5852,8 +5981,16 @@ def _literal_call_path_gaps(gaps, investigation, ledger, proof, sent_pages, fina
                 and item.get("candidate_count") == item.get("missing_count") == 0 and not refs):
             scope = "deduction_steps_verified_in_supplied_originals"
         elif (bound and gap["kind"] == "inputs" and reason == "input_source_not_located"
-                and item.get("fields") and set(item["fields"]) <= inputs and item.get("missing_count") == 0):
+                and item.get("fields") and set(item["fields"]) <= inputs and item.get("missing_count") == 0
+                and ("unknown_input_sources" not in item or
+                     len(item["unknown_input_sources"]) == item.get("unknown_input_count") and
+                     all((src["relative_path"], src["source_sha256"]) in versions and
+                         src["field"] in proof.get("path_inputs", {}).get(src["relative_path"], ())
+                         for src in item["unknown_input_sources"]))):
             scope = "transformation_given_inputs_not_input_provenance"
+        elif (gap["kind"] == "inputs" and reason == "input_source_not_located"
+                and _report_input_scope(item, refs, versions, proof)):
+            scope = "standalone_report_counter_outside_deduction_path"
         elif (bound and gap["kind"] == "dependencies" and reason == "runtime_target_unresolved"
                 and set(item.get("unresolved_reasons", [])) == {"runtime_target_unresolved"}
                 and item.get("targets") and item.get("missing_count") == 0):

@@ -1,0 +1,145 @@
+{
+  "mode": "index",
+  "variant": "report",
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "corpus": {
+    "files": 12240,
+    "bytes": 10179328,
+    "physical_lines": 424862,
+    ".cbl": 12000,
+    "longer_than_400_lines": 50,
+    ".cpy": 240,
+    "max_lines": 492,
+    "manifest_sha256": "f3d1265ea2363495589d4233859f84cdf78cf9cd89556a66cd98aea68e6bf3b5"
+  },
+  "irrelevant_keyword_programs": 74,
+  "conditional_message_moves": 18,
+  "irrelevant_page_number_arithmetic": 9,
+  "platform": {
+    "system": "Darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "python": "3.14.4"
+  },
+  "started_utc": "2026-11-21T07:09:59.678922+00:00",
+  "poll_seconds": 0.05,
+  "runs": [
+    {
+      "status": "COMPLETED",
+      "seconds": 25.2924,
+      "accepted_seconds": 0.0007,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0007
+        },
+        {
+          "phase": "discovery",
+          "seconds": 0.0584
+        },
+        {
+          "phase": "reading",
+          "seconds": 0.7686
+        },
+        {
+          "phase": "indexing",
+          "seconds": 1.0583
+        },
+        {
+          "phase": "reading",
+          "seconds": 1.1784
+        },
+        {
+          "phase": "indexing",
+          "seconds": 1.8787
+        },
+        {
+          "phase": "reading",
+          "seconds": 1.9388
+        },
+        {
+          "phase": "indexing",
+          "seconds": 2.237
+        },
+        {
+          "phase": "reading",
+          "seconds": 2.2922
+        },
+        {
+          "phase": "indexing",
+          "seconds": 2.463
+        },
+        {
+          "phase": "reading",
+          "seconds": 2.523
+        },
+        {
+          "phase": "indexing",
+          "seconds": 3.8856
+        },
+        {
+          "phase": "reading",
+          "seconds": 3.9417
+        },
+        {
+          "phase": "indexing",
+          "seconds": 5.2443
+        },
+        {
+          "phase": "reading",
+          "seconds": 5.3043
+        },
+        {
+          "phase": "indexing",
+          "seconds": 7.9549
+        },
+        {
+          "phase": "reading",
+          "seconds": 8.0055
+        },
+        {
+          "phase": "indexing",
+          "seconds": 10.7437
+        },
+        {
+          "phase": "reading",
+          "seconds": 10.8039
+        },
+        {
+          "phase": "indexing",
+          "seconds": 13.7083
+        },
+        {
+          "phase": "reading",
+          "seconds": 13.7683
+        },
+        {
+          "phase": "indexing",
+          "seconds": 17.9517
+        },
+        {
+          "phase": "framework_semantics",
+          "seconds": 19.2507
+        },
+        {
+          "phase": "repository_search",
+          "seconds": 19.4284
+        },
+        {
+          "phase": "source_version",
+          "seconds": 25.2924
+        }
+      ],
+      "snapshot_id": "sha256:8e665c6fd3a6aa9d9660a4c5d48dc0d113ac9417d7abab7e274cdd7235df0dce",
+      "indexed_scope": {
+        "indexed_files": 12240,
+        "content_hash_verified": 12240,
+        "indexed_pages": 12290,
+        "program_count": 12000,
+        "full_text_complete": true
+      },
+      "network_connections": 0
+    }
+  ],
+  "product_sha256": "61ef4dfa139e3c2a3b7c81a34baaa8feb740886afe948dbbe2d898af18b6ceb1"
+}

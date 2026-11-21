@@ -1,0 +1,652 @@
+{
+  "mode": "questions",
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "corpus": {
+    "files": 12240,
+    "bytes": 10222919,
+    "physical_lines": 426627,
+    ".cbl": 12000,
+    "longer_than_400_lines": 50,
+    ".cpy": 240,
+    "max_lines": 492,
+    "manifest_sha256": "c6f34a17a46ee64c85e3485724c1504c6ae0f1e5ab01301d02131955a24456b5"
+  },
+  "platform": {
+    "system": "Darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "python": "3.14.4"
+  },
+  "started_utc": "2026-11-21T07:02:23.351873+00:00",
+  "poll_seconds": 0.05,
+  "runs": [
+    {
+      "status": "COMPLETED",
+      "seconds": 1.89,
+      "accepted_seconds": 0.1975,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.1976
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.2545
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.3825
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 1.2616
+        },
+        {
+          "phase": "answering",
+          "seconds": 1.3688
+        },
+        {
+          "phase": "reading_relevant_sources",
+          "seconds": 1.4238
+        },
+        {
+          "phase": "waiting_for_model",
+          "seconds": 1.4791
+        },
+        {
+          "phase": "answering",
+          "seconds": 1.5854
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 1.6423
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 1.6982
+        }
+      ],
+      "snapshot_id": "sha256:a467906c1375a00d393683654056c45cb1f45fe19f3b4785d4dbb74f870d1c76",
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.0289,
+        "business_map_seconds": 0.8838,
+        "complete_working_set_seconds": 0.0091,
+        "context_assembly_seconds": 0.1583,
+        "first_model_request_seconds": 1.0649,
+        "initial_context_seconds": 0.0976,
+        "local_processing_seconds": 1.3432,
+        "provider_wait_seconds": 0.0263,
+        "question_investigation_seconds": 0.0367,
+        "read_seconds": 0.0092,
+        "retrieval_seconds": 0.1201,
+        "selected_source_hash_seconds": 0.0092,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 1.3694
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "first_checked": {
+        "seconds": 1.4238,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 1.4238,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 1.4238,
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 1.4034,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "start.cbl"
+          ],
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 1.4754,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 1.5328,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 1.5938,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "passed": true,
+      "network_connections": 0
+    },
+    {
+      "status": "COMPLETED",
+      "seconds": 0.8566,
+      "accepted_seconds": 0.0038,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0038
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.0606
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.1157
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.2869
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.3419
+        },
+        {
+          "phase": "reading_relevant_sources",
+          "seconds": 0.397
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.4521
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 0.5607
+        },
+        {
+          "phase": "reviewing_answer",
+          "seconds": 0.6166
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 0.6943
+        }
+      ],
+      "snapshot_id": "sha256:a467906c1375a00d393683654056c45cb1f45fe19f3b4785d4dbb74f870d1c76",
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.0278,
+        "business_map_seconds": 0.1642,
+        "complete_working_set_seconds": 0.0094,
+        "context_assembly_seconds": 0.1118,
+        "first_model_request_seconds": 0.2964,
+        "initial_context_seconds": 0.0908,
+        "local_processing_seconds": 0.5437,
+        "provider_wait_seconds": 0.0231,
+        "question_investigation_seconds": 0.026,
+        "read_seconds": 0.0086,
+        "retrieval_seconds": 0.113,
+        "selected_source_hash_seconds": 0.0035,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 0.5667
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "first_checked": {
+        "seconds": 0.397,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 0.397,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 0.397,
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 0.3817,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "start.cbl"
+          ],
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 0.439,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 0.496,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 0.557,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "passed": true,
+      "network_connections": 0
+    },
+    {
+      "status": "COMPLETED",
+      "seconds": 0.9214,
+      "accepted_seconds": 0.0038,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0038
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.0645
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.1756
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.347
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.4529
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 0.6884
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 0.7437
+        }
+      ],
+      "snapshot_id": "sha256:a467906c1375a00d393683654056c45cb1f45fe19f3b4785d4dbb74f870d1c76",
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.0278,
+        "business_map_seconds": 0.2504,
+        "complete_working_set_seconds": 0.0095,
+        "context_assembly_seconds": 0.1143,
+        "first_model_request_seconds": 0.3825,
+        "initial_context_seconds": 0.0901,
+        "local_processing_seconds": 0.6444,
+        "provider_wait_seconds": 0.0253,
+        "question_investigation_seconds": 0.026,
+        "read_seconds": 0.0088,
+        "retrieval_seconds": 0.1133,
+        "selected_source_hash_seconds": 0.0038,
+        "semantic_evidence_seconds": 0.0,
+        "semantic_scope_seconds": 0.0,
+        "total_seconds": 0.6697
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "first_checked": {
+        "seconds": 0.5076,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 0.5076,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 0.5076,
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 0.4598,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "start.cbl"
+          ],
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 0.5193,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 0.5826,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 0.645,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "start.cbl"
+          ],
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "passed": true,
+      "network_connections": 0
+    }
+  ],
+  "product_sha256": "61ef4dfa139e3c2a3b7c81a34baaa8feb740886afe948dbbe2d898af18b6ceb1"
+}

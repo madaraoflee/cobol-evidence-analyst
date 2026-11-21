@@ -1,17 +1,17 @@
 """Source-grounded progress and review for ordinary local business questions."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 
 from online_deduction_review import deduction_review_requested as detailed_deduction_requested
 from online_grounded_findings import (
-    _programs, _SUBJECTS, _subject_words, grounded_preview, grounded_sequence_answer,
+    _describe, _programs, _SUBJECTS, _subject_words, grounded_preview, grounded_sequence_answer,
 )
 from online_source_recovery import named_scope, question_terms
 from question_intent import business_sequence_requested
 from response_language import localized_text
 from source_reading import _identify_page
-from statement_facts import program_identifiers
+from statement_facts import CobolLexError, lex_cobol, program_identifiers
 from syntax_evidence import _bodies, build_syntax_guide
 
 
@@ -117,7 +117,45 @@ def _verified_view(page, session):
     return view, eof and page["start_line"] == 1 and len(original) == len(lines)
 
 
-def _source_observation(question, page, answer_language):
+def merge_checked_findings(previous, fresh):
+    """Retain the strongest eight sourced findings in stable order across rounds."""
+    combined = list(previous)
+    for item in fresh:
+        if item not in combined:
+            combined.append(item)
+    return sorted(combined, key=lambda row: -row[0])[:8]
+
+
+def _deduction_finding(question, programs, language):
+    """A business word in a display string or a program name is only a search hit."""
+    paths, restricted, _ = named_scope(question)
+    terms = {term.casefold() for term in question_terms(question, [])}
+    terms.update(key for alias, key in _SUBJECTS.items() if alias in question)
+    candidates = []
+    for program in programs:
+        if restricted and program.path not in paths:
+            continue
+        named = program.path in paths or program.name.casefold() in terms
+        for step in program.steps:
+            # Keep literal comparisons of a business type in IF, and the actual
+            # recipient of a MOVE, including variables holding CALL targets.
+            operation = (replace(step, operand="") if step.kind == "move"
+                         and step.operand.startswith(("'", '"')) else step)
+            words = _subject_words(replace(program, name=""), operation)
+            score = len(terms & words)
+            if score or named:
+                priority = {"subtract": 3, "call": 2, "move": 1}[step.kind]
+                candidates.append((priority, score, program, step))
+    if not candidates:
+        return None, 0
+    priority, _, program, step = max(candidates, key=lambda row: row[:2])
+    header = localized_text(language, f"`{program.name}` 的第 {step.line} 行受以下条件控制。",
+        f"Line {step.line} in `{program.name}` is conditional.",
+        f"`{program.name}` 的第 {step.line} 行受以下條件控制。")
+    return header + " " + _describe(program, step, language), priority
+
+
+def _source_observation(question, page, answer_language, *, deduction=False):
     """Show an identifiable operation in a paragraph without inferring its outer control flow."""
     paths, restricted, _ = named_scope(question)
     if restricted and page["relative_path"] not in paths:
@@ -130,7 +168,13 @@ def _source_observation(question, page, answer_language):
         if fact["kind"] not in {"SUBTRACT", "COMPUTE", "ADD", "MOVE", "CALL", "WRITE", "REWRITE"}:
             continue
         statement = fact["statement"]
-        words = set(re.findall(r"[a-z0-9]+(?:-[a-z0-9]+)*", statement.casefold()))
+        vocabulary = statement
+        if deduction and fact["kind"] == "MOVE":
+            try:
+                vocabulary = " ".join(t.value for t in lex_cobol(statement) if t.kind != "literal")
+            except CobolLexError:
+                continue
+        words = set(re.findall(r"[a-z0-9]+(?:-[a-z0-9]+)*", vocabulary.casefold()))
         words.update(word for name in tuple(words) for word in name.split("-"))
         if not terms.intersection(words) and page["relative_path"] not in paths:
             continue
@@ -179,12 +223,16 @@ def _conditional_positions(proof, text):
 
 @dataclass
 class DeductionEvidence:
-    checked_findings: list
+    ranked_findings: list
     closed_answer: str | None
     requires_review: bool
     decisions: tuple
     unresolved_targets: tuple = ()
     explicit_result: bool = False
+
+    @property
+    def checked_findings(self):
+        return [finding for _, finding in self.ranked_findings]
 
     def missing_aspects(self, answer):
         if not self.requires_review or self.closed_answer and answer == self.closed_answer:
@@ -266,20 +314,26 @@ def inspect_deduction(question, pages, *, source_session, answer_language):
                 fmt = bodies[0][3] if bodies else None
             if fmt:
                 named_programs.update(name for name, _, _ in program_identifiers(view["text"], source_format=fmt))
-        finding = grounded_preview(question, [view], answer_language)
-        if required and finding and complete:
-            for program in _programs([view]):
-                last = program.steps[-1]
-                if (program.closed and last.kind == "call" and last.receiver
-                        and any(step.kind == "subtract" and step.receiver == last.receiver
-                                for step in program.steps[:-1])):
-                    deduction_calls.add(last.operand)
-        if len(evidence.checked_findings) < 8:
-            text = (_EVIDENCE.sub("", finding["answer"]).strip() if finding else
-                    _source_observation(question, page, answer_language))
-            if text:
-                evidence.checked_findings.append({"text": text,
-                    "sources": [{key: page[key] for key in ("evidence_id", "relative_path", "start_line", "end_line")}]})
+        priority = 0
+        if required:
+            programs = _programs([view])
+            text, priority = _deduction_finding(question, programs, answer_language)
+            if complete and text:
+                for program in programs:
+                    last = program.steps[-1]
+                    if (program.closed and last.kind == "call" and last.receiver
+                            and any(step.kind == "subtract" and step.receiver == last.receiver
+                                    for step in program.steps[:-1])):
+                        deduction_calls.add(last.operand)
+        else:
+            finding = grounded_preview(question, [view], answer_language)
+            text = finding["answer"] if finding else None
+        if not text and (required or len(evidence.ranked_findings) < 8):
+            text = _source_observation(question, page, answer_language, deduction=required)
+        if text:
+            evidence.ranked_findings.append((priority, {"text": _EVIDENCE.sub("", text).strip(),
+                "sources": [{key: page[key] for key in ("evidence_id", "relative_path", "start_line", "end_line")}]}))
+    evidence.ranked_findings = merge_checked_findings([], evidence.ranked_findings)
     evidence.unresolved_targets = tuple(sorted(deduction_calls - named_programs))
     if not required or len(originals) != 2 or full.keys() != originals:
         return evidence

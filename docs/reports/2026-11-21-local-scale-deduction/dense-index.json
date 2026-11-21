@@ -1,0 +1,196 @@
+{
+  "mode": "index",
+  "variant": "dense",
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "corpus": {
+    "files": 12240,
+    "bytes": 10178491,
+    "physical_lines": 424817,
+    ".cbl": 12000,
+    "longer_than_400_lines": 50,
+    ".cpy": 240,
+    "max_lines": 492,
+    "manifest_sha256": "00969fb5a649bf4c48dde31f339e29f247460b44a07d5b8c3bf2c0df4cce02f3"
+  },
+  "irrelevant_keyword_programs": 74,
+  "conditional_message_moves": 9,
+  "platform": {
+    "system": "Darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "python": "3.14.4"
+  },
+  "started_utc": "2026-11-21T07:04:03.501287+00:00",
+  "poll_seconds": 0.05,
+  "runs": [
+    {
+      "status": "COMPLETED",
+      "seconds": 30.2067,
+      "accepted_seconds": 0.0008,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0008
+        },
+        {
+          "phase": "discovery",
+          "seconds": 0.0519
+        },
+        {
+          "phase": "preparing_index",
+          "seconds": 0.7083
+        },
+        {
+          "phase": "reading",
+          "seconds": 0.7605
+        },
+        {
+          "phase": "indexing",
+          "seconds": 0.9787
+        },
+        {
+          "phase": "reading",
+          "seconds": 1.0337
+        },
+        {
+          "phase": "indexing",
+          "seconds": 1.5206
+        },
+        {
+          "phase": "reading",
+          "seconds": 1.5763
+        },
+        {
+          "phase": "indexing",
+          "seconds": 2.0587
+        },
+        {
+          "phase": "reading",
+          "seconds": 2.1138
+        },
+        {
+          "phase": "indexing",
+          "seconds": 5.0033
+        },
+        {
+          "phase": "reading",
+          "seconds": 5.0588
+        },
+        {
+          "phase": "indexing",
+          "seconds": 6.4674
+        },
+        {
+          "phase": "reading",
+          "seconds": 6.5229
+        },
+        {
+          "phase": "indexing",
+          "seconds": 6.6884
+        },
+        {
+          "phase": "reading",
+          "seconds": 6.7432
+        },
+        {
+          "phase": "indexing",
+          "seconds": 7.3489
+        },
+        {
+          "phase": "reading",
+          "seconds": 7.4041
+        },
+        {
+          "phase": "indexing",
+          "seconds": 9.1412
+        },
+        {
+          "phase": "reading",
+          "seconds": 9.1933
+        },
+        {
+          "phase": "indexing",
+          "seconds": 10.1761
+        },
+        {
+          "phase": "reading",
+          "seconds": 10.2315
+        },
+        {
+          "phase": "indexing",
+          "seconds": 10.3486
+        },
+        {
+          "phase": "reading",
+          "seconds": 10.4037
+        },
+        {
+          "phase": "indexing",
+          "seconds": 13.0701
+        },
+        {
+          "phase": "reading",
+          "seconds": 13.1252
+        },
+        {
+          "phase": "indexing",
+          "seconds": 14.3357
+        },
+        {
+          "phase": "reading",
+          "seconds": 14.3907
+        },
+        {
+          "phase": "indexing",
+          "seconds": 14.7136
+        },
+        {
+          "phase": "reading",
+          "seconds": 14.766
+        },
+        {
+          "phase": "indexing",
+          "seconds": 16.2446
+        },
+        {
+          "phase": "reading",
+          "seconds": 16.3003
+        },
+        {
+          "phase": "indexing",
+          "seconds": 19.6815
+        },
+        {
+          "phase": "reading",
+          "seconds": 19.7348
+        },
+        {
+          "phase": "indexing",
+          "seconds": 19.7899
+        },
+        {
+          "phase": "framework_semantics",
+          "seconds": 22.1094
+        },
+        {
+          "phase": "repository_search",
+          "seconds": 22.276
+        },
+        {
+          "phase": "source_version",
+          "seconds": 30.2067
+        }
+      ],
+      "snapshot_id": "sha256:846441b7b2639780d1f34e709479d033661a12fea6a035309aa8d1091044f05b",
+      "indexed_scope": {
+        "indexed_files": 12240,
+        "content_hash_verified": 12240,
+        "indexed_pages": 12290,
+        "program_count": 12000,
+        "full_text_complete": true
+      },
+      "network_connections": 0
+    }
+  ],
+  "product_sha256": "61ef4dfa139e3c2a3b7c81a34baaa8feb740886afe948dbbe2d898af18b6ceb1"
+}

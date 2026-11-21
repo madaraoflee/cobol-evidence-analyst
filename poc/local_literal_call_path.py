@@ -46,7 +46,7 @@ def _assigned_call(nodes):
     return CallSite(literal[2].upper(), call.target, call.parameters[0].name, invoke.span.start_line, guard)
 
 
-def _parse(text, path, evidence_id, source_format):
+def _procedure(text, source_format):
     bodies, _ = _bodies(text, 1)
     if len(bodies) != 1 or bodies[0][0] != "PROCEDURE":
         return None
@@ -69,7 +69,14 @@ def _parse(text, path, evidence_id, source_format):
     parsed = parse_statements(body, start_line=start, source_format=fmt, max_tokens=6000)
     if not parsed.complete or not parsed.nodes or parsed.nodes[-1].text.upper().strip() != "GOBACK":
         return None
-    nodes = list(parsed.nodes[:-1])
+    return names[0][0], parameters, list(parsed.nodes[:-1]), words
+
+
+def _parse(text, path, evidence_id, source_format):
+    procedure = _procedure(text, source_format)
+    if not procedure:
+        return None
+    name, parameters, nodes, _ = procedure
     # An entry can guard both the target assignment and the call. A forwarding
     # program can consist solely of the same two adjacent, unconditional statements.
     call = None
@@ -84,11 +91,11 @@ def _parse(text, path, evidence_id, source_format):
     steps = tuple(_step(n) for n in nodes)
     if any(n.else_children for n in nodes) or any(not s or s.kind != "subtract" for s in steps):
         return None
-    program = Program(names[0][0], path, (), evidence_id, parameters, steps, True)
+    program = Program(name, path, (), evidence_id, parameters, steps, True)
     return program, call
 
 
-def _supplied_program(pages, required, capture):
+def _supplied_original(pages, required, capture):
     """Close only a whole original whose lines are all present in this request."""
     with capture.path.open(encoding=capture.encoding) as stream:
         raw = stream.read(32004)
@@ -119,8 +126,86 @@ def _supplied_program(pages, required, capture):
     text = "\n".join(original)
     if len(text) > 32000:
         return None
-    parsed = _parse(text, pages[0]["relative_path"], references[0], capture.source_format)
-    return (parsed, references) if parsed else None
+    return text, references
+
+
+_REPORT_COUNTER = re.compile(r"(?:PAGE|LINE)-(?:NO|NUMBER|COUNT)")
+_REPORT_TEXT = re.compile(r"(?:MESSAGE|REPORT|DISPLAY|PRINT|NOTE|HEADING|TITLE)-(?:TEXT|LABEL|CAPTION)")
+_REPORT_SWITCH = re.compile(r"(?:REPORT|DISPLAY|PRINT|SHOW)-(?:FLAG|ENABLED|SWITCH)")
+
+
+def _report_storage(words):
+    if not words:
+        return True
+    if words[:6] != ["DATA", "DIVISION", ".", "WORKING-STORAGE", "SECTION", "."]:
+        return False
+    fields = set()
+    start = 6
+    while start < len(words):
+        try:
+            end = words.index(".", start)
+        except ValueError:
+            return False
+        decl = words[start:end]
+        if len(decl) not in {4, 7} or decl[0] not in {"01", "77"} or decl[2] != "PIC":
+            return False
+        name = decl[1]
+        picture = "9" if _REPORT_COUNTER.fullmatch(name) else "X"
+        if (not any(check.fullmatch(name) for check in (_REPORT_TEXT, _REPORT_SWITCH, _REPORT_COUNTER))
+                or name in fields or decl[3] != picture
+                or len(decl) == 7 and (decl[4] != "(" or not decl[5].isdecimal() or decl[6] != ")")):
+            return False
+        fields.add(name)
+        start = end + 1
+    return True
+
+
+def _report_counters(text, source_format):
+    procedure = _procedure(text, source_format)
+    if not procedure:
+        return None
+    name, parameters, nodes, words = procedure
+    header = words.index("PROCEDURE")
+    # Standalone programs only. Unmodelled storage, aliased data, additional
+    # entry points and external files can make a display statement observable.
+    if (parameters or words[:7] != ["IDENTIFICATION", "DIVISION", ".", "PROGRAM-ID", ".", name, "."]
+            or not _report_storage(words[7:header])
+            or words[-2:] != ["GOBACK", "."] or words.count("GOBACK") != 1):
+        return None
+    counters, has_text = {}, False
+    for node in nodes:
+        step = _step(node)
+        if not step or node.else_children:
+            return None
+        field, _, value = step.guard
+        if (step.kind == "move" and _REPORT_TEXT.fullmatch(step.receiver) and _REPORT_SWITCH.fullmatch(field)
+                and value[:1] in {'"', "'"} and step.operand[:1] in {'"', "'"}):
+            has_text = True
+        elif (step.kind == "subtract" and _REPORT_COUNTER.fullmatch(field) and field == step.receiver
+              and step.operand == "1" and value.isdecimal()):
+            counters.setdefault(field, set()).add(step.line)
+        else:
+            return None
+    return counters if has_text else None
+
+
+def supplied_report_counters(pages, *, source_session, required_ids):
+    """Bind a standalone display program to its complete, supplied original."""
+    if not pages or not source_session or not required_ids:
+        return None
+    path = pages[0].get("relative_path")
+    if not path or any(p.get("relative_path") != path for p in pages):
+        return None
+    if not set(required_ids) <= {p.get("evidence_id") for p in pages}:
+        return None
+    try:
+        capture = source_session.capture(path)
+        if any(p.get("source_sha256") != capture.sha256 for p in pages):
+            return None
+        original = _supplied_original(pages, required_ids, capture)
+        return _report_counters(original[0], capture.source_format) if original else None
+    except (ValueError, OSError, CobolLexError, KeyError):
+        return None
 
 
 def _example(chain, programs, language):
@@ -210,12 +295,16 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
             capture = source_session.capture(path)
             if capture.sha256 != captured[path]:
                 return None
-            result = _supplied_program(windows, refs, capture)
+            supplied = _supplied_original(windows, refs, capture)
+            if not supplied:
+                return None
+            text, references[path] = supplied
+            result = _parse(text, path, references[path][0], capture.source_format)
         except (ValueError, OSError, CobolLexError):
             return None
         if not result:
             return None
-        (program, call), references[path] = result
+        program, call = result
         if program.name in programs or definitions.get(program.name, set()) - {path}:
             return None
         programs[program.name] = (program, call)
@@ -229,6 +318,7 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
     balance = entry.steps[0].receiver
     program, call = programs[entry.name]
     chain, decisions, calls, inputs = [], [], [], set()
+    path_inputs = {}
     vocabulary = []
     while True:
         if program in chain:
@@ -244,8 +334,10 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
         if program.steps:
             vocabulary.append(replace(program, name=" ".join([program.name, *(c["variable"] for c in calls)])))
         decisions.extend((program, step) for step in program.steps)
+        fields = path_inputs[program.path] = set()
         for step in program.steps:
-            inputs.update(v for v in (*step.guard, step.operand, amount) if re.fullmatch(_NAME, v))
+            fields.update(v for v in (*step.guard, step.operand, amount) if re.fullmatch(_NAME, v))
+        inputs.update(fields)
         if not call:
             if not program.steps or not calls:
                 return None
@@ -256,7 +348,8 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
             return None
         if call.guard:
             decisions.append((program, Step("call", call.guard, call.variable, amount, call.line)))
-            inputs.update(v for v in call.guard if re.fullmatch(_NAME, v))
+            fields.update(v for v in call.guard if re.fullmatch(_NAME, v))
+            inputs.update(fields)
         callee, next_call = programs[call.target]
         calls.append({"path": program.path, "line": call.line, "variable": call.variable,
                       "target": call.target, "callee_path": callee.path})
@@ -268,5 +361,18 @@ def prove_literal_call_path(question, pages, *, source_session, answer, answer_l
     assessment = DeductionEvidence([], None, True, tuple(decisions), explicit_result=True)
     if assessment.missing_aspects(answer.replace("于零", "于0").replace("於零", "於0")):
         return None
+    reports = {}
+    report_pages = {}
+    for page in pages:
+        path = page["relative_path"]
+        if path not in by_path and captured.get(path) == page.get("source_sha256"):
+            report_pages.setdefault(path, []).append(page)
+    for path, windows in report_pages.items():
+        if any(_REPORT_COUNTER.search(str(p.get("source_text", "")).upper()) for p in windows):
+            counters = supplied_report_counters(windows, source_session=source_session,
+                required_ids=[p["evidence_id"] for p in windows])
+            if counters:
+                reports[path] = {"sha256": captured[path], "counters": counters}
     return {"paths": [p.path for p in chain], "calls": calls, "inputs": sorted(inputs), "result": balance,
+            "path_inputs": path_inputs, "report_counters": reports,
             "answer": _path_answer(chain, programs, balance, answer_language, references)}

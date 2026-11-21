@@ -10206,6 +10206,105 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "本地中性源码和受限读额度下复现；企业仓库环境及实际模型仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-030",
+      "title": "报表文案占据已查实的扣费结论",
+      "symptom": "报表将 reserve refund 作为消息文字赋值后，万文件样例的扣费进度展示了多条报表文案。查实列表满时，后找到的扣减及其跳过条件无法进入列表。",
+      "root_cause": "原先将文字常量和程序名计入相关性，并按发现顺序保留前八条。现在按带条件的实际操作核对命中，真实扣款优先，并在后续查证中更新展示顺序。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-scale-deduction/dense-before.json",
+        "docs/reports/2026-11-21-local-scale-deduction/browser-dense-before.json",
+        "docs/reports/2026-11-21-local-scale-deduction/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_findings.LocalScaleFindingTests.test_workbench_shows_the_first_verified_debit_without_report_labels"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_findings.LocalScaleFindingTests.test_program_name_or_text_payload_alone_cannot_make_report_operations_a_deduction_rule"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_findings.LocalScaleFindingTests.test_new_guarded_debit_displaces_an_earlier_assignment_in_a_full_progress_snapshot"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "使用中性源码和受控模型。公司现场源码、真实模型和 Windows 设备的结果仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-031",
+      "title": "已读到完整扣费路径后仍逐批重复请求相同答案",
+      "symptom": "含74份同词干扰程序的样例在第4次模型请求已收到答全三项的正文，系统直到第10次才结束。",
+      "root_cause": "候选路径分批处理，后续批次即使没有新线索也会触发模型重答。本地逐批复核原先的调查计划及证据，遇到未读原文、另一笔真实扣款或仍有疑问的候选就保留调查。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-scale-deduction/dense-before.json",
+        "docs/reports/2026-11-21-local-scale-deduction/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_checked_deduction_exhausts_empty_batches_without_requesting_the_same_answer_again"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_a_real_deduction_in_the_last_batch_still_reaches_the_model_and_stays_open"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_time_reserve_during_local_batch_checks_retains_the_answer_and_pending_work"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_already_supplied_complete_notice_programs_do_not_repeat_the_verified_answer"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_every_report_counter_input_is_checked_before_finishing_on_the_first_complete_reply"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_deduction_rule_batches.LocalDeductionRuleBatchTests.test_an_unexplained_amount_mixed_into_report_counters_still_reaches_the_model"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "使用中性源码和受控模型。公司现场源码、真实模型和 Windows 设备的结果仍待验证。"
+    },
+    {
+      "id": "BUG-20261121-032",
+      "title": "无关报表的页码减一使已答全的扣费题被标为部分回答",
+      "symptom": "已读到准备金和退款的顺序、跳过条件及余额结果，仍因报表中 PAGE-NO 的来源待查标为部分回答。带页码的万程序样例中原页面三次均复现。",
+      "root_cause": "原调查只保留输入字段名，无法区分扣款与报表页码。补充保存各原始字段所属的文件、版本与字段数量，逐项复核当前和早先批次。只有完整同版本源码证明该程序仅做报表操作时，才可排除其独立计数。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-scale-deduction/report-before.json",
+        "docs/reports/2026-11-21-local-scale-deduction/browser-report-number-before.json",
+        "docs/reports/2026-11-21-local-scale-deduction/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_report_gaps.LocalScaleReportGapTests.test_mixed_current_and_prior_inputs_close_only_for_the_verified_report_counter"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_report_gaps.LocalScaleReportGapTests.test_report_with_a_real_fee_stays_partial"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_report_gaps.LocalScaleReportGapTests.test_missing_stale_or_transformed_report_and_unknown_fields_remain_open"
+        },
+        {
+          "kind": "python",
+          "test_id": "test_local_scale_report_gaps.LocalScaleReportGapTests.test_report_storage_and_operations_must_be_presentation_only"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "样例验证已读取的静态调用路径。真实金额、公司源码、模型服务时延和目标 Windows 设备仍待现场核验。"
     }
   ],
   "updated_at": "2026-11-21"
