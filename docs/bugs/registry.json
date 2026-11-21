@@ -10305,6 +10305,25 @@
       ],
       "verification_scope": "source_offline",
       "limitations": "样例验证已读取的静态调用路径。真实金额、公司源码、模型服务时延和目标 Windows 设备仍待现场核验。"
+    },
+    {
+      "id": "BUG-20261121-033",
+      "title": "已跟踪的测试文件偶尔未应用随后新增的 Git 转换规则",
+      "symptom": "全量回归的自定义文件转换用例间歇性失败。预期用作不一致对照的提交和工作目录都保留了相同字节。",
+      "root_cause": "测试在首次提交后配置文件转换规则，普通 git add 可能因文件状态未变而沿用既有索引。准备测试数据时显式对该测试文件重新应用当前规则，随后照常核实提交、工作目录及拒绝不匹配的结果。",
+      "status": "fixed",
+      "evidence": [
+        "docs/reports/2026-11-21-local-scale-deduction/first-regression-report.json",
+        "docs/reports/2026-11-21-local-scale-deduction/README.md"
+      ],
+      "regressions": [
+        {
+          "kind": "python",
+          "test_id": "test_online_git_identity.OnlineGitBlobIdentityTests.test_custom_clean_filter_cannot_certify_transformed_worktree_bytes"
+        }
+      ],
+      "verification_scope": "source_offline",
+      "limitations": "验证中性 Git 测试仓库的数据准备和既有字节不匹配检查。未改变在线或本地产品行为。"
     }
   ],
   "updated_at": "2026-11-21"

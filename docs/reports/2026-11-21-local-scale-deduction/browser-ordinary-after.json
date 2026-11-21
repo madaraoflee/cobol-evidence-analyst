@@ -1,0 +1,155 @@
+{
+  "product_sha256_including_web": "8da695853da630a223343831c50cab6e095b9365478b04495ce519c1315ffc9f",
+  "runs": [
+    {
+      "first": {
+        "seconds": 1.8993999999985098,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 2.5061999999955296,
+        "text": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。 11\n接着单独判断，若NET-DUE 大于 0，CASHENTRY 将 ADJ731 赋给 REFUND-ROUTINE，随后通过该变量调用，并按引用传递 NET-DUE。若NET-DUE 小于或等于 0，跳过此次调用，保留当前金额。 11\nADJ731 将 CUT526 赋给 NEXT-ROUTINE，随后通过该变量调用，并按引用传递 REMAINING-DUE。 10\n若POOL-AMOUNT 小于 REMAINING-DUE，从 REMAINING-DUE 中减去 POOL-AMOUNT。若POOL-AMOUNT 大于或等于 REMAINING-DUE，跳过这笔扣减。 1\n\n最终应收 NET-DUE 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，CREDIT-AMT 为 20，剩余应收就是 80。若 POOL-AMOUNT 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 11 10 1",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [],
+      "first_deduction": {
+        "seconds": 1.8993999999985098,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 4,
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": true,
+      "passed": true
+    },
+    {
+      "first": {
+        "seconds": 0.4838999999985099,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 0.9941999999955297,
+        "text": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。 11\n接着单独判断，若NET-DUE 大于 0，CASHENTRY 将 ADJ731 赋给 REFUND-ROUTINE，随后通过该变量调用，并按引用传递 NET-DUE。若NET-DUE 小于或等于 0，跳过此次调用，保留当前金额。 11\nADJ731 将 CUT526 赋给 NEXT-ROUTINE，随后通过该变量调用，并按引用传递 REMAINING-DUE。 10\n若POOL-AMOUNT 小于 REMAINING-DUE，从 REMAINING-DUE 中减去 POOL-AMOUNT。若POOL-AMOUNT 大于或等于 REMAINING-DUE，跳过这笔扣减。 1\n\n最终应收 NET-DUE 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，CREDIT-AMT 为 20，剩余应收就是 80。若 POOL-AMOUNT 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 11 10 1",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [],
+      "first_deduction": {
+        "seconds": 0.4838999999985099,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 4,
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": true,
+      "passed": true
+    },
+    {
+      "first": {
+        "seconds": 0.4655,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "final": {
+        "seconds": 0.9903999999985099,
+        "text": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。 11\n接着单独判断，若NET-DUE 大于 0，CASHENTRY 将 ADJ731 赋给 REFUND-ROUTINE，随后通过该变量调用，并按引用传递 NET-DUE。若NET-DUE 小于或等于 0，跳过此次调用，保留当前金额。 11\nADJ731 将 CUT526 赋给 NEXT-ROUTINE，随后通过该变量调用，并按引用传递 REMAINING-DUE。 10\n若POOL-AMOUNT 小于 REMAINING-DUE，从 REMAINING-DUE 中减去 POOL-AMOUNT。若POOL-AMOUNT 大于或等于 REMAINING-DUE，跳过这笔扣减。 1\n\n最终应收 NET-DUE 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，CREDIT-AMT 为 20，剩余应收就是 80。若 POOL-AMOUNT 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 11 10 1",
+        "in_viewport": true
+      },
+      "report_labels_in_findings": [],
+      "first_deduction": {
+        "seconds": 0.4655,
+        "text": "CASHENTRY 的第 5 行受以下条件控制。 若ITEM-TYPE 等于 \"1-RESERVECREDIT\"，从 NET-DUE 中减去 CREDIT-AMT。若ITEM-TYPE 不等于 \"1-RESERVECREDIT\"，跳过这笔扣减。\n\nstart.cbl · L1–11",
+        "in_viewport": true
+      },
+      "browser_version": "156.0.8078.47",
+      "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+      "model_rounds": 4,
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "model_network_connections": 0,
+      "first_deduction_source_verified": true,
+      "answer_and_sources_verified": true,
+      "passed": true
+    }
+  ]
+}

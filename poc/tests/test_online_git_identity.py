@@ -81,6 +81,8 @@ class OnlineGitBlobIdentityTests(unittest.TestCase):
         command = '"' + Path(sys.executable).as_posix() + '" "' + transform.as_posix() + '"'
         self.git(root, "config", "filter.fixture.clean", command)
         (root / ".gitattributes").write_bytes(b"*.cbl filter=fixture\n")
+        # The source was already tracked before its clean filter was installed.
+        self.git(root, "add", "--renormalize", "--", "main.cbl")
         self.commit(root)
         self.git(root, "diff", "--quiet", "HEAD")
         committed = self.git(root, "show", "HEAD:main.cbl")

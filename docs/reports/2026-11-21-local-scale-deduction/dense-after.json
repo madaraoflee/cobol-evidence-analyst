@@ -1,0 +1,1203 @@
+{
+  "mode": "questions",
+  "variant": "dense",
+  "question": "保费收取时 reserve 和 refund 的扣减顺序及适用条件是什么？",
+  "corpus": {
+    "files": 12240,
+    "bytes": 10178491,
+    "physical_lines": 424817,
+    ".cbl": 12000,
+    "longer_than_400_lines": 50,
+    ".cpy": 240,
+    "max_lines": 492,
+    "manifest_sha256": "00969fb5a649bf4c48dde31f339e29f247460b44a07d5b8c3bf2c0df4cce02f3"
+  },
+  "irrelevant_keyword_programs": 74,
+  "conditional_message_moves": 9,
+  "irrelevant_page_number_arithmetic": 0,
+  "platform": {
+    "system": "Darwin",
+    "release": "27.2.0",
+    "macos": "27.2.1",
+    "arch": "arm64",
+    "logical_cpus": 8,
+    "python": "3.14.4"
+  },
+  "started_utc": "2026-11-21T07:17:03.867050+00:00",
+  "poll_seconds": 0.05,
+  "runs": [
+    {
+      "status": "COMPLETED",
+      "seconds": 3.1842,
+      "accepted_seconds": 0.1182,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.1182
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.181
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.2361
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 1.5663
+        },
+        {
+          "phase": "supplementing_evidence",
+          "seconds": 1.7465
+        },
+        {
+          "phase": "answering",
+          "seconds": 1.8099
+        },
+        {
+          "phase": "reading_relevant_sources",
+          "seconds": 1.8701
+        },
+        {
+          "phase": "answering",
+          "seconds": 1.9336
+        },
+        {
+          "phase": "reading_relevant_sources",
+          "seconds": 2.0597
+        },
+        {
+          "phase": "answering",
+          "seconds": 2.1261
+        },
+        {
+          "phase": "waiting_for_model",
+          "seconds": 2.5019
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 2.5669
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 2.8119
+        }
+      ],
+      "snapshot_id": "sha256:846441b7b2639780d1f34e709479d033661a12fea6a035309aa8d1091044f05b",
+      "misleading_display_findings": [],
+      "misleading_number_findings": [],
+      "first_checked": {
+        "seconds": 1.8701,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 1.8701,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 1.8701,
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.1602,
+        "business_map_seconds": 1.33,
+        "complete_working_set_seconds": 0.0508,
+        "context_assembly_seconds": 0.514,
+        "first_model_request_seconds": 1.6206,
+        "initial_context_seconds": 0.2127,
+        "local_processing_seconds": 2.6865,
+        "provider_wait_seconds": 0.0557,
+        "question_investigation_seconds": 0.0845,
+        "read_seconds": 0.0167,
+        "retrieval_seconds": 0.2013,
+        "selected_source_hash_seconds": 0.0216,
+        "semantic_evidence_seconds": 0.0097,
+        "semantic_scope_seconds": 0.005,
+        "total_seconds": 2.7422
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 1.8521,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 2.0356,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 2.2647,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 2.5104,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "notice-061.cbl",
+            "notice-062.cbl",
+            "notice-063.cbl",
+            "notice-064.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": true,
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "business_answer_correct": true,
+      "passed": true,
+      "network_connections": 0
+    },
+    {
+      "status": "COMPLETED",
+      "seconds": 1.7062,
+      "accepted_seconds": 0.0037,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0037
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.0694
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.1369
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.2561
+        },
+        {
+          "phase": "reading_relevant_sources",
+          "seconds": 0.3161
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 0.4298
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.496
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.619
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.6866
+        },
+        {
+          "phase": "waiting_for_model",
+          "seconds": 1.0656
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 1.1328
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 1.3775
+        }
+      ],
+      "snapshot_id": "sha256:846441b7b2639780d1f34e709479d033661a12fea6a035309aa8d1091044f05b",
+      "misleading_display_findings": [],
+      "misleading_number_findings": [],
+      "first_checked": {
+        "seconds": 0.4298,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 0.4298,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 0.4298,
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.1541,
+        "business_map_seconds": 0.154,
+        "complete_working_set_seconds": 0.0487,
+        "context_assembly_seconds": 0.4923,
+        "first_model_request_seconds": 0.3438,
+        "initial_context_seconds": 0.1226,
+        "local_processing_seconds": 1.3667,
+        "provider_wait_seconds": 0.0513,
+        "question_investigation_seconds": 0.0795,
+        "read_seconds": 0.0159,
+        "retrieval_seconds": 0.1228,
+        "selected_source_hash_seconds": 0.0178,
+        "semantic_evidence_seconds": 0.0042,
+        "semantic_scope_seconds": 0.0047,
+        "total_seconds": 1.4181
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 0.4267,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 0.6015,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 0.8273,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 1.0671,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "notice-061.cbl",
+            "notice-062.cbl",
+            "notice-063.cbl",
+            "notice-064.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": true,
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "business_answer_correct": true,
+      "passed": true,
+      "network_connections": 0
+    },
+    {
+      "status": "COMPLETED",
+      "seconds": 1.7543,
+      "accepted_seconds": 0.0047,
+      "phases": [
+        {
+          "phase": "preparing",
+          "seconds": 0.0047
+        },
+        {
+          "phase": "using_index",
+          "seconds": 0.0667
+        },
+        {
+          "phase": "locating_sources",
+          "seconds": 0.1333
+        },
+        {
+          "phase": "retrieving",
+          "seconds": 0.2537
+        },
+        {
+          "phase": "supplementing_evidence",
+          "seconds": 0.3692
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.4367
+        },
+        {
+          "phase": "waiting_for_model",
+          "seconds": 0.8703
+        },
+        {
+          "phase": "answering",
+          "seconds": 0.9259
+        },
+        {
+          "phase": "writing_answer",
+          "seconds": 1.1187
+        },
+        {
+          "phase": "verifying_answer",
+          "seconds": 1.4258
+        }
+      ],
+      "snapshot_id": "sha256:846441b7b2639780d1f34e709479d033661a12fea6a035309aa8d1091044f05b",
+      "misleading_display_findings": [],
+      "misleading_number_findings": [],
+      "first_checked": {
+        "seconds": 0.4925,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business": {
+        "seconds": 0.4925,
+        "text": "`CASHENTRY` 的第 5 行受以下条件控制。 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。",
+        "sources": [
+          {
+            "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c",
+            "relative_path": "start.cbl",
+            "start_line": 1,
+            "end_line": 11
+          }
+        ],
+        "matches_original": true
+      },
+      "first_business_seconds": 0.4925,
+      "product_timing_seconds": {
+        "answer_fact_completion_seconds": 0.0001,
+        "answer_verification_seconds": 0.1654,
+        "business_map_seconds": 0.1662,
+        "complete_working_set_seconds": 0.0504,
+        "context_assembly_seconds": 0.4991,
+        "first_model_request_seconds": 0.373,
+        "initial_context_seconds": 0.1357,
+        "local_processing_seconds": 1.4201,
+        "provider_wait_seconds": 0.0529,
+        "question_investigation_seconds": 0.0819,
+        "read_seconds": 0.0168,
+        "retrieval_seconds": 0.135,
+        "selected_source_hash_seconds": 0.0186,
+        "semantic_evidence_seconds": 0.0046,
+        "semantic_scope_seconds": 0.0045,
+        "total_seconds": 1.473
+      },
+      "tool_calls": {
+        "backward_slice": 0,
+        "explain_assignment": 0,
+        "explain_external_effect": 0,
+        "forward_slice": 0,
+        "framework_search": 0,
+        "grep": 3,
+        "inspect_business_context": 0,
+        "read": 5,
+        "search": 0,
+        "trace_parameter": 0
+      },
+      "answer": "按调用变量绑定到下列程序、参数布局相容、金额可准确表示且正常返回的路径，扣减顺序如下。\n\n1. 若`ITEM-TYPE` 等于 `\"1-RESERVECREDIT\"`，从 `NET-DUE` 中减去 `CREDIT-AMT`。若`ITEM-TYPE` 不等于 `\"1-RESERVECREDIT\"`，跳过这笔扣减。 [ev_page_06c225660d2f6f9cbfc2b82c]\n2. 接着单独判断，若`NET-DUE` 大于 `0`，`CASHENTRY` 将 `ADJ731` 赋给 `REFUND-ROUTINE`，随后通过该变量调用，并按引用传递 `NET-DUE`。若`NET-DUE` 小于或等于 `0`，跳过此次调用，保留当前金额。 [ev_page_06c225660d2f6f9cbfc2b82c]\n3. `ADJ731` 将 `CUT526` 赋给 `NEXT-ROUTINE`，随后通过该变量调用，并按引用传递 `REMAINING-DUE`。 [ev_page_d1b0a0d45329375a04ba5314]\n4. 若`POOL-AMOUNT` 小于 `REMAINING-DUE`，从 `REMAINING-DUE` 中减去 `POOL-AMOUNT`。若`POOL-AMOUNT` 大于或等于 `REMAINING-DUE`，跳过这笔扣减。 [ev_page_72b9401078f17ded6959887e]\n\n最终应收 `NET-DUE` 等于进入时的应收减去各步实际扣减的金额。全部跳过时，应收保持原额。 例如，首项类型符合条件，初始应收为 100，`CREDIT-AMT` 为 20，剩余应收就是 80。若 `POOL-AMOUNT` 为 30，最终应收为 50；若恰好为 80，两者相等，跳过这笔扣减，仍剩 80。 [ev_page_06c225660d2f6f9cbfc2b82c] [ev_page_d1b0a0d45329375a04ba5314] [ev_page_72b9401078f17ded6959887e]",
+      "answer_status": "completed",
+      "stop_reason": "sufficient_material",
+      "citations": [
+        {
+          "relative_path": "start.cbl",
+          "start_line": 1,
+          "end_line": 11,
+          "source_sha256": "17bf7e4407baa7c3ab9cb8523004f33b0635b4c5b71b69463bdb798ada9408cb",
+          "evidence_id": "ev_page_06c225660d2f6f9cbfc2b82c"
+        },
+        {
+          "relative_path": "legacy/route.cbl",
+          "start_line": 1,
+          "end_line": 6,
+          "source_sha256": "71c195a2598df6be03513d863137bceca2183444837ff34207d594b3b8394245",
+          "evidence_id": "ev_page_d1b0a0d45329375a04ba5314"
+        },
+        {
+          "relative_path": "archive/settlement.cbl",
+          "start_line": 1,
+          "end_line": 7,
+          "source_sha256": "4f75dc85674d258006adb3234b092438081a746241ed6ca28978522fc8fec070",
+          "evidence_id": "ev_page_72b9401078f17ded6959887e"
+        }
+      ],
+      "rounds": [
+        {
+          "number": 1,
+          "seconds": 0.4598,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": "源码不足以分析。"
+        },
+        {
+          "number": 2,
+          "seconds": 0.6321,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. ADJ731"
+            ]
+          }
+        },
+        {
+          "number": 3,
+          "seconds": 0.8642,
+          "source_files": [
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": false,
+          "reply": {
+            "grep": [
+              "PROGRAM-ID. CUT526"
+            ]
+          }
+        },
+        {
+          "number": 4,
+          "seconds": 1.1092,
+          "source_files": [
+            "archive/settlement.cbl",
+            "hint0.cbl",
+            "hint1.cbl",
+            "hint2.cbl",
+            "hint3.cbl",
+            "hint4.cbl",
+            "hint5.cbl",
+            "hint6.cbl",
+            "hint7.cbl",
+            "hint8.cbl",
+            "legacy/route.cbl",
+            "notice-000.cbl",
+            "notice-001.cbl",
+            "notice-002.cbl",
+            "notice-003.cbl",
+            "notice-004.cbl",
+            "notice-005.cbl",
+            "notice-006.cbl",
+            "notice-007.cbl",
+            "notice-008.cbl",
+            "notice-009.cbl",
+            "notice-010.cbl",
+            "notice-011.cbl",
+            "notice-012.cbl",
+            "notice-013.cbl",
+            "notice-014.cbl",
+            "notice-015.cbl",
+            "notice-016.cbl",
+            "notice-017.cbl",
+            "notice-018.cbl",
+            "notice-019.cbl",
+            "notice-020.cbl",
+            "notice-021.cbl",
+            "notice-022.cbl",
+            "notice-023.cbl",
+            "notice-024.cbl",
+            "notice-025.cbl",
+            "notice-026.cbl",
+            "notice-027.cbl",
+            "notice-028.cbl",
+            "notice-029.cbl",
+            "notice-030.cbl",
+            "notice-031.cbl",
+            "notice-032.cbl",
+            "notice-033.cbl",
+            "notice-034.cbl",
+            "notice-035.cbl",
+            "notice-036.cbl",
+            "notice-037.cbl",
+            "notice-038.cbl",
+            "notice-039.cbl",
+            "notice-040.cbl",
+            "notice-041.cbl",
+            "notice-042.cbl",
+            "notice-043.cbl",
+            "notice-044.cbl",
+            "notice-045.cbl",
+            "notice-046.cbl",
+            "notice-047.cbl",
+            "notice-048.cbl",
+            "notice-049.cbl",
+            "notice-050.cbl",
+            "notice-051.cbl",
+            "notice-052.cbl",
+            "notice-053.cbl",
+            "notice-054.cbl",
+            "notice-055.cbl",
+            "notice-056.cbl",
+            "notice-057.cbl",
+            "notice-058.cbl",
+            "notice-059.cbl",
+            "notice-060.cbl",
+            "notice-061.cbl",
+            "notice-062.cbl",
+            "notice-063.cbl",
+            "notice-064.cbl",
+            "start.cbl"
+          ],
+          "answer_candidate_complete": true,
+          "reply": "先判断项目类型。只有 ITEM-TYPE 等于 1-RESERVECREDIT 才从 NET-DUE"
+        }
+      ],
+      "index_reused": true,
+      "business_answer_correct": true,
+      "passed": true,
+      "network_connections": 0
+    }
+  ],
+  "product_sha256": "278a755d83ed496c8073f79d9847e4e752835ef88aad2dd4a3c5b6dd2c52f600"
+}
